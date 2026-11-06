@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { ceremonyAt, closingAt, poseFor } from "./poses.ts";
+import { ceremonyAt, closingAt, poseFor, windupCoil, COIL_TICKS } from "./poses.ts";
 import { BOW_TICKS, CLOSING_TICKS } from "./constants.ts";
 import { POSES } from "../art/duel-sprites.ts";
 import type { AttackKind, Fighter, Stance } from "./rules.ts";
@@ -159,4 +159,55 @@ test("only the first shows while striking, so a landing strike is never hidden",
 test("passing through looks like carrying on, and they come back to guard as they turn", () => {
   assert.equal(poseFor(fighter("guard"), { phase: "crossing", striking: null, scored: false }), "zanshin");
   assert.equal(poseFor(fighter("guard"), { phase: "turning", striking: null, scored: false }), "guard");
+});
+
+// What real kendo looks like, from watching two 7th dan frame by frame.
+test("zanshin carries the hands up over the head, because they go straight back up after the cut", () => {
+  assert.ok(POSES.zanshin.hand[1] <= 4, "the hands are up at the top of the head");
+  assert.ok(POSES.zanshin.angle < -90, "the blade's past upright");
+});
+
+test("taking a hit doesn't collapse anyone: the hands stay up and the body stays put", () => {
+  assert.ok(POSES.hit.hand[1] <= POSES.guard.hand[1], "the hands don't drop");
+  assert.ok(Math.abs(POSES.hit.torso?.[0] ?? 0) <= 1, "the body doesn't reel");
+});
+
+test("in a lock the hands are at the chest with the blades upright, and the pull still gives itself away", () => {
+  for (const pose of ["tsuba", "tsubaPush", "tsubaGuard"] as const) {
+    assert.ok(POSES[pose].hand[1] <= 21, pose);
+    assert.ok(Math.abs(POSES[pose].angle + 90) <= 15, pose);
+  }
+  assert.ok(POSES.tsubaPull.hand[1] - POSES.tsuba.hand[1] >= 6, "the hands drop for a pull, which is the tell");
+});
+
+test("parting from a lock keeps the tip up, on its way down to guard", () => {
+  assert.equal(poseFor(fighter("guard"), { phase: "wakare", striking: null, scored: false }), "tsubaPart");
+  assert.ok(POSES.tsubaPart.angle < POSES.guard.angle - 20);
+  assert.ok(POSES.tsubaPart.angle > POSES.tsuba.angle);
+});
+
+test("the draw brings the blade up high, before it comes down into sonkyo", () => {
+  assert.ok(POSES.draw.angle < POSES.sonkyo.angle - 20);
+});
+
+const coilDuel = (stance: Stance, stanceTicks: number, hiki = false, phase: "fight" | "point" = "fight") => {
+  const f = { ...fighter(stance, "men"), stanceTicks, hiki };
+  return { phase, fighters: [fighter("guard"), f] as [Fighter, Fighter] };
+};
+
+test("a strike gathers itself over its last moments, whatever the tell", () => {
+  assert.equal(windupCoil(coilDuel("windup", COIL_TICKS + 1), 1), 0);
+  let last = 0;
+  for (let left = COIL_TICKS; left >= 1; left--) {
+    const coil = windupCoil(coilDuel("windup", left), 1);
+    assert.ok(coil > last, `${left} ticks left`);
+    last = coil;
+  }
+  assert.equal(last, 1);
+});
+
+test("nothing else gathers: not standing, not a pull out of a lock, not outside the fight", () => {
+  assert.equal(windupCoil(coilDuel("guard", 5), 1), 0);
+  assert.equal(windupCoil(coilDuel("windup", 3, true), 1), 0);
+  assert.equal(windupCoil(coilDuel("windup", 3, false, "point"), 1), 0);
 });

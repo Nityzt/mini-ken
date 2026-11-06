@@ -67,23 +67,30 @@ export const LADDER: Unlock[] = [
 
 const beatenSenpai = (run: RunState) => run.beaten.some((id) => id === "aki" || id === "bo" || id === "yui");
 
-/** What this still needs, in a few words each. Empty once it's open. */
-export function unmet(run: RunState, unlock: Unlock): string[] {
-  const missing: string[] = [];
-  if (unlock.senpai && !beatenSenpai(run)) missing.push("beat a senpai");
-  if (unlock.line && run.linePasses < LINE_PASSES_TO_UNLOCK) missing.push(`line drill ${run.linePasses}/${LINE_PASSES_TO_UNLOCK}`);
+export type Need = { text: string; met: boolean };
+
+/** Everything this asks for, in a few words each, and whether you've got it. */
+export function needs(run: RunState, unlock: Unlock): Need[] {
+  const list: Need[] = [];
+  if (unlock.senpai) list.push({ text: "beat a senpai", met: beatenSenpai(run) });
+  if (unlock.line) list.push({ text: `line drill ${Math.min(run.linePasses, LINE_PASSES_TO_UNLOCK)}/${LINE_PASSES_TO_UNLOCK}`, met: run.linePasses >= LINE_PASSES_TO_UNLOCK });
   // Anyone who got their 1st dan before this was asked of them keeps it, and only needs it for what comes with the rank.
-  if (unlock.waza && !run.waza && (unlock.rank || run.dan < 1)) missing.push("waza lesson");
-  if (unlock.ki !== undefined && playerKiMax(run) < unlock.ki) missing.push(`ki ${unlock.ki}`);
-  if (unlock.rank && run.dan < unlock.rank) missing.push(danLabel(unlock.rank));
-  if (unlock.seme && !run.seme) missing.push("seme");
+  if (unlock.waza) list.push({ text: "waza lesson", met: run.waza || (!unlock.rank && run.dan >= 1) });
+  if (unlock.ki !== undefined) list.push({ text: `ki ${unlock.ki}`, met: playerKiMax(run) >= unlock.ki });
+  if (unlock.rank) list.push({ text: danLabel(unlock.rank), met: run.dan >= unlock.rank });
+  if (unlock.seme) list.push({ text: "seme", met: run.seme });
   const toBeat = (unlock.beat ?? []).filter((id) => !run.beaten.includes(id));
-  if (toBeat.length === 1) missing.push(`beat ${DOJOS[toBeat[0]].rival}`);
-  else if (toBeat.length > 1) missing.push(`${toBeat.length} wins`);
+  if (unlock.beat?.length) {
+    const text = toBeat.length > 1 ? `${toBeat.length} wins` : `beat ${DOJOS[(toBeat[0] ?? unlock.beat[0])].rival}`;
+    list.push({ text: toBeat.length === 0 && unlock.beat.length > 1 ? `${unlock.beat.length} wins` : text, met: toBeat.length === 0 });
+  }
   const way = unlock.via && find(unlock.via);
-  if (way) for (const need of unmet(run, way)) if (!missing.includes(need)) missing.push(need);
-  return missing;
+  if (way) for (const need of needs(run, way)) if (!list.some((own) => own.text === need.text)) list.push(need);
+  return list;
 }
+
+/** What this still needs, in a few words each. Empty once it's open. */
+export const unmet = (run: RunState, unlock: Unlock): string[] => needs(run, unlock).filter((need) => !need.met).map((need) => need.text);
 
 const find = (id: UnlockId) => LADDER.find((unlock) => unlock.id === id);
 
@@ -97,11 +104,45 @@ export const isOpen = (run: RunState, id: UnlockId): boolean => lockFor(run, id)
 /** What to work toward. Street fights and multiplayer open up along the way, but they're never the thing you're told to do. */
 export const nextGoal = (run: RunState): Unlock | null => LADDER.find((unlock) => !GANGS[unlock.id] && unlock.id !== "online" && unmet(run, unlock).length > 0) ?? null;
 
+/** Which row of the ladder the map should open on: what you're working toward, or the last row once there's nothing left. */
+export const goalRow = (run: RunState): number => {
+  const goal = nextGoal(run);
+  return goal ? LADDER.indexOf(goal) : LADDER.length - 1;
+};
+
 /** Sensei's way of saying what's next. */
 export function needsSentence(run: RunState, unlock: Unlock): string {
   const needs = unmet(run, unlock).map((need) => (need.startsWith("ki ") ? `${need} (you have ${playerKiMax(run)})` : need));
   return `Sensei Kuma: Next for you: ${unlock.label}. Still to do: ${needs.join(", ")}.`;
 }
+
+/** What each technique is called on the page, what it does, and where to look for it. */
+export type TechniqueInfo = { id: string; name: string; line: string; hint: string; color: string };
+export const TECHNIQUE_INFO: TechniqueInfo[] = [
+  { id: "men", name: "Men", line: "Strike to the head", hint: "From Sensei", color: "#EF7B76" },
+  { id: "do", name: "Do", line: "Strike to the side", hint: "From Sensei", color: "#7FB2E5" },
+  { id: "kote", name: "Kote", line: "Strike to the wrist", hint: "From Sensei", color: "#E8C872" },
+  { id: "launch", name: "Launch", line: "Tap D D to close in", hint: "From Sensei", color: "#B79AE6" },
+  { id: "seme", name: "Seme", line: "Hold I to press", hint: "Not found yet", color: "#8CC07A" },
+  { id: "kiai", name: "Kiai", line: "Space to shout", hint: "Not found yet", color: "#F0A868" },
+  { id: "gaze", name: "Far-mountain gaze", line: "See Ren's strikes", hint: "Not found yet", color: "#7ADBD0" },
+];
+
+/** What kind of thing a row on the ladder is, which decides its color on the map. */
+export type UnlockKind = "city" | "fight" | "dojo" | "cup" | "grading" | "travel" | "online";
+export function unlockKind(unlock: Unlock): UnlockKind {
+  const id = unlock.id;
+  if (id === "online") return "online";
+  if (id === "door") return "city";
+  if (id.startsWith("cup:")) return "cup";
+  if (id.startsWith("shinsa:")) return "grading";
+  if (GANGS[id as NodeId]) return "fight";
+  if (Object.hasOwn(DOJOS, id)) return "dojo";
+  return "travel";
+}
+
+/** The most ki anything on the ladder asks for, which is what a full ki bar stands for. */
+export const KI_GOAL = Math.max(...LADDER.map((unlock) => unlock.ki ?? 0));
 
 /** The techniques you've picked up so far, in the order they're taught. */
 export function techniques(run: RunState): string[] {
@@ -125,11 +166,11 @@ export function standingLine(run: RunState): string {
 }
 
 /** As much of what's needed as fits on one row of the progress page, most immediate first. */
-export function shortNeeds(run: RunState, unlock: Unlock): string {
+export function shortNeeds(run: RunState, unlock: Unlock, width = ROW_WIDTH): string {
   let text = "";
   for (const need of unmet(run, unlock)) {
     const next = text ? `${text}, ${need}` : need;
-    if (measureText(`${unlock.label}  ${next}`) > ROW_WIDTH) break;
+    if (measureText(`${unlock.label}  ${next}`) > width) break;
     text = next;
   }
   return text;

@@ -1,9 +1,12 @@
 import {
   ABSORB_COST, BRAWL_KIAI_PRESS, BRAWL_SEME_TICKS, BROKEN_TICKS, COWER_TICKS, SEME_DECAY, SEME_DRAIN, SEME_RANGE, SEME_START_KI, KI_AFTER_BREAK, KIAI_COOLDOWN, KIAI_COST, KI_LOW, KI_MAX, KI_RECOVERY, LAUNCH_COST, LAUNCH_SPEED, LAUNCH_TICKS, LOCK_DISTANCE,
-  LOW_KI_SLOWDOWN, LOW_KI_WALK, RANGE_MAX, RANGE_MIN, RECOVERY_TICKS, STOMP_WINDOW, SWING_COST, WALK, ZANSHIN_PASS, ZANSHIN_SLIDE, ZANSHIN_WINDOW,
+  LOW_KI_SLOWDOWN, LOW_KI_WALK, RANGE_MAX, RANGE_MIN, RECOVERY_TICKS, DRILL_STOMP_WINDOW, SWING_COST, WALK, ZANSHIN_PASS, ZANSHIN_SLIDE, ZANSHIN_WINDOW,
 } from "./constants.ts";
 import { nextRandom } from "./rival.ts";
 import { ATTACKS, type AttackKind, type FighterInput, type Stance, type Target } from "./rules.ts";
+
+/** Street fights keep their own quick strikes: only a duel has the slower tempo. */
+const BRAWL_WINDUP: Record<AttackKind, number> = { men: 8, kote: 6, do: 10, bigMen: 46, quickMen: 12 };
 
 export type BullyKind = "fist" | "stick";
 export type BrawlSpec = { kind: BullyKind; x: number };
@@ -148,7 +151,7 @@ function landStrike(s: BrawlState): void {
     startRecovery(p);
     return;
   }
-  if (p.stompAge > STOMP_WINDOW) {
+  if (p.stompAge > DRILL_STOMP_WINDOW) {
     s.events.push({ type: "flat" });
     startRecovery(p);
     return;
@@ -211,7 +214,7 @@ function stepPlayer(s: BrawlState, input: FighterInput): void {
     s.events.push({ type: "launch" });
   }
   if (p.stance === "guard" && input.attack) {
-    const base = ATTACKS[input.attack].windup;
+    const base = BRAWL_WINDUP[input.attack];
     p.stanceTicks = tired(p) ? Math.round(base * LOW_KI_SLOWDOWN) : base;
     p.stance = "windup";
     p.attack = input.attack;

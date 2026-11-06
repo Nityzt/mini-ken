@@ -2,6 +2,7 @@ import type { Crest } from "../art/backdrops.ts";
 import { BACKDROP_GRIDS } from "../art/backdrops.ts";
 import { drawKendoka, type Facing, type Gear } from "../art/kendoka.ts";
 import { bannerColumn, floorMarked, FLOOR_TILES, lookOf } from "../art/looks.ts";
+import { PALETTE } from "../art/palette.ts";
 import { drawSprite } from "../art/sprite.ts";
 import { TILE, TILE_GRIDS } from "../art/tiles.ts";
 import { moveAndCollide, type Box, type TileMap } from "../core/collision.ts";
@@ -92,6 +93,8 @@ export function drawRoom(ctx: CanvasRenderingContext2D, rows: string[], cam: Cam
         drawSprite(ctx, TILE_GRIDS[doorOpen ? "doorOpen" : "doorClosed"], x, y, options);
       } else if (char === "Q") {
         drawSprite(ctx, TILE_GRIDS.doorClosed, x, y, options);
+      } else if (char === "o") {
+        drawSprite(ctx, TILE_GRIDS.doorOpen, x, y, options);
       } else if (char === "$") {
         drawSprite(ctx, floor, x, y, options);
         drawSprite(ctx, TILE_GRIDS.merch, x, y);
@@ -129,4 +132,16 @@ export function drawWalker(ctx: CanvasRenderingContext2D, walker: Walker, cam: C
     flip: walker.flip,
     colors,
   });
+}
+
+const PUFFS = 6;
+const PUFF_REACH = 11;
+
+/** A flurry of cloth going round someone who's getting changed. x and y are the middle of them. */
+export function drawClothPuffs(ctx: CanvasRenderingContext2D, x: number, y: number, tick: number): void {
+  for (let i = 0; i < PUFFS; i++) {
+    const angle = (i / PUFFS) * Math.PI * 2 + tick / 4;
+    ctx.fillStyle = i % 2 ? PALETTE.W : PALETTE.I;
+    ctx.fillRect(Math.round(x + Math.cos(angle) * PUFF_REACH), Math.round(y + Math.sin(angle) * PUFF_REACH * 0.8), 2, 2);
+  }
 }

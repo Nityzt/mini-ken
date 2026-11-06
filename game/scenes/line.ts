@@ -17,6 +17,8 @@ import { kihonOutcome } from "../grading.ts";
 import { lineOutcome } from "./club-story.ts";
 import { FORFEIT_LINE, HELP_TITLE, KIHON_LEFT, KIHON_TITLE, LINE_HELP, LINE_LEFT, LINE_PASSED_BY, LINE_SLOW, LINE_TITLE, LINE_WRONG, NO_STOMP, NO_ZANSHIN } from "./content.ts";
 import { createPlayerControl, drawKeyPrompt, drawZanshinMeter, KIAI } from "./duel.ts";
+import { createTeachCards } from "./teach-card.ts";
+import { LINE_CARD, LINE_NO_KEYS_CARD, teachOnce } from "./teaching.ts";
 import { drawTag } from "./ui.ts";
 
 const GROUND = 128;
@@ -32,6 +34,7 @@ type Floater = { text: string; x: number; y: number; ticks: number; color: strin
 
 /** A row of senpai in bogu, each offering one opening. Hit it, slide through, and you're at the next one. */
 export function createLineScene(): Scene {
+  const cards = createTeachCards();
   let state: LineState;
   let control = createPlayerControl();
   let tick = 0;
@@ -133,8 +136,15 @@ export function createLineScene(): Scene {
       sparks = [];
       lastX = state.brawl.player.x;
       game.debug.line = state;
+      cards.clear(game);
+      teachOnce(game, cards, "line", LINE_CARD);
+      if (!state.spec.labels) teachOnce(game, cards, "lineNoKeys", LINE_NO_KEYS_CARD);
     },
     update(game) {
+      if (cards.active) {
+        cards.update(game);
+        return;
+      }
       tick++;
       for (const f of floaters) {
         f.ticks--;
@@ -220,6 +230,7 @@ export function createLineScene(): Scene {
         ctx.fillRect(0, viewH - 11, viewW, 11);
         drawTextCentered(ctx, LINE_HELP, viewW / 2, viewH - 10, UI.dim);
       });
+      cards.render(ctx);
     },
   };
 }

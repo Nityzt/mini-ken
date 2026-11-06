@@ -26,13 +26,24 @@ export const PALETTE: Record<string, string> = {
   h: "#3A3A42", // hair highlight
   Z: "#E8192C", // the cloth on the front of a tare
   z: "#FAF7F2", // the mark on that cloth
+  // The men's own details, which only the playable characters change. See `MEN_INHERITS`.
+  M: "#D6CEC4", // grille
+  T: "#E8192C", // cords
+  t: "#9E1421", // cords, shaded
+  A: "#2B3A67", // stitching on the padding
+  E: "#2B3A67", // crest
+  U: "#2B3A67", // throat guard
 };
+
+/** Anyone who doesn't set these looks as if the details weren't there: the grille and cords stay as they were, and the rest melts into the armor. */
+export const MEN_INHERITS: Record<string, string> = { M: "w", T: "R", t: "r", A: "I", E: "I", U: "I" };
 
 /** The interface's own colors. They're softer than the sprites' ink and cream, so reading is easy on the eyes. */
 export const UI = {
   panel: "#20212A",
   edge: "#565763",
   track: "#3C3D49",
+  slot: "#2B2C37",
   text: "#E9E4DA",
   dim: "#B5B0A6",
   faint: "#7F7D85",

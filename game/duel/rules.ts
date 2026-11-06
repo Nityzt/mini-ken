@@ -1,5 +1,5 @@
 import {
-  ABSORB_COST, BOW_TICKS, BROKEN_TICKS, CLOSING_TICKS, CROSS_CLEAN_WINDOW, CROSS_GAP, CROSS_QUICK_WINDOW, CROSS_SETTLE, CROSS_SPEED, CROSS_WRONG_WINDOW, COUNTER_TICKS, COUNTER_WINDUP, DEFLECT_KI_LOSS, DEFLECT_TICKS, HIKI_STEP_TICKS, HIKI_TELL, HIKI_WINDUP,
+  ABSORB_COST, BOW_TICKS, FREEZE_AIUCHI, FREEZE_BLOCK, FREEZE_BREAK, FREEZE_CROSS, FREEZE_HIT, FREEZE_LOCK, FREEZE_PARRY, FREEZE_SHAKEN, FREEZE_SHOVE, TEMPO_FRAMES, TEMPO_TICKS, BROKEN_TICKS, CLOSING_TICKS, CROSS_CLEAN_WINDOW, CROSS_GAP, CROSS_LOCK_WITHIN, CROSS_QUICK_WINDOW, CROSS_SETTLE, CROSS_SPEED, CROSS_WRONG_WINDOW, COUNTER_TICKS, COUNTER_WINDUP, DEFLECT_KI_LOSS, DEFLECT_TICKS, HIKI_STEP_TICKS, HIKI_TELL, HIKI_WINDUP,
   KI_AFTER_BREAK, KI_LOW, KI_MAX, KI_RECOVERY, LOCK_DISTANCE, LOW_KI_SLOWDOWN,
   LOW_KI_WALK, MIN_DISTANCE, PARRY_COOLDOWN, PARRY_KI, PARRY_WINDOW, POINTS_TO_WIN, RANGE_MAX, RANGE_MIN, RECOVERY_TICKS, RETURN_KI_RATE, RETURN_SETTLE, RETURN_WALK, RING_MAX, RING_MIN,
   KIAI_COOLDOWN, KIAI_COST, KIAI_PRESS, LAUNCH_COST, LAUNCH_SPEED, LAUNCH_TICKS, SEME_DECAY, SEME_DRAIN, SEME_RANGE, SEME_START_KI, SEME_TICKS, SHAKEN_KI_LOSS, SHAKEN_TICKS, SHOVE_TICKS,
@@ -90,18 +90,29 @@ export type DuelState = {
   crossTo: [number, number] | null;
   events: DuelEvent[];
   options: DuelOptions;
+  /** Where this frame falls in the tempo's cycle. */
+  beat: number;
+  /** How many more frames everything holds still for after an impact. */
+  freeze: number;
+  /** Whether the rules moved on the last frame. */
+  ticked: boolean;
+  /** What each fighter pressed on frames when the rules weren't moving, so nothing gets lost. */
+  pressed: [Pressed, Pressed];
 };
+/** The once-only parts of an input, as opposed to what's being held down. */
+type Pressed = Pick<FighterInput, "attack" | "stomp" | "dash" | "parry">;
 
 /** What each attack strikes, what it leaves open while winding up, and how long that takes. */
 export const ATTACKS: Record<AttackKind, { strikes: Target; exposes: Target; windup: number }> = {
-  men: { strikes: "men", exposes: "kote", windup: 8 },
-  kote: { strikes: "kote", exposes: "men", windup: 6 },
-  do: { strikes: "do", exposes: "men", windup: 10 },
+  men: { strikes: "men", exposes: "kote", windup: 14 },
+  kote: { strikes: "kote", exposes: "men", windup: 12 },
+  do: { strikes: "do", exposes: "men", windup: 16 },
   bigMen: { strikes: "men", exposes: "do", windup: 46 },
-  quickMen: { strikes: "men", exposes: "kote", windup: 12 },
+  quickMen: { strikes: "men", exposes: "kote", windup: 16 },
 };
 
 const ALL_TARGETS: Target[] = ["men", "kote", "do"];
+const NOTHING_PRESSED: Pressed = { attack: null };
 const NEVER_STOMPED = 9999;
 
 type KamaeRules = {
@@ -172,6 +183,10 @@ export function createDuel(options: DuelOptions = {}): DuelState {
     crossTo: null,
     events: [{ type: "bow" }],
     options,
+    beat: 0,
+    freeze: 0,
+    ticked: true,
+    pressed: [NOTHING_PRESSED, NOTHING_PRESSED],
   };
 }
 
@@ -301,9 +316,9 @@ function lockIfTouching(s: DuelState): void {
 }
 
 /**
- * Both have committed, so neither gets anything: they pass each other. It takes one strike landing as the
- * other's about to, or both together. A clean strike has to be a lot closer to theirs to be caught up in it,
- * because answering a tell in time should score.
+ * Both have committed, so neither gets anything. It takes one strike landing as the other's about to, or both
+ * together. A clean strike has to be a lot closer to theirs to be caught up in it, because answering a tell in
+ * time should score. From a distance they pass each other, and up close there's no room, so they bind hilt to hilt.
  */
 function startsCrossing(s: DuelState, landing: (0 | 1)[], dist: number): boolean {
   if (s.options.basics || dist < RANGE_MIN) return false;
@@ -320,6 +335,12 @@ function startsCrossing(s: DuelState, landing: (0 | 1)[], dist: number): boolean
     if (them.stanceTicks > window) return false;
   }
   ([0, 1] as const).forEach((i) => s.events.push({ type: "kiai", by: i, target: ATTACKS[s.fighters[i].attack!].strikes }));
+  if (dist <= CROSS_LOCK_WITHIN) {
+    s.events.push({ type: "lock" });
+    for (const f of s.fighters) f.stompAge = NEVER_STOMPED;
+    enterLock(s);
+    return true;
+  }
   s.events.push({ type: "cross" });
   const middle = Math.max(RING_MIN + CROSS_GAP / 2, Math.min(RING_MAX - CROSS_GAP / 2, (a.x + b.x) / 2));
   s.crossTo = [middle + CROSS_GAP / 2, middle - CROSS_GAP / 2];
@@ -700,7 +721,53 @@ function stepPoint(s: DuelState): void {
   } else resetForNextPoint(s);
 }
 
+/** How long each kind of contact holds everything still. A tick with several takes the longest. */
+const FREEZE_FOR: Partial<Record<DuelEvent["type"], number>> = {
+  hit: FREEZE_HIT,
+  broken: FREEZE_BREAK,
+  parry: FREEZE_PARRY,
+  cross: FREEZE_CROSS,
+  aiuchi: FREEZE_AIUCHI,
+  shove: FREEZE_SHOVE,
+  taiatari: FREEZE_SHOVE,
+  lock: FREEZE_LOCK,
+  shaken: FREEZE_SHAKEN,
+  blocked: FREEZE_BLOCK,
+};
+
+/** Whether the rules will move on the next frame. The ceremonies have their own timing and don't run on the tempo. */
+export function ticksNext(s: Pick<DuelState, "phase" | "beat" | "freeze">): boolean {
+  if (s.phase === "bow" || s.phase === "closing" || s.phase === "over") return true;
+  return s.freeze === 0 && s.beat % TEMPO_FRAMES < TEMPO_TICKS;
+}
+
+const pressedIn = ({ attack, stomp, dash, parry }: FighterInput, before: Pressed): Pressed => ({
+  attack: before.attack ?? attack,
+  stomp: before.stomp || stomp,
+  dash: before.dash || dash,
+  parry: before.parry || parry,
+});
+
+/**
+ * One frame of a duel, which is what everything outside the rules should call. It's pure and counts only frames,
+ * so two players given the same inputs are always on the same beat and freeze for the same frames.
+ */
 export function step(state: DuelState, a: FighterInput, b: FighterInput): DuelState {
+  const pressed: [Pressed, Pressed] = [pressedIn(a, state.pressed[0]), pressedIn(b, state.pressed[1])];
+  if (!ticksNext(state)) {
+    const holding = state.freeze > 0;
+    return { ...state, events: [], ticked: false, pressed, freeze: holding ? state.freeze - 1 : 0, beat: holding ? state.beat : state.beat + 1 };
+  }
+  const next = ruleTick(state, { ...a, ...pressed[0] }, { ...b, ...pressed[1] });
+  next.ticked = true;
+  next.pressed = [NOTHING_PRESSED, NOTHING_PRESSED];
+  next.beat = (state.beat + 1) % TEMPO_FRAMES;
+  next.freeze = Math.max(0, ...next.events.map((e) => FREEZE_FOR[e.type] ?? 0));
+  return next;
+}
+
+/** One tick of the rules themselves, which take no notice of the tempo. */
+export function ruleTick(state: DuelState, a: FighterInput, b: FighterInput): DuelState {
   const s = structuredClone(state);
   s.events = [];
 

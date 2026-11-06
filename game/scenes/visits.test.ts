@@ -227,7 +227,7 @@ test("standing in guard, the gaze makes Ren's stare take twice as long to shake 
   const atRen = { ...createRunState(), node: "radish" as NodeId };
   const without = ticksToFlinch(atRen);
   const withGaze = ticksToFlinch({ ...atRen, gaze: true });
-  assert.ok(without < 400, `${without}`);
+  assert.ok(without < 600, `${without}`);
   assert.ok(withGaze >= without * 1.9 && withGaze <= without * 2.1, `${withGaze} vs ${without}`);
 });
 
@@ -245,7 +245,7 @@ test("the gaze also helps when Ren actively presses you, though less, so hiding 
   const atRen = { ...createRunState(), node: "radish" as NodeId };
   const without = ticksToFlinchWhilePressed(atRen);
   const withGaze = ticksToFlinchWhilePressed({ ...atRen, gaze: true });
-  assert.ok(without < 200, `${without}`);
+  assert.ok(without < 300, `${without}`);
   assert.ok(withGaze > without * 1.3, `${withGaze} vs ${without}`);
 });
 

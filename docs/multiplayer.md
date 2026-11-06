@@ -1,50 +1,79 @@
-# Tiny Kendo multiplayer: what's ready, and what hosting has to add
+# Tiny Kendo multiplayer: how it works and how to run it
 
-The client side is finished and tested. With no server configured, the game plays stand-ins over the same connection code a real match uses. Everything below is what you need to plug in hosting and sign-in.
+The design and the reasons behind it are in `docs/superpowers/specs/2026-11-06-accounts-multiplayer-design.md`.
 
-## Turning it on
+One Node process (`server/index.ts`) serves the game, the account API at `/api/*`, and the match relay at `/ws`. Accounts, stories and match history are in Turso. Lobbies and live matches are in memory, so a restart drops them and nothing else.
 
-Set one environment variable at build time, and the game talks to your server instead of stand-ins:
+## Running it
+
+| Command | What it does |
+|---|---|
+| `pnpm dev` | The game alone. No server, so multiplayer is stand-ins. |
+| `pnpm dev:online` | The real server in development, on `127.0.0.1:3210`, with a local database in `.local/`. |
+| `pnpm build`, then `pnpm start` | Production. Build with `NEXT_PUBLIC_TINY_KENDO_SERVER=/ws`, since that's read at build time. |
+| `pnpm test`, `pnpm typecheck` | Tests and types. |
+
+Only one Next dev server can run in this folder at a time, so stop `pnpm dev` before `pnpm dev:online`.
+
+`NODE_ENV=production` also makes the session cookie `Secure`. A plain `http://` address other than `127.0.0.1` or `localhost` won't stay signed in.
+
+## Environment
+
+| Variable | Meaning |
+|---|---|
+| `HOST` | Bind address. Defaults to `127.0.0.1`. Only the host's own environment should set `0.0.0.0`. |
+| `PORT` | Defaults to 3210. |
+| `PUBLIC_ORIGIN` | The site's address, exactly as browsers send it, like `https://tiny-kendo.onrender.com`. Posts and WebSockets from anywhere else are refused, so **sign-in fails until this is right**. |
+| `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN` | The database. Without them, development uses a local file, and production refuses to start, since a host's disk is wiped on each deploy. Secrets: never `NEXT_PUBLIC_`. |
+| `ALLOW_LOCAL_DATABASE` | `1` lets production use a local file, only for testing a production build on this machine. |
+| `TRUST_PROXY` | `1` behind Render, to read the visitor's address for rate limits. |
+| `NEXT_PUBLIC_TINY_KENDO_SERVER` | Build time. `/ws` turns on real multiplayer. Unset means stand-ins. |
+
+## Deploying to Render
+
+`render.yaml` describes the service: free plan, Ohio. Render deploys from GitHub, so what's deployed is what's committed.
+
+1. Create a Turso database in the region closest to Ohio, and get its URL and a token.
+2. Create the service from `render.yaml`, and set `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN`.
+3. Set `PUBLIC_ORIGIN` to the address Render gives you, and redeploy.
+4. Point UptimeRobot at `/health`, every 5 minutes, so the server doesn't sleep. Keep this the only free web service in that Render workspace: staying awake uses up to 744 of the 750 free hours a month, and running out suspends every free service there until the next month.
+
+## Owner scripts
+
+Run these with the production database settings in `.env`.
 
 ```
-NEXT_PUBLIC_TINY_KENDO_SERVER=wss://your-host/tiny-kendo
+node --env-file-if-exists=.env server/scripts/reset-password.ts <username>
+node --env-file-if-exists=.env server/scripts/backup.ts <out.json>
+node server/scripts/restore.ts <in.json> file:scratch.db
 ```
 
-While developing on this machine, bind the server to `127.0.0.1`, as with every other service here, and use `ws://127.0.0.1:<port>`.
+Players have no email, so `reset-password` is the only way back from a forgotten password. It asks for the new password without echoing it, and signs that account out everywhere.
 
-## Sign-in
+A backup holds password hashes, so keep it private. `restore` only accepts a `file:` target and an empty database, so it can't overwrite the real one. It's how to prove a backup works: restore it, compare the counts, and sign in against the copy.
 
-`game/net/auth.ts` defines the only thing the game needs:
+## The conversation over `/ws`
 
-```ts
-type AuthProvider = {
-  identity(): Identity;    // { id, name, dan, guest }
-  token(): string | null;  // proof for your server. Guests send null
-};
-```
-
-Today everyone's a guest, made in `createGuestAuth`. To add accounts, write another `AuthProvider` and pass it as the `auth` option to `createOnlineHub` in `game/game.ts`. Nothing else changes. The sign-in screen itself would be a new page in `scenes/online.ts`.
-
-**The client's rank can't be trusted.** `dan` comes from the player's own browser. Once accounts exist, the server should keep the real rank, and only let someone in at 1st dan or above. The 1st-dan gate in the game is a courtesy.
-
-## The conversation with the server
-
-JSON over a WebSocket. The types are in `game/net/protocol.ts`, and that file is the contract.
+JSON over a WebSocket. `game/net/protocol.ts` is the contract. The connection needs a valid session cookie and the site's own `Origin`, and identity comes only from the session.
 
 | When | Client sends | Server sends |
 |---|---|---|
-| On connecting | `hello { version, token, identity }` | `welcome { identity }` or `rejected { reason }` |
-| To play | `queue { mode: "duel" or "tournament" }` | `queued { mode }` |
-| Giving up | `cancel` | |
-| Paired | | `match { seed, side, opponent }` |
-| During a match | `input`, `hash`, `leave` | The other player's `input`, `hash`, `leave`, passed on as they are |
-| In a tournament | `result { won }` after each match | `bracket { bracket }` whenever it changes, then `match` for the next round |
+| On connecting | `hello { version }`, `visible { visible }` | `welcome { identity }` or `rejected { reason }` |
+| Making a lobby | `create-lobby` | `lobby { code }` |
+| Joining | `join-lobby { code }` | `lobby-error { reason }`, or `opponent-joined { opponent }` to both |
+| Tab shown or hidden | `visible { visible }` | `match { seed, side, opponent }`, once both are visible |
+| While waiting | `ping` | |
+| During a match | `input`, `hash`, `leave` | The other player's, passed on unchanged |
+| A match ends | `result { report }` | `outcome { winner, reason, wins, losses }` |
+| Between matches | `rematch`, `leave-lobby` | `rematch-wanted`, `lobby-closed { reason }` |
 
-Reject anyone whose `version` isn't `PROTOCOL_VERSION`.
+Everything on the client that has to work in a hidden tab runs from socket events and timers, never the game loop (`game/net/lobby-client.ts`).
 
-**During a match, the server's whole job is to pass messages along.** It never has to run the game. The test "a full match runs over that relay" in `net/net.test.ts` is a working example of that relay in about ten lines.
+**Bump `PROTOCOL_VERSION` whenever two clients on different versions couldn't play each other, and that includes any change to the duel rules or their timings.** Old tabs are then asked to refresh, rather than falling out of step.
 
-A dropped connection should reach the other player as `leave`, or by closing their socket. Either counts as them walking away.
+## Who won
+
+The server decides (`server/outcome.ts`), and the table is in the design. Silence needs care: lockstep stops the player left waiting from sending too, so whoever's on the lower frame is the one who's blamed (`server/lobby.ts`). A client whose lockstep says the other player left reports nothing, and waits for the server's word.
 
 ## How matches stay in sync
 
@@ -52,19 +81,17 @@ Lockstep. Both players run the same pure rules (`duel/rules.ts`) on the same inp
 
 - Your input is scheduled 3 frames ahead (`INPUT_DELAY`, about 50ms), which hides ordinary lag.
 - If someone's input is late, the match waits for it. Lag slows the match down for both players, and it can't make them disagree.
-- Every 60 frames both send a fingerprint of the match. If they ever differ, the match ends as "out of step" and doesn't count.
-- Ten seconds of silence (`STALL_LIMIT`) counts as the other player leaving.
+- Every 60 frames both send a fingerprint of the match. If they ever differ, the match doesn't count.
+- Each live match logs to the browser console how much of it was spent waiting. The target is no more than 5%. Over that, raise `INPUT_DELAY` to 4 or 5, which feels slightly heavier.
 
-The rules must stay deterministic: no `Math.random`, no clocks and nothing about a player's screen. There's a test that plays random input over a laggy connection, checking both copies stay identical.
+The rules must stay deterministic: no `Math.random`, no clocks and nothing about a player's screen.
 
-**Cheating.** A modified client can't change the score without the fingerprints disagreeing, but it can still send perfect inputs. If that ever matters, the server can import `duel/rules.ts` and replay the inputs to check a result. That's also how it should confirm tournament `result` messages, which are currently taken on trust.
+**Cheating.** A modified client can't change the score without the fingerprints disagreeing, but it can send perfect inputs, fake its rank through its saved story, or claim a higher frame to shift the blame for going silent. If that ever matters, the server can import `duel/rules.ts` and replay the inputs to check a result.
 
 ## Known limits, on purpose for now
 
-- **Pausing stalls a real match.** The pause menu stops your game, so your opponent waits, up to the ten-second limit. Before going live, decide whether pausing should be turned off in a live match. It's also why losing focus on the tab counts as pausing.
-- **Lockstep feels the lag.** Past about 50ms each way, the match slows down rather than stutters. Rollback netcode would feel better on bad connections, and it could replace `net/lockstep.ts` without touching anything else, because the rules are already pure.
-- **No rematch button.** Finishing a duel goes back to the lobby.
+- **No reconnecting.** A dropped connection loses the match. A server restart during a match records nothing.
+- **A hidden tab can't keep running,** so being away from a live match for over 10 seconds loses it.
 - **Everyone looks like a dojo.** Your opponent wears a dojo's colors chosen from the match seed. Sending real looks needs one more field on `Identity`.
-- **No names to choose.** Guests are `Guest 1234` until there are accounts.
-- **Bracket results.** The bracket screen trusts what the server sends. Stand-in tournaments decide everyone else's matches with a coin toss.
-- **Betting on other people's matches** isn't built yet. It needs a server to hold the money.
+- **Tournaments are practice,** against stand-ins.
+- **Rate limits are per server process, in memory,** so they reset on a restart.

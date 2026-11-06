@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: tiny-kendo
+    runtime: node
+    plan: free
+    region: ohio
+    healthCheckPath: /health
+    # TypeScript and Tailwind are dev dependencies the build needs, and next.config.ts is loaded when the server starts.
+    buildCommand: corepack enable && pnpm install --frozen-lockfile --prod=false && pnpm build
+    startCommand: pnpm start
+    envVars:
+      - key: HOST
+        value: 0.0.0.0
+      - key: TRUST_PROXY
+        value: "1"
+      - key: NEXT_PUBLIC_TINY_KENDO_SERVER
+        value: /ws
+      # The site's own address, like https://tiny-kendo.onrender.com. Set by hand after the first deploy.
+      - key: PUBLIC_ORIGIN
+        sync: false
+      - key: TURSO_DATABASE_URL
+        sync: false
+      - key: TURSO_AUTH_TOKEN
+        sync: false

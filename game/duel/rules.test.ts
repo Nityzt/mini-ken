@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createDuel, distance, exposedTargets, skipBow, skipClosing, step, type AttackKind, type DuelEvent, type DuelState, type Fighter, type FighterInput, type Stance } from "./rules.ts";
+import { createDuel, distance, exposedTargets, skipBow, skipClosing, ruleTick as step, type AttackKind, type DuelEvent, type DuelState, type Fighter, type FighterInput, type Stance } from "./rules.ts";
 import { ABSORB_COST, BROKEN_TICKS, KI_AFTER_BREAK, KI_MAX, KI_RECOVERY, LOCK_DISTANCE, RECOVERY_TICKS, RING_MAX, RING_MIN, SWING_COST, WALK, STOMP_WINDOW, ZANSHIN_PASS, LAUNCH_COST, MIN_DISTANCE, KIAI_COOLDOWN, KIAI_COST, KIAI_PRESS, SEME_DRAIN, SEME_RANGE, SEME_TICKS, SHAKEN_KI_LOSS, SHAKEN_TICKS, CLOSING_TICKS, RETURN_SETTLE, RETURN_WALK } from "./constants.ts";
 
 const IDLE: FighterInput = { move: 0, block: false, attack: null };

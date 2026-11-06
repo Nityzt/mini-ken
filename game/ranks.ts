@@ -95,6 +95,11 @@ export function levelOf(xp: number): number {
   while (xpForLevel(level + 1) <= xp) level++;
   return level;
 }
+/** How far through your current level you are, from 0 to just under 1. */
+export function levelProgress(xp: number): number {
+  const level = levelOf(xp);
+  return (xp - xpForLevel(level)) / (xpForLevel(level + 1) - xpForLevel(level));
+}
 export const xpToNextLevel = (xp: number): number => xpForLevel(levelOf(xp) + 1) - xp;
 /** Every level past the first is worth 1 ki. */
 export const levelKi = (xp: number): number => levelOf(xp) - 1;

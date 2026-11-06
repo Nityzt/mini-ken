@@ -23,9 +23,9 @@ export function drawKeycap(ctx: CanvasRenderingContext2D, label: string, x: numb
 
 const hintsWidth = (hints: [string, string][]) => hints.reduce((sum, [key, does]) => sum + measureText(key) + 5 + 3 + measureText(does) + 9, -9);
 
-/** A row of keys and what they do, centered. */
-export function drawHints(ctx: CanvasRenderingContext2D, hints: [string, string][], y: number): void {
-  let x = Math.round((viewW - hintsWidth(hints)) / 2);
+/** A row of keys and what they do, centered in `width`, which is the whole view unless you're drawing on the stage. */
+export function drawHints(ctx: CanvasRenderingContext2D, hints: [string, string][], y: number, width = viewW): void {
+  let x = Math.round((width - hintsWidth(hints)) / 2);
   for (const [key, does] of hints) {
     x += drawKeycap(ctx, key, x, y) + 3;
     drawText(ctx, does, x, y + 1, UI.text);
@@ -165,4 +165,31 @@ export function dimScreen(ctx: CanvasRenderingContext2D, amount: number): void {
   ctx.fillStyle = UI.panel;
   ctx.fillRect(0, 0, viewW, viewH);
   ctx.globalAlpha = 1;
+}
+
+/** A bar that fills from the left. */
+export function drawMeter(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, fraction: number, color: string): void {
+  ctx.fillStyle = UI.track;
+  ctx.fillRect(x, y, width, height);
+  ctx.fillStyle = color;
+  ctx.fillRect(x, y, Math.round(width * Math.min(1, Math.max(0, fraction))), height);
+}
+
+/** A tick, 5 pixels wide. */
+export function drawCheck(ctx: CanvasRenderingContext2D, x: number, y: number, color: string): void {
+  ctx.fillStyle = color;
+  ctx.fillRect(x, y + 3, 1, 1);
+  ctx.fillRect(x + 1, y + 4, 1, 1);
+  ctx.fillRect(x + 2, y + 3, 1, 1);
+  ctx.fillRect(x + 3, y + 2, 1, 1);
+  ctx.fillRect(x + 4, y + 1, 1, 1);
+}
+
+/** A cross, 5 pixels wide. */
+export function drawCross(ctx: CanvasRenderingContext2D, x: number, y: number, color: string): void {
+  ctx.fillStyle = color;
+  for (let i = 0; i < 5; i++) {
+    ctx.fillRect(x + i, y + i, 1, 1);
+    ctx.fillRect(x + 4 - i, y + i, 1, 1);
+  }
 }

@@ -1,15 +1,17 @@
 import type { Gear } from "./art/kendoka.ts";
+import { shinaiHeld, wieldedShinai, type GearKey, type ShinaiId } from "./durability.ts";
 import { hasLetter, hasTicket, rankLabel } from "./ranks.ts";
-import { isShopItem, LOOKS, SHOP_ITEMS, type ShopItemId } from "./shop.ts";
+import type { SlotGroup } from "./inventory-grid.ts";
+import { isShopItem, LOOKS, SHOP_ITEMS, wear, type ShopItemId } from "./shop.ts";
 import type { RunState } from "./run-state.ts";
-import { GAZE_ITEM_LINE, GEAR_LINES, GI_LINE, LETTER_LINE, RANK_LINE, SEME_ITEM_LINE, TICKET_LINE, TSUBA_FOUND } from "./scenes/content.ts";
+import { BAMBOO_LINE, OWN_SHINAI_LINE, SHINAI_BAG_LINE, GAZE_ITEM_LINE, GEAR_LINES, GI_LINE, LETTER_LINE, RANK_LINE, SEME_ITEM_LINE, TICKET_LINE, TSUBA_FOUND } from "./scenes/content.ts";
 import { CUP_IDS, CUPS, type CupId } from "./world/tournament.ts";
 
-export type ItemId = "gi" | keyof Gear | "tsuba" | "seme" | "gaze" | "ticket" | "letter" | `shop:${ShopItemId}` | `cup:${CupId}` | `rank:${string}`;
+export type ItemId = "gi" | keyof Gear | "tsuba" | "bamboo" | "ownShinai" | "shinaiBag" | "seme" | "gaze" | "ticket" | "letter" | `shop:${ShopItemId}` | `cup:${CupId}` | `rank:${string}`;
 export type ItemInfo = { title: string; name: string; line: string };
 
 const GEAR_ORDER: (keyof Gear)[] = ["shinai", "tare", "do", "men", "kote"];
-const GEAR_NAMES: Record<keyof Gear, string> = { tare: "Tare", do: "Do", men: "Men", kote: "Kote", shinai: "Shinai" };
+const GEAR_NAMES: Record<keyof Gear, string> = { tare: "Tare", do: "Do", men: "Men", kote: "Kote", shinai: "Sensei's old shinai" };
 const CUP_KI_LINE = "Your name goes on the board. Ki +15.";
 const CHAMPION_LINE = "Every dojo in the land bows to you.";
 const ITEM = "New item acquired";
@@ -17,7 +19,7 @@ const TECHNIQUE = "New technique learned";
 const TROPHY = "Trophy won";
 const RANK_UP = "Rank up";
 
-export const ALL_ITEMS: ItemId[] = ["gi", ...GEAR_ORDER, "tsuba", "seme", "gaze", ...CUP_IDS.map((cup): ItemId => `cup:${cup}`), "rank:1st dan", "ticket", "letter", ...(Object.keys(SHOP_ITEMS) as ShopItemId[]).map((id): ItemId => `shop:${id}`)];
+export const ALL_ITEMS: ItemId[] = ["gi", ...GEAR_ORDER, "tsuba", "bamboo", "ownShinai", "shinaiBag", "seme", "gaze", ...CUP_IDS.map((cup): ItemId => `cup:${cup}`), "rank:1st dan", "ticket", "letter", ...(Object.keys(SHOP_ITEMS) as ShopItemId[]).map((id): ItemId => `shop:${id}`)];
 
 /** "Tare: guards the waist." becomes "Guards the waist.", because the card already shows the name. */
 const withoutName = (line: string) => {
@@ -28,6 +30,9 @@ const withoutName = (line: string) => {
 export function itemInfo(id: ItemId): ItemInfo {
   if (id === "gi") return { title: ITEM, name: "Spare gi", line: GI_LINE };
   if (id === "tsuba") return { title: ITEM, name: "Lucky tsuba", line: TSUBA_FOUND };
+  if (id === "bamboo") return { title: ITEM, name: "Length of bamboo", line: BAMBOO_LINE };
+  if (id === "shinaiBag") return { title: ITEM, name: "Sensei's shinai bag", line: SHINAI_BAG_LINE };
+  if (id === "ownShinai") return { title: ITEM, name: "Your own shinai", line: OWN_SHINAI_LINE };
   if (id === "seme") return { title: TECHNIQUE, name: "Seme", line: SEME_ITEM_LINE };
   if (id === "gaze") return { title: TECHNIQUE, name: "Far-mountain gaze", line: GAZE_ITEM_LINE };
   if (id.startsWith("shop:")) {
@@ -45,12 +50,18 @@ export function itemInfo(id: ItemId): ItemInfo {
   return { title: ITEM, name: GEAR_NAMES[piece], line: withoutName(GEAR_LINES[piece]) };
 }
 
+/** What the gear that can wear out is called, in a sentence. */
+export const gearName = (key: GearKey): string => (key === "fineShinai" ? "Your fine shinai" : key === "ownShinai" ? "Your own shinai" : key === "shinai" ? "Sensei's old shinai" : `Your ${GEAR_NAMES[key].toLowerCase()}`);
+
 /** Whatever this change of state just gave you. Anything you gain, by any route, gets its moment. */
 export function itemsGained(before: RunState, after: RunState): ItemId[] {
   const gained: ItemId[] = [];
   if (after.gi && !before.gi) gained.push("gi");
   for (const piece of GEAR_ORDER) if (after.gear[piece] && !before.gear[piece]) gained.push(piece);
   if (after.hasTsuba && !before.hasTsuba) gained.push("tsuba");
+  if (after.shinaiQuest === "gotBamboo" && before.shinaiQuest !== "gotBamboo") gained.push("bamboo");
+  if (after.madeShinai && !before.madeShinai) gained.push("ownShinai");
+  if (after.shinaiQuest === "returned" && before.shinaiQuest !== "returned") gained.push("shinaiBag");
   if (after.seme && !before.seme) gained.push("seme");
   if (after.gaze && !before.gaze) gained.push("gaze");
   for (const cup of after.cups) if (!before.cups.includes(cup)) gained.push(`cup:${cup}`);
@@ -62,24 +73,68 @@ export function itemsGained(before: RunState, after: RunState): ItemId[] {
 }
 
 /** Colors you can buy are shown in those colors. Everything else is drawn as it is. */
-export const itemIconColors = (item: ItemId): Record<string, string> | undefined => (isWearable(item) ? LOOKS[item.slice("shop:".length) as ShopItemId] : undefined);
+export const itemIconColors = (item: ItemId): Record<string, string> | undefined => (isColors(item) ? LOOKS[item.slice("shop:".length) as ShopItemId] : undefined);
 
 /** Only some things do anything when you use them. */
 export const isUsable = (item: ItemId): boolean => item === "ticket";
-/** Colors you've bought can be put on and taken off from the inventory. */
-export const isWearable = (item: ItemId): boolean => item.startsWith("shop:") && !!LOOKS[item.slice("shop:".length) as ShopItemId];
+const isColors = (item: ItemId): boolean => item.startsWith("shop:") && !!LOOKS[item.slice("shop:".length) as ShopItemId];
+/** Which shinai this is, if it's one you can carry. */
+export const asShinai = (item: ItemId): ShinaiId | null => (item === "shinai" ? "shinai" : item === "ownShinai" ? "ownShinai" : item === "shop:fineShinai" ? "fineShinai" : null);
+/** What this item is to the durability rules, if it can wear out at all. */
+export const gearKeyOf = (item: ItemId): GearKey | null => asShinai(item) ?? (item === "tare" || item === "do" || item === "men" || item === "kote" ? item : null);
+/** Colors you've bought and your men go on and come off from the inventory, and that's also where you pick which shinai to carry. */
+export const isWearable = (item: ItemId): boolean => item === "men" || isColors(item) || asShinai(item) !== null;
+export function isWorn(run: RunState, item: ItemId): boolean {
+  const shinai = asShinai(item);
+  if (shinai) return wieldedShinai(run) === shinai;
+  return item === "men" ? run.gear.men && run.menOn : isColors(item) && run.look === item.slice("shop:".length);
+}
+/** Puts it on, or takes it off if it's already on. You always carry some shinai, so that one only ever swaps. */
+export function toggleWorn(run: RunState, item: ItemId): RunState {
+  const shinai = asShinai(item);
+  if (shinai) return shinaiHeld(run).includes(shinai) ? { ...run, wielded: shinai } : run;
+  if (item === "men") return run.gear.men ? { ...run, menOn: !run.menOn } : run;
+  return isColors(item) ? wear(run, item.slice("shop:".length) as ShopItemId) : run;
+}
 
-/** What you're carrying, with anything you can use at the top. Techniques are on the Progress page. */
-export function inventoryOf(run: RunState): ItemId[] {
-  const held: ItemId[] = [];
-  if (hasTicket(run)) held.push("ticket");
-  if (hasLetter(run)) held.push("letter");
-  if (run.gi) held.push("gi");
-  for (const piece of GEAR_ORDER) if (run.gear[piece]) held.push(piece);
-  if (run.hasTsuba) held.push("tsuba");
-  for (const cup of run.cups) held.push(`cup:${cup}`);
-  for (const id of run.owned) if (isShopItem(id)) held.push(`shop:${id}`);
-  return held;
+/** What you're carrying, in groups. Things you can use come first, then gear, colors and trophies. Gear and trophies keep a gap for what you haven't found. */
+export function inventoryGroups(run: RunState): SlotGroup<ItemId>[] {
+  const shopHeld = (run.owned.filter(isShopItem) as ShopItemId[]).map((id): ItemId => `shop:${id}`);
+  // Once Sensei's shinai has gone back, the one you carry now takes its place among your gear.
+  const carried: ItemId = run.shinaiQuest !== "returned" ? "shinai" : run.madeShinai ? "ownShinai" : "shop:fineShinai";
+  const things: ItemId[] = [
+    ...(hasTicket(run) ? (["ticket"] as const) : []),
+    ...(hasLetter(run) ? (["letter"] as const) : []),
+    ...(run.hasTsuba ? (["tsuba"] as const) : []),
+    ...(run.shinaiQuest === "gotBamboo" && !run.madeShinai ? (["bamboo"] as const) : []),
+    ...(run.madeShinai && carried !== "ownShinai" ? (["ownShinai"] as const) : []),
+    ...(run.shinaiQuest === "returned" ? (["shinaiBag"] as const) : []),
+    ...shopHeld.filter((item) => !isColors(item) && item !== carried),
+  ];
+  const gear: (ItemId | null)[] = [run.gi ? "gi" : null, ...GEAR_ORDER.map((piece) => (!run.gear[piece] ? null : piece === "shinai" ? carried : piece))];
+  const colors = shopHeld.filter(isColors);
+  const trophies = CUP_IDS.map((cup): ItemId | null => (run.cups.includes(cup) ? `cup:${cup}` : null));
+  const found = (slots: (ItemId | null)[]) => slots.filter(Boolean).length;
+  return [
+    { title: "Items", slots: things },
+    { title: `Gear ${found(gear)}/${gear.length}`, slots: gear },
+    { title: "Colors", slots: colors },
+    { title: `Trophies ${found(trophies)}/${trophies.length}`, slots: trophies },
+  ].filter((group) => group.slots.length > 0);
+}
+
+/** What you're carrying, in the order the inventory page walks through it. */
+export const inventoryOf = (run: RunState): ItemId[] => inventoryGroups(run).flatMap((group) => group.slots.filter((slot): slot is ItemId => slot !== null));
+
+/** What the inventory page calls each kind of thing, for the card beside the grid. */
+export function itemKind(item: ItemId): string {
+  if (isColors(item)) return "Color";
+  if (item.startsWith("cup:")) return "Trophy";
+  if (item.startsWith("rank:")) return "Rank";
+  if (item === "seme" || item === "gaze") return "Technique";
+  if (asShinai(item)) return "Gear";
+  if (item === "gi" || item === "tare" || item === "do" || item === "men" || item === "kote" || item === "shinai") return "Gear";
+  return "Item";
 }
 
 /** Long enough for the whole bounce, so the button you were already mashing can't skip it. */

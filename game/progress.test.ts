@@ -1,7 +1,7 @@
 import { gradingOutcome, gradingReady } from "./grading.ts";
 import test from "node:test";
 import assert from "node:assert/strict";
-import { isOpen, LADDER, ladderWindow, LINE_PASSES_TO_UNLOCK, lockedLine, lockFor, needsSentence, newlyOpened, nextGoal, shortNeeds, standingLine, techniques, unmet, type UnlockId } from "./progress.ts";
+import { goalRow, isOpen, LADDER, ladderWindow, LINE_PASSES_TO_UNLOCK, lockedLine, lockFor, needs, needsSentence, newlyOpened, nextGoal, shortNeeds, standingLine, techniques, unmet, type UnlockId } from "./progress.ts";
 import { measureText, wrapText } from "./art/font.ts";
 import { STAGE_W } from "./core/scale.ts";
 import { DIALOGUE_LINES, DIALOGUE_WIDTH } from "./scenes/content.ts";
@@ -293,4 +293,29 @@ test("an older save that already holds 1st dan isn't sent back for it, though mu
   const notTaught = { ...old, waza: false };
   assert.deepEqual(unmet(notTaught, LADDER.find((row) => row.id === "shinsa:1")!), []);
   assert.ok(lockFor(notTaught, "online"));
+});
+
+test("the checklist has what's done as well as what's missing, in the same order", () => {
+  const goose = row("goose");
+  const atBeach = beat({ ...armored(), dan: 1 }, "raccoon");
+  const run = { ...atBeach, bonusKi: 70 };
+  const list = needs(run, goose);
+  assert.deepEqual(list.filter((need) => !need.met).map((need) => need.text), unmet(run, goose));
+  assert.ok(list.some((need) => need.met), "something is already done");
+  assert.ok(list.find((need) => need.text === "seme" && !need.met));
+  assert.ok(needs(createRunState(), row("door")).every((need) => !need.met));
+});
+
+test("every row's checklist agrees with whether it's open, all the way up the ladder", () => {
+  for (const unlock of LADDER) {
+    for (const run of [createRunState(), armored(), { ...armored(), bonusKi: 500, seme: true, dan: 3, waza: true, linePasses: 3 }]) {
+      assert.equal(needs(run, unlock).every((need) => need.met), unmet(run, unlock).length === 0, unlock.id);
+    }
+  }
+});
+
+test("the map opens on what's next, and on the last row when there's nothing left", () => {
+  assert.equal(LADDER[goalRow(createRunState())].id, nextGoal(createRunState())!.id);
+  const done = { ...armored(), bonusKi: 500, seme: true, dan: 3, waza: true, linePasses: 3, beaten: ["aki", "raccoon", "goose", "heron", "otter", "radish"] as RunState["beaten"], cups: [...CUP_IDS] };
+  if (nextGoal(done) === null) assert.equal(goalRow(done), LADDER.length - 1);
 });

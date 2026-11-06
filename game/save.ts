@@ -1,4 +1,4 @@
-import { isCharacter } from "./characters.ts";
+import { cleanPlayerName, isCharacter } from "./characters.ts";
 import type { SceneName } from "./core/scene.ts";
 import { isInsignia } from "./insignia.ts";
 import { impliedDan } from "./ranks.ts";
@@ -28,6 +28,10 @@ export function parseRun(raw: unknown): RunState | null {
       if (typeof value !== "string" || !Object.hasOwn(NODES, value)) return null;
     } else if (key === "character") {
       if (!isCharacter(value)) return null;
+    } else if (key === "name") {
+      if (typeof value !== "string") return null;
+      out.name = cleanPlayerName(value);
+      continue;
     } else if (key === "insignia") {
       if (!isInsignia(value)) return null;
     } else if (key === "cups") {
@@ -46,7 +50,7 @@ export function parseRun(raw: unknown): RunState | null {
       if (!isCount(value)) return null;
       out.hp = Math.min(value, run.hp);
       continue;
-    } else if (key === "losses" || key === "held" || key === "talked") {
+    } else if (key === "losses" || key === "held" || key === "talked" || key === "durability") {
       if (!isRecord(value) || !Object.values(value).every(isCount)) return null;
     } else if (Array.isArray(start)) {
       if (!isStringList(value)) return null;

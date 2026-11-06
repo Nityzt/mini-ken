@@ -51,6 +51,7 @@ export const STALLS: Record<StallId, ShopItemId[]> = {
 
 export const isShopItem = (id: string): id is ShopItemId => Object.hasOwn(SHOP_ITEMS, id);
 export const owns = (run: RunState, id: ShopItemId): boolean => run.owned.includes(id);
+export const hasFine = (run: RunState): boolean => owns(run, "fineShinai");
 export const canBuy = (run: RunState, id: ShopItemId): boolean => !owns(run, id) && run.money >= SHOP_ITEMS[id].price;
 
 /** Takes the money and hands it over. New colors go on straight away. */

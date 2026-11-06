@@ -1,4 +1,4 @@
-import { PALETTE, RIVAL_COLORS, SENIOR_COLORS } from "./palette.ts";
+import { MEN_INHERITS, PALETTE, RIVAL_COLORS, SENIOR_COLORS } from "./palette.ts";
 import { FULL_GEAR, type Gear } from "./kendoka.ts";
 import type { Kamae } from "../duel/rules.ts";
 import { drawSprite, grid } from "./sprite.ts";
@@ -14,8 +14,9 @@ export type DuelPose =
   | "zanshin" | "recover" | "stunned"
   | "walkHome" | "sonkyoSheathe" | "hit"
   | "parry" | "suriage" | "deflected" | "stumble"
-  | "tsuba" | "tsubaPush" | "tsubaGuard" | "tsubaPull"
-  | "hikiMen" | "hikiKote" | "hikiDo";
+  | "tsuba" | "tsubaPush" | "tsubaGuard" | "tsubaPull" | "tsubaPart"
+  | "hikiMen" | "hikiKote" | "hikiDo"
+  | "sayuRaise" | "sayuLeft" | "sayuRight" | "receiveLeft" | "receiveRight";
 
 /** Drawn facing right. Rows line up so the head, torso and legs can shift independently. */
 const HEAD = grid(FIGHTER_WIDTH, 17, [
@@ -23,18 +24,18 @@ const HEAD = grid(FIGHTER_WIDTH, 17, [
   ".......NNIIIIIIIIINN",
   "......NIIiiiiiIIIIIIN",
   ".....NIIiiIIIIIIIIIIIN",
-  "....RNIIIIIIIIIIIIIIIIN",
-  "...RRNIIIIIIIwwwwwwwwwwwN",
-  "....RNIIIIIIIwSSSSwSSSSwN",
-  ".....NIIIIIIIwSKKSwSKKSwN",
-  ".....NIIIIIIIwSKKSwSKKSwN",
-  ".....NIIIIIIIwSKKSwSKKSwN",
-  ".....NIIIIIIIwwwwwwwwwwwN",
-  ".....NIIIIIIIwPPSSwSSPPwN",
-  ".....NIIIIIIIwwwwwwwwwwwN",
+  "....TNIIIIIIIIIIIIIIIIN",
+  "...TtNIAIIIAIMMMMMMMMMMMN",
+  "....TNIIIIIIIMSSSSMSSSSMN",
+  ".....NIAIEIAIMSKKSMSKKSMN",
+  ".....NIIEEEIIMSKKSMSKKSMN",
+  ".....NIAIEIAIMSKKSMSKKSMN",
+  ".....NIIIIIIIMMMMMMMMMMMN",
+  ".....NIAIIIAIMPPSSMSSPPMN",
+  ".....NIIIIIIIMMMMMMMMMMMN",
   "......NIIIIIIIIIIIIIIN",
-  ".....NIINIIIIIIIRRRIN",
-  "....NIINNIIIIIIIRRRIN",
+  ".....NIINUUUUUUUTTTUN",
+  "....NIINNUUUUUUUTTTUN",
   "....NIN..NNNNNNNNNNN",
 ]);
 
@@ -251,7 +252,8 @@ export const POSES: Record<DuelPose, PoseDef> = {
   bow: { hand: [13, 31], angle: 30, head: [4, 4], torso: [2, 1], sheathed: true },
   // Taito: brought up to the left hip, as if worn.
   taito: { hand: [13, 26], angle: 14, sheathed: true },
-  draw: { hand: [24, 21], angle: -32, head: [0, 2], torso: [0, 2] },
+  // The blade comes up high as it's drawn, and only comes down on the way into sonkyo.
+  draw: { hand: [24, 17], angle: -64, head: [0, 1], torso: [0, 1] },
   sonkyo: { hand: [23, 33], angle: -24, head: [0, 9], torso: [0, 9], legs: "sonkyo" },
   // Powering up: planted, shoulders back, shinai rising.
   seme: { hand: [23, 24], angle: -42, head: [0, -1], torso: [0, -1] },
@@ -265,31 +267,42 @@ export const POSES: Record<DuelPose, PoseDef> = {
   strikeMen: { hand: [31, 15], angle: -6, head: [4, 0], torso: [3, 0], legs: "lunge" },
   strikeKote: { hand: [31, 21], angle: 6, head: [4, 1], torso: [3, 0], legs: "lunge" },
   strikeDo: { hand: [32, 25], angle: 16, head: [4, 2], torso: [3, 1], legs: "lunge" },
-  zanshin: { hand: [27, 13], angle: -58, head: [2, -1], torso: [2, 0], legs: "step" },
+  // The hands go straight back up after the cut, and stay up all the way through.
+  zanshin: { hand: [27, 2], angle: -106, head: [2, -1], torso: [2, 0], legs: "step" },
   recover: { hand: [22, 30], angle: 38, head: [1, 2], torso: [0, 1] },
   stunned: { hand: [20, 31], angle: 50, head: [0, 3], torso: [0, 2] },
   // Walking back to the line, with the tip lowered. It isn't a guard, because nobody's fighting yet.
   walkHome: { hand: [21, 30], angle: 24, head: [0, 1], torso: [0, 1] },
   // Osame-to: still crouched, with the shinai brought back to the left hip.
   sonkyoSheathe: { hand: [13, 33], angle: 14, head: [0, 9], torso: [0, 9], legs: "sonkyo", sheathed: true },
-  // Taking one: the head goes back and the hands drop.
-  hit: { hand: [19, 29], angle: 34, head: [-3, 1], torso: [-2, 0] },
+  // Taking one: nobody reels or drops their hands. The head gives a little and the hands come up, too late.
+  hit: { hand: [24, 23], angle: -40, head: [-2, 0] },
   // Rising to meet the strike, then knocking it off line.
   parry: { hand: [26, 17], angle: -66, head: [1, 0] },
   suriage: { hand: [28, 10], angle: -104, head: [2, -1], torso: [1, 0] },
   deflected: { hand: [25, 7], angle: -128, head: [-2, 1], torso: [-1, 1] },
   // Thrown off balance, leaning into nothing.
   stumble: { hand: [21, 32], angle: 42, head: [3, 3], torso: [2, 2], legs: "step" },
-  // Hilt to hilt: the hands meet in the middle and both shinai stand up between you.
-  tsuba: { hand: [25, 25], angle: -74, head: [1, 0], torso: [1, 0], legs: "step" },
-  tsubaPush: { hand: [26, 24], angle: -66, head: [3, 1], torso: [3, 1], legs: "lunge" },
-  tsubaGuard: { hand: [24, 21], angle: -84, head: [-1, 0], legs: "step" },
+  // Hilt to hilt: the hands meet at the chest and both shinai stand up between you.
+  tsuba: { hand: [25, 20], angle: -86, head: [1, 0], torso: [1, 0], legs: "step" },
+  tsubaPush: { hand: [26, 19], angle: -78, head: [3, 1], torso: [3, 1], legs: "lunge" },
+  tsubaGuard: { hand: [24, 18], angle: -94, head: [-1, 0], legs: "step" },
   // The tell: shoulders drop and the hands come down, ready to spring back.
   tsubaPull: { hand: [21, 28], angle: -54, head: [-3, 2], torso: [-2, 2], legs: "step" },
+  // Coming apart: the bodies go first, and the tip stays up until there's distance.
+  tsubaPart: { hand: [25, 19], angle: -66, legs: "step" },
   // Cutting on the way back, so the body leans away from the strike.
   hikiMen: { hand: [27, 15], angle: -6, head: [-2, 0], torso: [-2, 0], legs: "step" },
   hikiKote: { hand: [27, 21], angle: 6, head: [-2, 1], torso: [-2, 0], legs: "step" },
   hikiDo: { hand: [28, 25], angle: 16, head: [-2, 2], torso: [-2, 1], legs: "step" },
+  // Kirikaeshi: the shinai goes right back behind the head between strikes.
+  sayuRaise: { hand: [14, -1], angle: -168, head: [-1, 0], torso: [-1, 0], legs: "step" },
+  // The arms reach full length and the cut lands high, angled in. The sides differ so the alternation shows from side-on.
+  sayuLeft: { hand: [31, 12], angle: -36, head: [3, 0], torso: [2, 0], legs: "step" },
+  sayuRight: { hand: [30, 15], angle: -22, head: [3, 1], torso: [2, 0], legs: "step" },
+  // The partner holds the shinai upright and turns it to meet each one, stepping all the while.
+  receiveLeft: { hand: [25, 16], angle: -96, head: [-1, 0], legs: "step" },
+  receiveRight: { hand: [22, 18], angle: -82, head: [-1, 0], legs: "step" },
 };
 
 /** Jodan's hands stay over the head, so it reads differently at a glance. Anything not listed is as usual. */
@@ -333,6 +346,21 @@ export function blendPose(from: PoseDef, to: PoseDef, t: number): PoseDef {
     angle: mix(from.angle, to.angle, t),
     head: mixPair(from.head, to.head, t),
     torso: mixPair(from.torso, to.torso, t),
+  };
+}
+
+const COIL_LIFT = 4;
+const COIL_DEGREES = 18;
+const COIL_LEGS_AT = 0.3;
+
+/** A pose with the strike gathering in it: hands higher, blade further back, and the lead foot already going. */
+function coiled(def: PoseDef, coil: number): PoseDef {
+  if (coil <= 0) return def;
+  return {
+    ...def,
+    hand: [def.hand[0], def.hand[1] - Math.round(coil * COIL_LIFT)],
+    angle: def.angle - coil * COIL_DEGREES,
+    legs: def.legs ?? (coil >= COIL_LEGS_AT ? "step" : undefined),
   };
 }
 
@@ -408,13 +436,17 @@ export function drawFighter(
     bob?: number;
     /** The tip wandering, in degrees. */
     sway?: number;
+    /** How far a strike has gathered itself, from 0 to 1. */
+    coil?: number;
+    /** How fast they're going, from 0 to 1, for what streams out behind them, and the tick that ripples it. */
+    motion?: { speed: number; tick: number };
   } = {},
 ): void {
   const kamae = options.kamae ?? "chudan";
   const target = poseDef(pose, kamae);
   const blended = options.from && options.from !== pose ? blendPose(poseDef(options.from, kamae), target, options.blend ?? 1) : target;
   const bob = options.bob ?? 0;
-  const def: PoseDef = bob || options.sway
+  const swayed: PoseDef = bob || options.sway
     ? {
         ...blended,
         hand: [blended.hand[0], blended.hand[1] + bob],
@@ -423,6 +455,7 @@ export function drawFighter(
         torso: [blended.torso?.[0] ?? 0, (blended.torso?.[1] ?? 0) + bob],
       }
     : blended;
+  const def = coiled(swayed, options.coil ?? 0);
   const flip = options.flip ?? side !== "player";
   const colors = options.colors ?? (side === "rival" ? RIVAL_COLORS : side === "senior" ? SENIOR_COLORS : undefined);
   const weapon = options.weapon ?? "shinai";
@@ -445,12 +478,14 @@ export function drawFighter(
   };
   place(legs, 0, 28);
 
-  const swaps = new Map(Object.entries(colors ?? {}).map(([key, value]) => [PALETTE[key], value]));
-  const px = (dx: number, dy: number, color: string, size = 1) => {
-    ctx.fillStyle = swaps.get(color) ?? color;
+  // The men's details share their default colors with other things, and those mustn't change along with them.
+  const swaps = new Map(Object.entries(colors ?? {}).filter(([key]) => !(key in MEN_INHERITS)).map(([key, value]) => [PALETTE[key], value]));
+  const exactly = (dx: number, dy: number, color: string, size = 1) => {
+    ctx.fillStyle = color;
     const drawX = flip ? left + FIGHTER_WIDTH - dx - size : left + dx;
     ctx.fillRect(drawX, top + dy, size, size);
   };
+  const px = (dx: number, dy: number, color: string, size = 1) => exactly(dx, dy, swaps.get(color) ?? color, size);
   // Facing right, the left hand is on the far side of the body.
   const shoulder: [number, number] = [16 + torsoX, 20 + torsoY];
   const armBehind = def.sheathed && side === "player" && !flip;
@@ -464,6 +499,27 @@ export function drawFighter(
     px(5 + torsoX, 20 + torsoY, ribbon, 2);
     px(4 + torsoX, 22 + torsoY, ribbon, 2);
     px(3 + torsoX, 24 + torsoY, ribbon, 2);
+  }
+  if (options.motion) {
+    const { speed, tick } = options.motion;
+    // The hem of the hakama flares out behind a big step.
+    if (speed > 0 && def.legs === "lunge") {
+      for (let k = 0; k < HEM_ROWS; k++) px(1 - k - (tick >> 2) % 2, 34 + k, PALETTE.N, 2);
+    }
+    // The men's ties hang down at rest and stream out behind at speed.
+    if (gear.men) {
+      for (let strand = 0; strand < 2; strand++) {
+        for (let k = 1; k <= HIMO_LENGTH; k++) {
+          const ripple = speed > 0 ? Math.round(Math.sin((tick + strand * 5) / 2 - k) * speed) : 0;
+          const fall = k * (1 - speed) + (speed * k) / 3 + ripple;
+          const tieX = 4 + headX - strand - Math.round(k * (0.25 + speed * 0.75));
+          const tieY = 6 + headY + strand + Math.round(fall);
+          const own = colors?.[strand ? "t" : "T"];
+          if (own) exactly(tieX, tieY, own);
+          else px(tieX, tieY, strand ? PALETTE.r : PALETTE.R);
+        }
+      }
+    }
   }
   // Arms raised over the head go on after it.
   const overHead = kamae !== "chudan" && def.hand[1] < 12;
@@ -479,6 +535,9 @@ export function drawFighter(
     place(STARS, 8 + (frame % 2), -3 + headY);
   }
 }
+
+const HEM_ROWS = 3;
+const HIMO_LENGTH = 6;
 
 const TRAIL_SAMPLES = 6;
 const TRAIL_TIP = SHINAI_BLADE + 1;
@@ -498,6 +557,47 @@ export function drawSwingTrail(ctx: CanvasRenderingContext2D, x: number, y: numb
     const tipY = hand[1] + Math.sin(angle) * TRAIL_TIP;
     const size = i < TRAIL_SAMPLES / 2 ? 1 : 2;
     ctx.fillRect(Math.round(flip ? left + FIGHTER_WIDTH - tipX - size : left + tipX), Math.round(top + tipY), size, size);
+  }
+}
+
+/** Where the tip of the shinai is drawn right now. x is the fighter's center and y is the ground. */
+export function shinaiTip(x: number, y: number, pose: DuelPose, flip: boolean, kamae: Kamae = "chudan", from?: DuelPose, blend = 1, coil = 0): [number, number] {
+  const target = poseDef(pose, kamae);
+  const { hand, angle } = coiled(from && from !== pose ? blendPose(poseDef(from, kamae), target, blend) : target, coil);
+  const radians = (angle * Math.PI) / 180;
+  const tipX = hand[0] + Math.cos(radians) * SHINAI_BLADE;
+  const tipY = hand[1] + Math.sin(radians) * SHINAI_BLADE;
+  const left = Math.round(x) - FIGHTER_WIDTH / 2;
+  // The blade is two pixels wide, so its middle is one in from where it's drawn.
+  return [Math.round(flip ? left + FIGHTER_WIDTH - tipX - 1 : left + tipX + 1), Math.round(y) - FIGHTER_HEIGHT + Math.round(tipY) + 1];
+}
+
+const SHINE_MIN_REACH = 2;
+const SHINE_MAX_REACH = 8;
+const SHINE_STILL_REACH = 5;
+const SHINE_FULL_RAYS = 3;
+
+/**
+ * A glint on the tip: a four-pointed star that swells with brightness, from 0 to 1, and throws out extra rays once it's full.
+ * It's the parry's cue, so reduced motion keeps it, holding one size.
+ */
+export function drawShine(ctx: CanvasRenderingContext2D, x: number, y: number, brightness: number, still = false): void {
+  const reach = still ? SHINE_STILL_REACH : Math.round(SHINE_MIN_REACH + (SHINE_MAX_REACH - SHINE_MIN_REACH) * brightness);
+  const star = (grow: number, color: string) => {
+    ctx.fillStyle = color;
+    ctx.fillRect(x - reach - grow, y - grow, (reach + grow) * 2 + 1, 1 + grow * 2);
+    ctx.fillRect(x - grow, y - reach - grow, 1 + grow * 2, (reach + grow) * 2 + 1);
+  };
+  // A dark edge, so it reads against pale plaster and bright sky alike.
+  star(1, PALETTE.N);
+  star(0, PALETTE.Y);
+  ctx.fillStyle = PALETTE.W;
+  ctx.fillRect(x - 1, y - 1, 3, 3);
+  ctx.fillRect(x - Math.floor(reach / 2), y, reach + 1, 1);
+  ctx.fillRect(x, y - Math.floor(reach / 2), 1, reach + 1);
+  if (brightness < 1 || still) return;
+  for (let ray = 2; ray <= SHINE_FULL_RAYS; ray++) {
+    for (const [dx, dy] of [[-ray, -ray], [ray, -ray], [-ray, ray], [ray, ray]]) ctx.fillRect(x + dx, y + dy, 1, 1);
   }
 }
 

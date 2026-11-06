@@ -91,7 +91,7 @@ export const PEOPLE: Record<string, Person> = {
     news: [
       { id: "hurt", when: hurtNow, line: "Aki: Whoa! You look terrible! Are you okay? Who did that? Was it good? Tell me everything!" },
       { id: "owes", when: owesMoney, line: "Aki: Somebody took your money?! Go and get it! I'll come with you! No, I've got practice. Go and get it!" },
-      { id: "champion", when: champion, line: "Aki: CHAMPION! I told everyone! Then I told them again! I told a bus driver!" },
+      { id: "champion", when: champion, line: "Aki: <name>! CHAMPION! I told everyone! Then I told them again! I told a bus driver!" },
       { id: "ren", when: beat("radish"), line: "Aki: You beat Ren?! Ren! I once saw Ren make a pigeon apologize!" },
       { id: "beat", when: beat("aki"), line: "Aki: You beat me, and I told everyone! Everyone knows now! You're welcome!" },
       { id: "streets", when: streets(1), line: "Aki: I heard you chased off the Alley Cats! Auntie Bea told my mom! She said you were taller!" },
@@ -549,6 +549,6 @@ export const AFTER_WINS: Record<string, { first: string[]; again: string[] }> = 
 /** Waking up at home after going down. */
 export const WAKE_UP: string[][] = [
   ["You wake up on the bench at Pinecone, with a wet tenugui on your face. Everything hurts, then less so.", "Senpai Momo: There you are! Someone carried you in. You've been out for hours. Sit up slowly."],
-  ["You wake up on the same bench. Someone's drawn a small goose on your hand.", "Senpai Momo: Again? We're going to put your name on this bench. Sit up slowly."],
+  ["You wake up on the same bench. Someone's drawn a small goose on your hand.", "Senpai Momo: Again, <name>? We're going to put your name on this bench. Sit up slowly."],
   ["The ceiling of Pinecone Dojo. You know this ceiling by now.", "Sensei Kuma: You went out there hurt, and you know it. Get up when you can. Then we'll talk about your feet."],
 ];

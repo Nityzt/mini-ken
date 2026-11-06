@@ -1,5 +1,5 @@
 import type { DuelPose } from "../art/duel-sprites.ts";
-import { BOW_TICKS, CLOSING_TICKS } from "./constants.ts";
+import { BOW_TICKS, CLOSING_TICKS, PARRY_LATEST_TAP, PARRY_SHINE_LEAD } from "./constants.ts";
 import type { DuelState, Fighter, Target } from "./rules.ts";
 
 const STRIKE_POSE: Record<Target, DuelPose> = { men: "strikeMen", kote: "strikeKote", do: "strikeDo" };
@@ -79,7 +79,8 @@ export function poseFor(
   if (view.striking) return (view.hiki ? HIKI_POSE : STRIKE_POSE)[view.striking];
   if (view.reaction) return view.reaction;
   if (view.phase === "point") return view.walkingHome ? "walkHome" : "guard";
-  if (view.phase === "wakare" || view.phase === "turning") return "guard";
+  if (view.phase === "wakare") return "tsubaPart";
+  if (view.phase === "turning") return "guard";
   if (view.phase === "crossing") return "zanshin";
   if (view.phase === "zanshin") return view.scored ? "zanshin" : "guard";
   switch (fighter.stance) {
@@ -107,4 +108,29 @@ export function poseFor(
     default:
       return fighter.launchTicks > 0 ? "launch" : "guard";
   }
+}
+
+/**
+ * How brightly someone's tip is shining, from 0 for not at all to 1 for tap now.
+ * It swells as the strike comes and is full from the first tick a tap would work.
+ * A pull out of a lock is answered by holding, and a basic lesson has no parry, so neither of those shine.
+ */
+export function parryShine(duel: Pick<DuelState, "phase" | "fighters" | "options">, i: 0 | 1): number {
+  const { stance, stanceTicks, hiki } = duel.fighters[i];
+  if (duel.phase !== "fight" || duel.options.basics || stance !== "windup" || hiki || stanceTicks > PARRY_SHINE_LEAD) return 0;
+  return Math.min(1, (PARRY_SHINE_LEAD + 1 - stanceTicks) / (PARRY_SHINE_LEAD + 1 - PARRY_LATEST_TAP));
+}
+
+/** How long before it lands a strike starts to gather itself. */
+export const COIL_TICKS = 12;
+
+/**
+ * How far a strike has gathered itself, from 0 to 1. Real strikes never freeze and then snap: the hands
+ * keep rising and the body's already driving forward by the time the cut starts.
+ * A pull out of a lock has its own look, and doesn't drive at anyone.
+ */
+export function windupCoil(duel: Pick<DuelState, "phase" | "fighters">, i: 0 | 1): number {
+  const { stance, stanceTicks, hiki } = duel.fighters[i];
+  if (duel.phase !== "fight" || stance !== "windup" || hiki || stanceTicks > COIL_TICKS) return 0;
+  return (COIL_TICKS + 1 - stanceTicks) / COIL_TICKS;
 }

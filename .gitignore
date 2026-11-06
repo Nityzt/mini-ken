@@ -18,3 +18,10 @@ next-env.d.ts
 *.log
 .vercel
 .superpowers/
+
+# reference footage
+/Private Kendo Shiai*.mp4
+/Kendo Kirikaeshi*.mp4
+
+# local database
+/.local/

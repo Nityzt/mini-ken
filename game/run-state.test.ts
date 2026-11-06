@@ -21,7 +21,7 @@ test("rematch state does not leak", () => {
   assert.deepEqual(d.fighters.map((f) => f.points), [0, 0]);
   assert.equal(d.fighters[0].ki, playerKiMax(r));
   assert.equal(d.fighters[0].kiMax, playerKiMax(r));
-  assert.equal(rivalConfigFor(r).tell.men, 46);
+  assert.equal(rivalConfigFor(r).tell.men, 54);
 });
 
 test("a win resets losses and keeps the tsuba and gear", () => {
@@ -39,9 +39,9 @@ test("without the tsuba the player has normal ki", () => {
 
 test("duel options give the rival its tell lengths for this many losses", () => {
   const options = duelOptionsFor(recordLoss(createRunState()));
-  assert.equal(options.windups?.[1].men, 34);
-  assert.equal(options.windups?.[1].kote, 34);
-  assert.equal(options.windups?.[1].bigMen, 50);
+  assert.equal(options.windups?.[1].men, 42);
+  assert.equal(options.windups?.[1].kote, 42);
+  assert.equal(options.windups?.[1].bigMen, 62);
   assert.deepEqual(options.windups?.[0], {});
 });
 

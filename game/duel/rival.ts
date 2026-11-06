@@ -1,5 +1,5 @@
 import { RANGE_MAX, RANGE_MIN, TSUBA_BREAK } from "./constants.ts";
-import { distance, KAMAE, type AttackKind, type DuelState, type FighterInput, type Target } from "./rules.ts";
+import { distance, KAMAE, ticksNext, type AttackKind, type DuelState, type FighterInput, type Target } from "./rules.ts";
 
 /**
  * Ren waits and picks a moment. Hana can't wait, and loves the big swing. Momo can't be touched without seme.
@@ -49,17 +49,19 @@ export type RivalState = {
   lockIn: number;
   /** Whether they've noticed you pulling back for a strike. Null when you aren't. */
   readsPull: boolean | null;
+  /** What they're holding down, which carries on through the frames when nothing's being decided. */
+  held: FighterInput;
 };
 type LockPlan = "push" | "hold" | "pull" | "out";
 
 const STYLES: Record<RivalStyle, Omit<RivalConfig, "tell"> & { baseTell: RivalConfig["tell"] }> = {
   steady: { baseTell: { men: 30, kote: 30, bigMen: 46 }, habits: ["men", "kote", "bigMen"], habitMin: 60, habitSpread: 50, parry: 0.1, lockSkill: 0.5, meets: 0.65 },
-  fierce: { baseTell: { men: 28, kote: 28, bigMen: 44 }, habits: ["bigMen", "men", "bigMen", "kote", "bigMen"], habitMin: 26, habitSpread: 30, parry: 0.05, charges: 0.15, lockSkill: 0.3, meets: 0.75 },
+  fierce: { baseTell: { men: 28, kote: 28, bigMen: 44 }, habits: ["bigMen", "men", "bigMen", "kote", "bigMen"], habitMin: 34, habitSpread: 30, parry: 0.05, charges: 0.15, lockSkill: 0.3, meets: 0.75 },
   rigged: { baseTell: { men: 30, kote: 30, bigMen: 46 }, habits: ["bigMen"], habitMin: 70, habitSpread: 50, rigged: true },
   demonstration: { baseTell: { men: 30, kote: 30, bigMen: 46 }, habits: ["bigMen"], habitMin: 70, habitSpread: 50, rigged: true, walksIn: true },
   sneaky: { baseTell: { men: 42, kote: 42, bigMen: 56 }, habits: ["kote", "kote", "men"], habitMin: 50, habitSpread: 40, parry: 0.15, lockSkill: 0.5, meets: 0.55 },
   patient: { baseTell: { men: 30, kote: 30, bigMen: 46 }, habits: ["men", "bigMen"], habitMin: 90, habitSpread: 60, parry: 0.25, lockSkill: 0.6, meets: 0.55 },
-  relentless: { baseTell: { men: 28, kote: 28, bigMen: 42 }, habits: ["men", "kote", "men"], habitMin: 20, habitSpread: 20, parry: 0.1, charges: 0.15, lockSkill: 0.4, meets: 0.75 },
+  relentless: { baseTell: { men: 28, kote: 28, bigMen: 42 }, habits: ["men", "kote", "men"], habitMin: 36, habitSpread: 24, parry: 0.1, charges: 0.15, lockSkill: 0.4, meets: 0.75 },
   master: { baseTell: { men: 30, kote: 30, bigMen: 46 }, habits: ["men", "kote", "bigMen", "kote"], habitMin: 44, habitSpread: 40, pressesGuard: true, parry: 0.3, lockSkill: 1, meets: 0.6 },
   // Sensei has no favourite and doesn't wait long, and won't let you hide. They've seen everything you've got, because they taught it.
   sensei: { baseTell: { men: 28, kote: 28, bigMen: 44 }, habits: ["men", "kote", "bigMen", "men"], habitMin: 50, habitSpread: 40, pressesGuard: true, parry: 0.35, lockSkill: 1, meets: 0.6 },
@@ -77,6 +79,8 @@ const STYLES: Record<RivalStyle, Omit<RivalConfig, "tell"> & { baseTell: RivalCo
   wall: { baseTell: { men: 50, kote: 50, bigMen: 66 }, habits: ["bigMen", "men"], habitMin: 110, habitSpread: 70, parry: 0.1, lockSkill: 0.3, meets: 0.4 },
   exact: { baseTell: { men: 46, kote: 46, bigMen: 60 }, habits: ["kote", "men", "kote", "bigMen"], habitMin: 70, habitSpread: 40, parry: 0.1, lockSkill: 0.3, meets: 0.45 },
 };
+/** The table above is in the old tells. These run a quarter longer, so there's time to answer now strikes are slower to land. */
+const TELL_STRETCH = 1.25;
 const EASE_PER_LOSS = 4;
 const EASE_CAP = 16;
 const PUNISH_REACTION = 6;
@@ -95,13 +99,15 @@ export const PRESS_GIVES_UP_AT = 3;
 const PARRY_EASE_PER_LOSS = 0.25;
 const PARRY_EASE_FLOOR = 0.25;
 
+const stretched = (ticks: number) => Math.round(ticks * TELL_STRETCH);
+
 /** The rival is at full strength on the first try, and its tells last longer after each loss. */
 export function rivalConfig(losses: number, style: RivalStyle = "steady"): RivalConfig {
   const { baseTell, ...habits } = STYLES[style];
   const ease = Math.min(EASE_CAP, losses * EASE_PER_LOSS);
   const pressing = habits.pressesGuard ? { pressesGuard: losses < PRESS_GIVES_UP_AT } : {};
   const parrying = habits.parry ? { parry: habits.parry * Math.max(PARRY_EASE_FLOOR, 1 - losses * PARRY_EASE_PER_LOSS) } : {};
-  return { ...habits, ...pressing, ...parrying, tell: { men: baseTell.men + ease, kote: baseTell.kote + ease, bigMen: baseTell.bigMen + ease } };
+  return { ...habits, ...pressing, ...parrying, tell: { men: stretched(baseTell.men) + ease, kote: stretched(baseTell.kote) + ease, bigMen: stretched(baseTell.bigMen) + ease } };
 }
 
 const MOOD_SLOWEST = 1.25;
@@ -154,6 +160,7 @@ export function createRival(seed: number, config: RivalConfig): RivalState {
     lockPlan: null,
     lockIn: 0,
     readsPull: null,
+    held: IDLE,
   };
 }
 
@@ -228,8 +235,16 @@ function lockAct(duel: DuelState, rival: RivalState, next: RivalState): { input:
   }
 }
 
-/** Decides the rival's input for this tick. The rival plays by the same rules as the player. */
+/** The rival's input for this frame. They only make up their mind when the rules are about to move, so their timing is counted in ticks like everything else's. */
 export function rivalAct(duel: DuelState, rival: RivalState): { input: FighterInput; rival: RivalState } {
+  if (!ticksNext(duel)) return { input: rival.held, rival };
+  const act = decide(duel, rival);
+  const { move, block, seme } = act.input;
+  return { input: act.input, rival: { ...act.rival, held: { move, block, seme, attack: null } } };
+}
+
+/** Decides the rival's input for this tick. The rival plays by the same rules as the player. */
+function decide(duel: DuelState, rival: RivalState): { input: FighterInput; rival: RivalState } {
   if (duel.phase === "zanshin" && duel.zanshin?.by === 1) return { input: { ...IDLE, move: duel.zanshin.dir }, rival };
   if (duel.phase !== "fight") return { input: IDLE, rival };
 

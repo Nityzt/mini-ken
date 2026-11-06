@@ -6,6 +6,7 @@ import { hasLetter, danLabel } from "./ranks.ts";
 import type { RunState } from "./run-state.ts";
 import { pendingChallenge } from "./scenes/club-story.ts";
 import { OBJECTIVES } from "./scenes/content.ts";
+import { shinaiObjective } from "./scenes/shinai-story.ts";
 import { homeVisitor } from "./scenes/visits.ts";
 
 /** One short line saying what to do next. Empty when there's nothing left to chase. */
@@ -25,6 +26,8 @@ export function currentObjective(run: RunState): string {
   }
   if (hasLetter(run)) return OBJECTIVES.showLetter;
   if (gradingReady(run)) return OBJECTIVES.grading(danLabel(run.dan + 1));
+  const shinai = shinaiObjective(run);
+  if (shinai) return shinai;
   const goal = nextGoal(run);
   if (goal) return `${goal.label}: ${shortNeeds(run, goal)}`;
   return run.champion ? "" : OBJECTIVES.grandTaikai;

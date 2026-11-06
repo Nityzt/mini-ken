@@ -185,3 +185,45 @@ test("P also pauses, because Esc only leaves fullscreen when you're in it", () =
   assert.equal(input.wasPressed("pause"), true);
   input.dispose();
 });
+
+test("while typing, keys are text and don't work the controls", () => {
+  const target = new EventTarget();
+  const input = createInput(target);
+  const press = (key: string, repeat = false) => {
+    const event = Object.assign(new Event("keydown", { cancelable: true }), { key, code: "", repeat, ctrlKey: false, metaKey: false, altKey: false });
+    target.dispatchEvent(event);
+    return event;
+  };
+  input.setTyping(true);
+  assert.equal(input.typing, true);
+  for (const key of ["e", "x", "Escape", "Enter", " "]) assert.equal(press(key).defaultPrevented, true, key);
+  assert.deepEqual([...input.typed()], ["e", "x", "Escape", "Enter", " "]);
+  for (const action of ["confirm", "cancel", "pause", "stomp"] as const) assert.equal(input.wasPressed(action), false, action);
+  input.endTick();
+  assert.deepEqual([...input.typed()], []);
+
+  press("e", true);
+  assert.deepEqual([...input.typed()], [], "holding a letter doesn't run on");
+  press("Backspace", true);
+  assert.deepEqual([...input.typed()], ["Backspace"], "holding Backspace does");
+  assert.equal(press("Tab").defaultPrevented, false, "keys that aren't text are left alone");
+
+  input.setTyping(false);
+  assert.deepEqual([...input.typed()], []);
+  press("e");
+  assert.equal(input.wasPressed("confirm"), true);
+  input.dispose();
+});
+
+test("a form field gets its own keys, even with the game reading text", () => {
+  const target = new EventTarget();
+  const input = createInput(target as unknown as Window);
+  input.setTyping(true);
+  let prevented = false;
+  const event = Object.assign(new Event("keydown"), { key: "a", code: "KeyA", ctrlKey: false, metaKey: false, altKey: false, repeat: false, preventDefault: () => (prevented = true) });
+  Object.defineProperty(event, "target", { value: { tagName: "INPUT" } });
+  target.dispatchEvent(event);
+  assert.equal(prevented, false);
+  assert.deepEqual(input.typed(), []);
+  input.dispose();
+});

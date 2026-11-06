@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createRunState, type RunState } from "./run-state.ts";
-import { clearSave, readSave, resumeScene, SAVE_KEY, writeSave, type SaveStore } from "./save.ts";
+import { clearSave, parseRun, readSave, resumeScene, SAVE_KEY, writeSave, type SaveStore } from "./save.ts";
 
 const memoryStore = (initial: Record<string, string> = {}): SaveStore & { data: Record<string, string> } => {
   const data = { ...initial };
@@ -129,4 +129,19 @@ test("a save from before gradings keeps the rank its wins imply, and a newer sav
   store.setItem(SAVE_KEY, JSON.stringify({ version: 1, run: { beaten: ["raccoon", "goose"], node: "pinecone", dan: 0, xp: 40 } }));
   assert.equal(readSave(store)?.dan, 0);
   assert.equal(readSave(store)?.xp, 40);
+});
+
+test("keeping the men on survives a save, and older saves start with it off", () => {
+  assert.equal(parseRun({ ...createRunState(), menOn: true })?.menOn, true);
+  const { menOn: _unset, ...older } = createRunState();
+  assert.equal(parseRun({ ...older, gear: { ...older.gear, men: true } })?.menOn, false);
+  assert.equal(parseRun({ ...createRunState(), menOn: "yes" }), null);
+});
+
+test("your name survives a save, older saves go by the character's, and it can't be used to smuggle anything in", () => {
+  assert.equal(parseRun({ ...createRunState(), name: "Nit" })?.name, "Nit");
+  const { name: _unset, ...older } = createRunState();
+  assert.equal(parseRun(older)?.name, "");
+  assert.equal(parseRun({ ...createRunState(), name: "<name>:{}" })?.name, "name");
+  assert.equal(parseRun({ ...createRunState(), name: 7 }), null);
 });

@@ -11,12 +11,16 @@ import { drawMiniTrain, drawStreetcar, PATH_EDGE, PATH_FILL, STREETCAR_Y, TRAIN_
 import { onGui, onStage, STAGE_H, STAGE_W, stageX, viewH, viewW } from "../core/scale.ts";
 import type { Game, Scene } from "../core/scene.ts";
 import { lockedLine, lockFor, unmet } from "../progress.ts";
-import { recordTower, type RunState } from "../run-state.ts";
+import { recordTower, type RunState, walkingGear } from "../run-state.ts";
 import { DIRECTIONS, EDGES, exitsFrom, neighbor, NODES, nodesIn, routesFrom, TOWER_HEIGHT, type Direction, type District, type NodeId, type Route, type WorldNode } from "../world/map.ts";
 import { stepsTo } from "../world/routes.ts";
-import { AUTO_LOST, AUTO_WALK, CHOOSE_HELP, CHOOSE_TITLE, GANG_STORIES, GEN_LINES, MAP_HELP, TOWER_AGAIN, TOWER_FIRST } from "./content.ts";
+import { benchJobs, durabilityOf, fixGear, type GearKey } from "../durability.ts";
+import { gearName } from "../items.ts";
+import { AUTO_LOST, AUTO_WALK, benchLabel, BENCH_BROWSE, BENCH_FIXED_FUMI, BENCH_FIXED_SELF, BENCH_TOO_DEAR, CHOOSE_HELP, CHOOSE_TITLE, FUMI_BUILD_DONE, GANG_STORIES, GEN_LINES, MAP_HELP, SHINAI_STEPS, TOWER_AGAIN, TOWER_FIRST } from "./content.ts";
+import { finishBuilding, genOnBamboo, shopArrival, stepIsRight } from "./shinai-story.ts";
 import { openTopics } from "./chatter.ts";
 import { createMenu } from "./choice.ts";
+import { figureAt, type Figure } from "./bubble.ts";
 import { createDialogue } from "./dialogue.ts";
 import { canRide } from "./exit.ts";
 
@@ -181,8 +185,9 @@ function promptAt(id: NodeId, run: RunState): string {
 }
 
 /** Walk between places along the paths. Everything off the main road is optional. */
-export function createMapScene(): Scene {
-  const dialogue = createDialogue();
+export function createMapScene(nameOf: () => string): Scene {
+  const dialogue = createDialogue(nameOf);
+  let youOnMap: Figure | null = null;
   const menu = createMenu();
   let tick = 0;
   let walking: { from: NodeId; to: NodeId; dir: Direction; progress: number; length: number } | null = null;
@@ -196,6 +201,41 @@ export function createMapScene(): Scene {
     game.go("travel");
   };
 
+  /** Fumi asks and you answer, one part of the shinai at a time. X puts it down for now, and nothing's lost but the place you'd got to. */
+  const buildStep = (game: Game, step: number) => {
+    const { question, options, wrong } = SHINAI_STEPS[step];
+    dialogue.open([question], () => {
+      menu.open(options, (id) => {
+        if (!stepIsRight(step, id)) dialogue.open([wrong], () => buildStep(game, step));
+        else if (step + 1 < SHINAI_STEPS.length) buildStep(game, step + 1);
+        else {
+          game.run = finishBuilding(game.run);
+          game.showCards(() => dialogue.open(FUMI_BUILD_DONE));
+        }
+      });
+    });
+  };
+  /** Anything that needs mending comes first, and then the shelves. X just walks out. */
+  const openBench = (game: Game) => {
+    const jobs = benchJobs(game.run);
+    if (!jobs.length) {
+      shop.open("store");
+      return;
+    }
+    const options = [...jobs.map(({ key, cost }) => ({ id: key, label: benchLabel(gearName(key), durabilityOf(game.run, key), cost) })), { id: "shelves", label: BENCH_BROWSE }];
+    menu.open(options, (id) => {
+      if (id === "shelves") {
+        shop.open("store");
+        return;
+      }
+      const key = id as GearKey;
+      const before = game.run;
+      game.run = fixGear(before, key);
+      const fixed = durabilityOf(game.run, key) !== durabilityOf(before, key);
+      const ownHands = fixed && game.run.money === before.money;
+      dialogue.open([!fixed ? BENCH_TOO_DEAR : ownHands ? BENCH_FIXED_SELF(gearName(key)) : BENCH_FIXED_FUMI(gearName(key))], () => openBench(game));
+    });
+  };
   const enterHere = (game: Game) => {
     const here = game.run.node;
     const node = NODES[here];
@@ -212,7 +252,11 @@ export function createMapScene(): Scene {
       game.go("tournament");
     }
     else if (node.kind === "master") {
-      if (game.run.seme) openTopics(game, menu, dialogue, "gen");
+      const bamboo = genOnBamboo(game.run);
+      if (bamboo) dialogue.open(bamboo.lines, () => {
+        game.run = bamboo.run;
+      });
+      else if (game.run.seme) openTopics(game, menu, dialogue, "gen");
       else {
         dialogue.open(GEN_LINES, () => {
           game.session = { kind: "master" };
@@ -220,7 +264,13 @@ export function createMapScene(): Scene {
         });
       }
     } else if (node.kind === "store") {
-      shop.open("store");
+      const arrival = shopArrival(game.run);
+      if (!arrival) openBench(game);
+      else dialogue.open(arrival.lines, () => {
+        game.run = arrival.run;
+        if (arrival.build) buildStep(game, 0);
+        else openBench(game);
+      });
     } else if (node.kind === "gang") {
       const story = GANG_STORIES[here];
       if (game.run.cleared.includes(here)) openTopics(game, menu, dialogue, here);
@@ -281,7 +331,7 @@ export function createMapScene(): Scene {
       tick++;
       game.debug.talking = dialogue.active || menu.active;
       if (dialogue.active) {
-        dialogue.update(game.input);
+        dialogue.update(game.input, game.audio);
         return;
       }
       if (menu.active) {
@@ -356,7 +406,9 @@ export function createMapScene(): Scene {
         y = a.y + (b.y - a.y) * walking.progress;
       }
       const frame = (walking ? Math.floor(tick / 7) % 2 : 0) as 0 | 1;
-      drawKendoka(ctx, x - 8, y - 19, facing, frame, game.run.gear, { flip, colors: playerColors(game.run) });
+      drawKendoka(ctx, x - 8, y - 19, facing, frame, walkingGear(game.run), { flip, colors: playerColors(game.run) });
+      // On the map, it's all said where you're standing.
+      youOnMap = figureAt(ctx, x, y - 19, y + 1);
       // Blinking arrows show which ways you can go.
       if (!walking && Math.floor(tick / 16) % 2 === 0) {
         for (const dir of exitsFrom(game.run.node, game.run.cleared)) {
@@ -388,7 +440,8 @@ export function createMapScene(): Scene {
           const { routes, choice } = choosing;
           onStage(ctx, () => drawChooser(ctx, routes, choice, game.run));
         }
-        dialogue.render(ctx);
+        const here = youOnMap;
+        dialogue.render(ctx, here ? { at: () => here, avoid: [] } : undefined);
         menu.render(ctx);
         shop.render(ctx, game);
       });

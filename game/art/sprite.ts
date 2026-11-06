@@ -1,4 +1,4 @@
-import { PALETTE } from "./palette.ts";
+import { MEN_INHERITS, PALETTE } from "./palette.ts";
 
 /** Pads short rows and missing rows with transparency, so grids stay readable as text. */
 export function grid(width: number, height: number, rows: string[]): string[] {
@@ -22,6 +22,9 @@ export function validateGrid(rows: string[]): string[] {
   return problems;
 }
 
+/** What one palette key comes out as under this color map. */
+export const colorOf = (char: string, colors?: Record<string, string>): string => colors?.[char] ?? colors?.[MEN_INHERITS[char]] ?? PALETTE[char];
+
 export function buildSprite(rows: string[], colors?: Record<string, string>): HTMLCanvasElement {
   const canvas = document.createElement("canvas");
   canvas.width = rows[0].length;
@@ -31,7 +34,7 @@ export function buildSprite(rows: string[], colors?: Record<string, string>): HT
     for (let x = 0; x < row.length; x++) {
       const char = row[x];
       if (char === ".") continue;
-      ctx.fillStyle = colors?.[char] ?? PALETTE[char];
+      ctx.fillStyle = colorOf(char, colors);
       ctx.fillRect(x, y, 1, 1);
     }
   });

@@ -4,7 +4,9 @@ import { AKI_COLORS, BO_COLORS, GEN_COLORS, SENIOR_COLORS, YUI_COLORS } from "..
 import { RANGE_MAX, TSUBA_GAP } from "../duel/constants.ts";
 import { createDuel, distance, type AttackKind, type DuelEvent, type DuelState, type FighterInput, type Target } from "../duel/rules.ts";
 import type { OpponentId } from "../world/dojos.ts";
-import { COACH_NAME, LESSON_PROMPTS, SENPAI_LINES } from "./content.ts";
+import { COACH_NAME, SENPAI_LINES } from "./content.ts";
+import type { TeachKey } from "./teach-card.ts";
+import { challengeText, lessonText } from "./teaching.ts";
 
 export type SenpaiId = "aki" | "bo" | "yui";
 /** Who you're training with, and what on. */
@@ -19,7 +21,10 @@ export type Session =
 
 export type Lesson = {
   id: string;
+  /** What the card says as the drill begins, and the reminder during it. */
+  title: string;
   prompt: string;
+  keys: TeachKey[];
   windups: Partial<Record<AttackKind, number>>;
   partner(tick: number, duel: DuelState): FighterInput;
   done(events: DuelEvent[], duel: DuelState, memo: Record<string, boolean>): boolean;
@@ -76,24 +81,24 @@ const launchedIn = (events: DuelEvent[], _duel: DuelState, memo: Record<string, 
 /** What Sensei teaches, one round at a time. Each round is taken to a senpai afterwards. */
 export const SENSEI_ROUNDS: Lesson[][] = [
   [
-    { id: "suriashi", prompt: LESSON_PROMPTS.suriashi, windups: {}, partner: () => IDLE, done: inThenOutThenIn },
-    { id: "fumikomi", prompt: LESSON_PROMPTS.fumikomi, windups: {}, gap: LESSON_DISTANCE, partner: () => IDLE, done: hit("men") },
-    { id: "zanshin", prompt: LESSON_PROMPTS.zanshin, windups: {}, gap: LESSON_DISTANCE, partner: () => IDLE, done: finished("men") },
+    { id: "suriashi", ...lessonText("suriashi"), windups: {}, partner: () => IDLE, done: inThenOutThenIn },
+    { id: "fumikomi", ...lessonText("fumikomi"), windups: {}, gap: LESSON_DISTANCE, partner: () => IDLE, done: hit("men") },
+    { id: "zanshin", ...lessonText("zanshin"), windups: {}, gap: LESSON_DISTANCE, partner: () => IDLE, done: finished("men") },
   ],
   [
     {
       id: "block",
-      prompt: LESSON_PROMPTS.block,
+      ...lessonText("block"),
       windups: { do: SLOW_SWING },
       gap: LESSON_DISTANCE,
       partner: repeats("do"),
       done: (events) => events.some((e) => e.type === "blocked" && e.by === 1),
     },
-    { id: "do", prompt: LESSON_PROMPTS.do, windups: { bigMen: SLOW_TELL }, gap: LESSON_DISTANCE, partner: repeats("bigMen"), done: finished("do") },
+    { id: "do", ...lessonText("do"), windups: { bigMen: SLOW_TELL }, gap: LESSON_DISTANCE, partner: repeats("bigMen"), done: finished("do") },
   ],
   [
-    { id: "kote", prompt: LESSON_PROMPTS.kote, windups: { men: SLOW_TELL }, gap: LESSON_DISTANCE, partner: repeats("men"), done: finished("kote") },
-    { id: "launch", prompt: LESSON_PROMPTS.launch, windups: {}, gap: LAUNCH_DISTANCE, partner: () => IDLE, done: launchedIn },
+    { id: "kote", ...lessonText("kote"), windups: { men: SLOW_TELL }, gap: LESSON_DISTANCE, partner: repeats("men"), done: finished("kote") },
+    { id: "launch", ...lessonText("launch"), windups: {}, gap: LAUNCH_DISTANCE, partner: () => IDLE, done: launchedIn },
   ],
 ];
 
@@ -128,23 +133,23 @@ const thenFinished = (first: DuelEvent["type"], by?: 0 | 1) => (events: DuelEven
 };
 
 const WAZA_LESSONS: Lesson[] = [
-  { id: "parry", prompt: LESSON_PROMPTS.parry, full: true, cue: true, reps: 2, windups: { men: WAZA_SWING }, gap: LESSON_DISTANCE, partner: repeats("men"), done: did("parry", 0) },
-  { id: "parry-counter", prompt: LESSON_PROMPTS.parryCounter, full: true, cue: true, windups: { men: WAZA_SWING }, gap: LESSON_DISTANCE, partner: repeats("men"), done: thenFinished("parry", 0) },
-  { id: "lock-push", prompt: LESSON_PROMPTS.lockPush, full: true, windups: {}, gap: TSUBA_GAP, partner: holdsGuard, done: did("shove", 0) },
-  { id: "lock-hiki", prompt: LESSON_PROMPTS.lockHiki, full: true, longLock: true, windups: {}, gap: TSUBA_GAP, partner: leansIn, done: (events) => events.some((e) => e.type === "clean" && e.by === 0) },
-  { id: "lock-hold", prompt: LESSON_PROMPTS.lockHold, full: true, windups: { men: PULL_TELL }, gap: TSUBA_GAP, partner: pullsBack, done: did("blocked", 1) },
-  { id: "cross", prompt: LESSON_PROMPTS.cross, full: true, windups: {}, gap: LESSON_DISTANCE, partner: meetsYourSwing, done: did("cross") },
-  { id: "cross-turn", prompt: LESSON_PROMPTS.crossTurn, full: true, windups: {}, gap: LESSON_DISTANCE, partner: meetsYourSwing, done: thenFinished("cross") },
+  { id: "parry", ...lessonText("parry"), full: true, cue: true, reps: 2, windups: { men: WAZA_SWING }, gap: LESSON_DISTANCE, partner: repeats("men"), done: did("parry", 0) },
+  { id: "parry-counter", ...lessonText("parryCounter"), full: true, cue: true, windups: { men: WAZA_SWING }, gap: LESSON_DISTANCE, partner: repeats("men"), done: thenFinished("parry", 0) },
+  { id: "lock-push", ...lessonText("lockPush"), full: true, windups: {}, gap: TSUBA_GAP, partner: holdsGuard, done: did("shove", 0) },
+  { id: "lock-hiki", ...lessonText("lockHiki"), full: true, longLock: true, windups: {}, gap: TSUBA_GAP, partner: leansIn, done: (events) => events.some((e) => e.type === "clean" && e.by === 0) },
+  { id: "lock-hold", ...lessonText("lockHold"), full: true, windups: { men: PULL_TELL }, gap: TSUBA_GAP, partner: pullsBack, done: did("blocked", 1) },
+  { id: "cross", ...lessonText("cross"), full: true, windups: {}, gap: LESSON_DISTANCE, partner: meetsYourSwing, done: did("cross") },
+  { id: "cross-turn", ...lessonText("crossTurn"), full: true, windups: {}, gap: LESSON_DISTANCE, partner: meetsYourSwing, done: thenFinished("cross") },
 ];
 
 /** Everything you need to not be lost in a real match, a step at a time, with one go at each. */
 const QUICK_LESSONS: Lesson[] = [
-  { id: "quick-strike", prompt: LESSON_PROMPTS.quickStrike, full: true, windups: {}, partner: () => ({ ...IDLE, block: false }), done: finished("men") },
-  { id: "quick-tell", prompt: LESSON_PROMPTS.quickTell, full: true, windups: { men: QUICK_TELL }, gap: LESSON_DISTANCE, partner: repeats("men"), done: finished("kote") },
-  { id: "quick-parry", prompt: LESSON_PROMPTS.quickParry, full: true, cue: true, windups: { men: WAZA_SWING }, gap: LESSON_DISTANCE, partner: repeats("men"), done: did("parry", 0) },
-  { id: "quick-push", prompt: LESSON_PROMPTS.quickPush, full: true, windups: {}, gap: TSUBA_GAP, partner: holdsGuard, done: did("shove", 0) },
-  { id: "quick-hiki", prompt: LESSON_PROMPTS.quickHiki, full: true, longLock: true, windups: {}, gap: TSUBA_GAP, partner: leansIn, done: (events) => events.some((e) => e.type === "clean" && e.by === 0) },
-  { id: "quick-cross", prompt: LESSON_PROMPTS.quickCross, full: true, windups: {}, gap: LESSON_DISTANCE, partner: meetsYourSwing, done: did("cross") },
+  { id: "quick-strike", ...lessonText("quickStrike"), full: true, windups: {}, partner: () => ({ ...IDLE, block: false }), done: finished("men") },
+  { id: "quick-tell", ...lessonText("quickTell"), full: true, windups: { men: QUICK_TELL }, gap: LESSON_DISTANCE, partner: repeats("men"), done: finished("kote") },
+  { id: "quick-parry", ...lessonText("quickParry"), full: true, cue: true, windups: { men: WAZA_SWING }, gap: LESSON_DISTANCE, partner: repeats("men"), done: did("parry", 0) },
+  { id: "quick-push", ...lessonText("quickPush"), full: true, windups: {}, gap: TSUBA_GAP, partner: holdsGuard, done: did("shove", 0) },
+  { id: "quick-hiki", ...lessonText("quickHiki"), full: true, longLock: true, windups: {}, gap: TSUBA_GAP, partner: leansIn, done: (events) => events.some((e) => e.type === "clean" && e.by === 0) },
+  { id: "quick-cross", ...lessonText("quickCross"), full: true, windups: {}, gap: LESSON_DISTANCE, partner: meetsYourSwing, done: did("cross") },
 ];
 
 /** Old Gen presses as hard as Momo does, so a flinch is never far away. */
@@ -171,9 +176,9 @@ const flinched = (events: DuelEvent[]) => events.some((e) => e.type === "shaken"
 
 /** Hold off the aura, punish the flinch, then let go in time to answer the swing. Failing any of them starts it all over. */
 const SEME_LESSONS: Lesson[] = [
-  { id: "seme-hold", prompt: LESSON_PROMPTS.semeHold, windups: {}, gap: LESSON_DISTANCE, presence: GEN_PRESENCE, misses: GEN_MISSES, reps: 2, partner: genGuards, done: flinched },
-  { id: "seme-punish", prompt: LESSON_PROMPTS.semePunish, windups: {}, gap: LESSON_DISTANCE, presence: GEN_PRESENCE, misses: GEN_MISSES, reps: 2, partner: genGuards, done: finished("men") },
-  { id: "seme-read", prompt: LESSON_PROMPTS.semeRead, windups: { bigMen: GEN_TELL }, gap: LESSON_DISTANCE, presence: GEN_PRESENCE, misses: GEN_MISSES, reps: 2, partner: genLosesPatience, done: finished("do") },
+  { id: "seme-hold", ...lessonText("semeHold"), windups: {}, gap: LESSON_DISTANCE, presence: GEN_PRESENCE, misses: GEN_MISSES, reps: 2, partner: genGuards, done: flinched },
+  { id: "seme-punish", ...lessonText("semePunish"), windups: {}, gap: LESSON_DISTANCE, presence: GEN_PRESENCE, misses: GEN_MISSES, reps: 2, partner: genGuards, done: finished("men") },
+  { id: "seme-read", ...lessonText("semeRead"), windups: { bigMen: GEN_TELL }, gap: LESSON_DISTANCE, presence: GEN_PRESENCE, misses: GEN_MISSES, reps: 2, partner: genLosesPatience, done: finished("do") },
 ];
 
 /** What passing each level of challenge earns. Sensei gives the tare; the senpai give the rest. */
@@ -198,8 +203,8 @@ type SenpaiStyle = {
 } & (typeof SENPAI_LINES)[SenpaiId];
 
 /** Bo's guard drops for a moment in each cycle. */
-const BO_CYCLE = 150;
-const BO_GUARD_TICKS = 90;
+const BO_CYCLE = 240;
+const BO_GUARD_TICKS = 120;
 const AKI_STEP_TICKS = 22;
 
 export const SENPAI_IDS: SenpaiId[] = ["aki", "bo", "yui"];
@@ -245,6 +250,7 @@ export function challengeFor(id: SenpaiId, level: number): Lesson {
   return {
     id: `${id}-${level}`,
     prompt: style.prompts[level],
+    ...challengeText(style.name, LEVEL_TARGET[level], attacks.length > 0),
     windups: { men: style.tell, kote: style.tell, do: style.tell, bigMen: style.tell },
     gap: style.gap,
     reps: style.reps,

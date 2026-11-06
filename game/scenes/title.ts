@@ -31,6 +31,13 @@ export function createTitleScene(): Scene {
     update(game) {
       tick++;
       const { input } = game;
+      // A story can arrive from an account, or go, while this is on screen. Start must never erase one nobody's been warned about.
+      const saved = game.hasSave();
+      if (saved !== hasSave) {
+        hasSave = saved;
+        choice = 0;
+        confirming = false;
+      }
       // Starting over erases the save, so it asks first.
       if (confirming) {
         if (input.wasPressed("cancel")) confirming = false;

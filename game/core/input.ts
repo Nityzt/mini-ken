@@ -1,11 +1,16 @@
 export type Action =
   | "left" | "right" | "up" | "down"
   | "men" | "kote" | "do"
-  | "stomp" | "seme" | "confirm" | "cancel" | "pause" | "mute";
+  | "stomp" | "seme" | "confirm" | "cancel" | "pause" | "mute" | "copy";
 
 export type Input = {
   isDown(action: Action): boolean;
   wasPressed(action: Action): boolean;
+  /** Whether keys are text right now, instead of controls. */
+  readonly typing: boolean;
+  setTyping(on: boolean): void;
+  /** What was typed this tick, in order: single characters, or "Backspace", "Enter" or "Escape". */
+  typed(): readonly string[];
   endTick(): void;
   clear(): void;
   dispose(): void;
@@ -26,6 +31,7 @@ const KEY_ACTIONS: Record<string, Action[]> = {
   i: ["seme"],
   " ": ["stomp", "confirm"],
   e: ["confirm"],
+  c: ["copy"],
   enter: ["confirm"],
   x: ["cancel"],
   escape: ["pause"],
@@ -44,8 +50,11 @@ function resolveKey(key: string, code: string | undefined): string | null {
   return letter && letter in KEY_ACTIONS ? letter : null;
 }
 
+const TEXT_KEYS = new Set(["Backspace", "Enter", "Escape"]);
 const ACTIVATING_KEYS = new Set(["enter", " "]);
 const ACTIVATABLE_TAGS = new Set(["A", "BUTTON"]);
+/** Whatever's in one of these belongs to the form it's on, not the game. */
+const FORM_TAGS = new Set(["INPUT", "TEXTAREA", "SELECT"]);
 
 export function shouldCaptureKey(e: {
   key: string;
@@ -69,10 +78,24 @@ export function createInput(target: EventTarget): Input {
   // Held keys are tracked by position, because a key's character can change before it's released.
   const held = new Map<string, Action[]>();
   const pressed = new Set<Action>();
+  const typedKeys: string[] = [];
+  let typing = false;
 
+  const onTyped = (e: KeyEventLike) => {
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.key.length !== 1 && !TEXT_KEYS.has(e.key)) return;
+    e.preventDefault();
+    // A held letter doesn't run on, so the E that opened the box can't end up in it. Holding Backspace does.
+    if (!e.repeat || e.key === "Backspace") typedKeys.push(e.key);
+  };
   const onKeyDown = (event: Event) => {
     const e = event as KeyEventLike;
     const tag = (e.target as { tagName?: string } | null)?.tagName ?? null;
+    if (tag && (FORM_TAGS.has(tag) || (typing && ACTIVATABLE_TAGS.has(tag)))) return;
+    if (typing) {
+      onTyped(e);
+      return;
+    }
     if (!shouldCaptureKey({ key: e.key, code: e.code, ctrlKey: e.ctrlKey, metaKey: e.metaKey, altKey: e.altKey, targetTag: tag })) return;
     e.preventDefault();
     const actions = KEY_ACTIONS[resolveKey(e.key, e.code)!];
@@ -86,6 +109,7 @@ export function createInput(target: EventTarget): Input {
   const clear = () => {
     held.clear();
     pressed.clear();
+    typedKeys.length = 0;
   };
 
   target.addEventListener("keydown", onKeyDown);
@@ -98,7 +122,19 @@ export function createInput(target: EventTarget): Input {
       return false;
     },
     wasPressed: (action) => pressed.has(action),
-    endTick: () => pressed.clear(),
+    get typing() {
+      return typing;
+    },
+    setTyping(on) {
+      if (on === typing) return;
+      typing = on;
+      clear();
+    },
+    typed: () => typedKeys,
+    endTick() {
+      pressed.clear();
+      typedKeys.length = 0;
+    },
     clear,
     dispose() {
       target.removeEventListener("keydown", onKeyDown);

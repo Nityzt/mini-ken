@@ -1,9 +1,10 @@
 import { nextRandom, type RivalStyle } from "../duel/rival.ts";
 import type { AuthProvider } from "./auth.ts";
 import { bracketStatus, createBracket, finishRound, nextOpponentIn } from "./bracket.ts";
-import { parseServerMessage, PROTOCOL_VERSION, type Bracket, type BracketEntrant, type ClientMessage, type Identity, type LinkMessage, type MatchMode, type ServerMessage } from "./protocol.ts";
+import type { Bracket, BracketEntrant, Identity, LinkMessage, MatchReport } from "./protocol.ts";
 import { createStandIn } from "./stand-in.ts";
-import { createLoopback, createSocketLink, type Link, type SocketLike } from "./transport.ts";
+import { createLobbyClient, pageAway, resolveServerUrl, type LobbyClient, type ServerOutcome } from "./lobby-client.ts";
+import { createLoopback, type Link } from "./transport.ts";
 
 export type FoundMatch = {
   link: Link<LinkMessage>;
@@ -12,6 +13,8 @@ export type FoundMatch = {
   opponent: Identity;
   /** Anything that has to run every tick alongside the match, like a stand-in. */
   pump?(): void;
+  /** A real match, where the server decides how it went. */
+  live?: { report(report: MatchReport): void; outcome(): ServerOutcome | null };
 };
 export type SearchState = { kind: "searching" } | { kind: "found"; match: FoundMatch } | { kind: "failed"; reason: string };
 export type Search = { poll(): SearchState; cancel(): void };
@@ -28,6 +31,8 @@ export type OnlineService = {
   readonly live: boolean;
   findDuel(): Search;
   enterTournament(): TournamentSession;
+  /** A connection for creating a lobby, or joining the one named, if there's a server to do it on. */
+  lobby(join?: string): LobbyClient | null;
 };
 
 const STAND_IN_LATENCY = 2;
@@ -61,6 +66,7 @@ export function createStandInService(auth: AuthProvider, rollSeed: () => number 
   };
   return {
     live: false,
+    lobby: () => null,
     findDuel: () => after(SEARCH_TICKS, () => standInMatch(STAND_IN_FIELD[rollSeed() % STAND_IN_FIELD.length], "steady")),
     enterTournament() {
       const me = auth.identity();
@@ -90,85 +96,33 @@ export function createStandInService(auth: AuthProvider, rollSeed: () => number 
   };
 }
 
-/**
- * A real server, reached over one socket. It's expected to check the token, queue people, and pass match
- * messages between the two players. docs/multiplayer.md has the whole conversation.
- */
-export function createRemoteService(options: { url: string; auth: AuthProvider; open?: (url: string) => SocketLike }): OnlineService {
-  const { url, auth } = options;
-  const open = options.open ?? ((target: string) => new WebSocket(target) as unknown as SocketLike);
-
-  const connect = (mode: MatchMode) => {
-    const socket: Link<ClientMessage, ServerMessage> = createSocketLink<ClientMessage, ServerMessage>(open(url), parseServerMessage);
-    socket.send({ t: "hello", version: PROTOCOL_VERSION, token: auth.token(), identity: auth.identity() });
-    socket.send({ t: "queue", mode });
-    let bracket: Bracket | null = null;
-    let found: FoundMatch | null = null;
-    let refused: string | null = null;
-    /** What's arrived for the match in progress, which only the match reads. */
-    const relay: LinkMessage[] = [];
-    const matchLink = (): Link<LinkMessage> => ({
-      send: (message) => socket.send(message),
-      receive() {
-        readSocket();
-        return relay.splice(0);
-      },
-      // The connection carries on, for the next round. A match ending doesn't end it.
-      close() {},
-      get closed() {
-        return socket.closed;
-      },
-    });
-    const readSocket = () => {
-      for (const message of socket.receive()) {
-        if (message.t === "match") found = { link: matchLink(), seed: message.seed, side: message.side, opponent: message.opponent };
-        else if (message.t === "bracket") bracket = message.bracket;
-        else if (message.t === "rejected") refused = message.reason;
-        else if (message.t === "input" || message.t === "hash" || message.t === "leave") relay.push(message);
-      }
-    };
-    const search = (): Search => ({
-      poll() {
-        readSocket();
-        if (refused) return { kind: "failed", reason: refused };
-        if (found) {
-          const match = found;
-          found = null;
-          return { kind: "found", match };
-        }
-        return socket.closed ? { kind: "failed", reason: "Connection lost" } : { kind: "searching" };
-      },
-      cancel() {
-        socket.send({ t: "cancel" });
-        socket.close();
-      },
-    });
-    return { socket, search, readSocket, bracket: () => bracket };
-  };
-
+/** Lobbies if there's a server, and always stand-ins for practice. Real tournaments aren't in this version. */
+export function createOnlineService(auth: AuthProvider, serverUrl?: string, lobbyOptions: { alert?(): void } = {}): OnlineService {
+  const practice = createStandInService(auth);
+  if (!serverUrl) return practice;
   return {
+    ...practice,
     live: true,
-    findDuel: () => connect("duel").search(),
-    enterTournament() {
-      const conn = connect("tournament");
-      const id = auth.identity().id;
-      return {
-        bracket() {
-          conn.readSocket();
-          return conn.bracket();
+    lobby: (join) =>
+      createLobbyClient({
+        url: resolveServerUrl(serverUrl, location),
+        join,
+        alert: lobbyOptions.alert ?? (() => {}),
+        visibility: {
+          hidden: () => pageAway(document),
+          subscribe(changed) {
+            document.addEventListener("visibilitychange", changed);
+            window.addEventListener("focus", changed);
+            window.addEventListener("blur", changed);
+            return () => {
+              document.removeEventListener("visibilitychange", changed);
+              window.removeEventListener("focus", changed);
+              window.removeEventListener("blur", changed);
+            };
+          },
         },
-        status() {
-          conn.readSocket();
-          const bracket = conn.bracket();
-          return bracket ? bracketStatus(bracket, id) : "waiting";
-        },
-        nextMatch: () => conn.search(),
-        report: (won) => conn.socket.send({ t: "result", won }),
-        leave: () => conn.socket.close(),
-      };
-    },
+        setInterval: (run, ms) => window.setInterval(run, ms),
+        clearInterval: (id) => window.clearInterval(id),
+      }),
   };
 }
-
-/** A server if one's been set up, or practice if not. */
-export const createOnlineService = (auth: AuthProvider, serverUrl?: string): OnlineService => (serverUrl ? createRemoteService({ url: serverUrl, auth }) : createStandInService(auth));

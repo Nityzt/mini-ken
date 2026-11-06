@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { RANGE_MAX, RANGE_MIN, RING_MAX, RING_MIN, SWING_COST, TSUBA_BREAK, TSUBA_GAP, TSUBA_TICKS, TSUBA_WAKARE_GAP, ZANSHIN_HIKI } from "./constants.ts";
-import { createDuel, distance, skipBow, step, type DuelState, type FighterInput } from "./rules.ts";
+import { createDuel, distance, skipBow, ruleTick as step, type DuelState, type FighterInput } from "./rules.ts";
 
 const IDLE: FighterInput = { move: 0, block: false, attack: null };
 const PUSH_A: FighterInput = { ...IDLE, move: 1 };

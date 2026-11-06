@@ -83,7 +83,7 @@ test("the tips explain the stance you just lost to", () => {
 });
 
 const MATCHES = 20;
-const MAX_TICKS = 3600;
+const MAX_TICKS = 7200;
 type Player = (duel: DuelState) => FighterInput;
 
 function winsAgainst(id: OpponentId, player: () => Player, run: RunState = createRunState()): number {

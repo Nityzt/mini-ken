@@ -13,7 +13,7 @@ import { dimScreen, drawKeycap } from "./ui.ts";
 
 const ICON_SCALE = 3;
 const ICON_REST_Y = 36;
-const ICONS: Partial<Record<ItemId, string>> = { gi: "iconGi", do: "iconDo", men: "iconMen", kote: "iconKote", shinai: "iconShinai", tsuba: "tsuba", seme: "iconSeme", gaze: "iconGaze", ticket: "iconTicket", letter: "iconLetter" };
+const ICONS: Partial<Record<ItemId, string>> = { gi: "iconGi", do: "iconDo", men: "iconMen", kote: "iconKote", shinai: "iconShinai", ownShinai: "iconShinai", bamboo: "iconBamboo", shinaiBag: "iconBag", tsuba: "tsuba", seme: "iconSeme", gaze: "iconGaze", ticket: "iconTicket", letter: "iconLetter" };
 
 /** A key and what it does, side by side. Returns how wide it came out. */
 function drawCardHint(ctx: CanvasRenderingContext2D, key: string, label: string, x: number, y: number): number {
@@ -23,17 +23,23 @@ function drawCardHint(ctx: CanvasRenderingContext2D, key: string, label: string,
 }
 
 export function drawItem(ctx: CanvasRenderingContext2D, item: ItemId, y: number, run: RunState): void {
-  if (item === "tare") {
-    const scale = 2;
-    const x = Math.round((STAGE_W - TARE_ART_WIDTH * scale) / 2);
-    drawTare(ctx, x, y + Math.round((TILE * ICON_SCALE - TARE_ART_HEIGHT * scale) / 2), scale, run.insignia, playerColors(run));
+  drawItemAt(ctx, item, Math.round((STAGE_W - TILE * ICON_SCALE) / 2), y, ICON_SCALE, run);
+}
+
+/** An item's picture with its top-left corner at x and y, `scale` times the size of a tile. */
+export function drawItemAt(ctx: CanvasRenderingContext2D, item: ItemId, x: number, y: number, scale: number, run: RunState): void {
+  const size = TILE * scale;
+  // Your tare is drawn with your own design when there's room for it. In a small slot it's the plain icon.
+  if (item === "tare" && scale > 1) {
+    const art = scale - 1;
+    drawTare(ctx, x + Math.round((size - TARE_ART_WIDTH * art) / 2), y + Math.round((size - TARE_ART_HEIGHT * art) / 2), art, run.insignia, playerColors(run));
     return;
   }
-  const icon = item.startsWith("rank:") ? "iconRank" : item.startsWith("shop:") ? SHOP_ITEMS[item.slice("shop:".length) as ShopItemId].icon : (ICONS[item] ?? "iconCup");
-  const sprite = spriteFor(TILE_GRIDS[icon], itemIconColors(item));
-  const size = TILE * ICON_SCALE;
+  const icon = item === "tare" ? "iconTare" : item.startsWith("rank:") ? "iconRank" : item.startsWith("shop:") ? SHOP_ITEMS[item.slice("shop:".length) as ShopItemId].icon : (ICONS[item] ?? "iconCup");
+  // Your men is drawn as your own, the same as your tare.
+  const sprite = spriteFor(TILE_GRIDS[icon], item === "men" ? playerColors(run) : itemIconColors(item));
   ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(sprite, Math.round((STAGE_W - size) / 2), y, size, size);
+  ctx.drawImage(sprite, x, y, size, size);
 }
 
 /** Everything else stops, the screen goes dark, and what you've earned bounces into the middle. */

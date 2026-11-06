@@ -5,6 +5,7 @@ A cute 8-bit kendo game in the browser, made for fun by the York University Kend
 ```
 pnpm install
 pnpm dev         # http://127.0.0.1:3210
+pnpm dev:online  # the same, with the real server, accounts and lobbies
 pnpm test
 pnpm typecheck
 pnpm build

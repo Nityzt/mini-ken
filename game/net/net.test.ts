@@ -1,16 +1,17 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createDuel, type DuelEvent, type FighterInput } from "../duel/rules.ts";
+import { createDuel, distance, type DuelEvent, type DuelState, type FighterInput } from "../duel/rules.ts";
 import { createRival, nextRandom, rivalAct, rivalConfig } from "../duel/rival.ts";
 import { createGuestAuth } from "./auth.ts";
 import { bracketChampion, bracketStatus, createBracket, finishRound, nextOpponentIn } from "./bracket.ts";
 import { createOnlineHub } from "./hub.ts";
-import { createLockstep, hashDuel, HASH_EVERY, INPUT_DELAY, STALL_LIMIT } from "./lockstep.ts";
+import { createLockstep, hashDuel, HASH_EVERY, INPUT_DELAY, liveResult, STALL_LIMIT } from "./lockstep.ts";
 import { createProfile, identityOf, onlineAccess, ONLINE_MIN_DAN, PROFILE_KEY, readProfile, withResult, writeProfile } from "./profile.ts";
-import { cleanName, decodeInput, encodeInput, parseServerMessage, PROTOCOL_VERSION, type BracketEntrant, type ClientMessage, type LinkMessage } from "./protocol.ts";
-import { createRemoteService, createStandInService, createOnlineService } from "./service.ts";
+import { cleanName, decodeInput, encodeInput, parseServerMessage, type BracketEntrant, type LinkMessage } from "./protocol.ts";
+import { createStandInService, createOnlineService } from "./service.ts";
 import { createStandIn, ONLINE_RULES } from "./stand-in.ts";
-import { createLoopback, createSocketLink, type SocketLike } from "./transport.ts";
+import { fakeSocket } from "./test-socket.ts";
+import { createLoopback, createSocketLink } from "./transport.ts";
 import { createRunState } from "../run-state.ts";
 import { readSave, SAVE_KEY, writeSave } from "../save.ts";
 
@@ -126,7 +127,7 @@ test("lag slows a match down, but nothing comes apart", () => {
   }
 });
 
-test("everything in the rules stays in step over a connection: crossings, locks and parries", () => {
+test("everything in the rules stays in step over a connection: locks and parries", () => {
   const seen = new Set<string>();
   for (let seed = 1; seed <= 12; seed++) {
     const { one, two, eventsOne } = playOver(2, seed);
@@ -134,7 +135,37 @@ test("everything in the rules stays in step over a connection: crossings, locks 
     assert.equal(hashDuel(one.state), hashDuel(two.state), `seed ${seed}`);
     for (const e of eventsOne) seen.add(e.type);
   }
-  for (const type of ["cross", "lock", "parry", "hit", "clean"]) assert.ok(seen.has(type), `never saw ${type}: ${[...seen].join()}`);
+  for (const type of ["lock", "parry", "hit", "clean"]) assert.ok(seen.has(type), `never saw ${type}: ${[...seen].join()}`);
+});
+
+// Random players chase each other until they're too close to pass, so this one stands off and swings on purpose.
+test("crossings stay in step over a connection too", () => {
+  const [a, b] = createLoopback<LinkMessage>(2);
+  const one = createLockstep({ initial: createDuel(ONLINE_RULES), side: 0, link: a });
+  const two = createLockstep({ initial: createDuel(ONLINE_RULES), side: 1, link: b });
+  const standOffAndSwing = (state: DuelState, toward: -1 | 1): FighterInput => {
+    if (distance(state) > 44) return { move: toward, block: false, attack: null };
+    return { move: 0, block: false, attack: "men", stomp: true };
+  };
+  const hashes = new Map<number, string>();
+  let crossings = 0;
+  let compared = 0;
+  for (let i = 0; i < 3000 && one.status === "running" && two.status === "running"; i++) {
+    const first = one.tick(standOffAndSwing(one.state, 1));
+    two.tick(standOffAndSwing(two.state, -1));
+    if (first.events.some((e) => e.type === "cross")) crossings++;
+    for (const lock of [one, two]) {
+      const hash = String(hashDuel(lock.state));
+      const known = hashes.get(lock.frame);
+      if (known === undefined) hashes.set(lock.frame, hash);
+      else {
+        assert.equal(hash, known, `frame ${lock.frame}`);
+        compared++;
+      }
+    }
+  }
+  assert.ok(crossings >= 2, `saw ${crossings} crossings`);
+  assert.ok(compared > 100, `only compared ${compared} frames`);
 });
 
 test("your own input waits out the delay, so a key press lands the same frame for both", () => {
@@ -283,35 +314,9 @@ test("with no server set up it's practice, and with one it's live", () => {
   const auth = createGuestAuth(() => ({ id: "me", name: "Me", dan: 1, guest: true }));
   assert.equal(createOnlineService(auth).live, false);
   assert.equal(createOnlineService(auth, "").live, false);
+  assert.equal(createOnlineService(auth).lobby(), null);
   assert.equal(createOnlineService(auth, "wss://example.test").live, true);
 });
-
-function fakeSocket() {
-  const sent: string[] = [];
-  const socket: SocketLike & { sent: string[]; arrive(m: unknown): void; opened(): void; drop(): void } = {
-    readyState: 0,
-    sent,
-    send: (text: string) => void sent.push(text),
-    close() {
-      this.onclose?.({} as never);
-    },
-    onopen: null,
-    onmessage: null,
-    onclose: null,
-    onerror: null,
-    arrive(m: unknown) {
-      this.onmessage?.({ data: typeof m === "string" ? m : JSON.stringify(m) });
-    },
-    opened() {
-      (this as { readyState: number }).readyState = 1;
-      this.onopen?.({} as never);
-    },
-    drop() {
-      this.onclose?.({} as never);
-    },
-  };
-  return socket;
-}
 
 test("a socket link holds messages until it's open, and drops what it can't read", () => {
   const socket = fakeSocket();
@@ -331,102 +336,46 @@ test("a socket link holds messages until it's open, and drops what it can't read
   assert.deepEqual(link.receive(), []);
 });
 
-const meIdentity = { id: "me", name: "Me", dan: 2, guest: false };
-function remote() {
-  const socket = fakeSocket();
-  const auth = { identity: () => meIdentity, token: () => "secret" };
-  const service = createRemoteService({ url: "wss://x", auth, open: () => socket });
-  return { socket, service };
-}
-const sentBy = (socket: { sent: string[] }): ClientMessage[] => socket.sent.map((t) => JSON.parse(t));
-
-test("connecting to a server says who you are, proves it, and joins the right queue", () => {
-  const { socket, service } = remote();
-  service.findDuel();
-  socket.opened();
-  const sent = sentBy(socket);
-  assert.deepEqual(sent[0], { t: "hello", version: PROTOCOL_VERSION, token: "secret", identity: meIdentity });
-  assert.deepEqual(sent[1], { t: "queue", mode: "duel" });
+test("a live match only reports what was actually played out", () => {
+  assert.equal(liveResult("finished", 0, 0), "won");
+  assert.equal(liveResult("finished", 1, 0), "lost");
+  assert.equal(liveResult("finished", 1, 1), "won");
+  assert.equal(liveResult("finished", null, 0), "void");
+  assert.equal(liveResult("desynced", 0, 0), "void");
+  assert.equal(liveResult("left", null, 0), null);
+  assert.equal(liveResult("running", null, 0), null);
 });
 
-test("a found match over a socket carries the side and opponent, and relays inputs both ways", () => {
-  const { socket, service } = remote();
-  const search = service.findDuel();
-  socket.opened();
-  assert.equal(search.poll().kind, "searching");
-  socket.arrive({ t: "match", seed: 9, side: 1, opponent: { id: "o", name: "Other", dan: 1, guest: true } });
-  const state = search.poll();
-  assert.equal(state.kind, "found");
-  if (state.kind !== "found") return;
-  assert.equal(state.match.side, 1);
-  assert.equal(state.match.opponent.name, "Other");
-  socket.arrive({ t: "input", frame: 3, bits: 1 });
-  assert.deepEqual(state.match.link.receive(), [{ t: "input", frame: 3, bits: 1 }]);
-  state.match.link.send({ t: "input", frame: 3, bits: 2 });
-  assert.deepEqual(sentBy(socket).at(-1), { t: "input", frame: 3, bits: 2 });
-});
-
-test("a full match runs over that relay", () => {
-  // The server's whole job during a match: pass along what each side sends.
-  const socketA = fakeSocket();
-  const socketB = fakeSocket();
-  const relay = (from: typeof socketA, to: typeof socketB) => {
-    from.send = (text: string) => {
-      const m = JSON.parse(text);
-      if (m.t === "input" || m.t === "hash" || m.t === "leave") to.arrive(m);
-    };
-  };
-  relay(socketA, socketB);
-  relay(socketB, socketA);
-  const peer = (socket: typeof socketA, side: 0 | 1, id: string) => {
-    const search = createRemoteService({ url: "wss://x", auth: { identity: () => ({ ...meIdentity, id }), token: () => null }, open: () => socket }).findDuel();
-    socket.opened();
-    socket.arrive({ t: "match", seed: 1, side, opponent: { id: "o", name: "O", dan: 1, guest: true } });
-    const state = search.poll();
-    assert.equal(state.kind, "found");
-    return createLockstep({ initial: createDuel(ONLINE_RULES), side, link: (state as unknown as { match: { link: Parameters<typeof createLockstep>[0]["link"] } }).match.link });
-  };
-  const one = peer(socketA, 0, "a");
-  const two = peer(socketB, 1, "b");
-  let rival = createRival(3, rivalConfig(0, "steady"));
-  for (let i = 0; i < 20000 && (one.status === "running" || two.status === "running"); i++) {
-    one.tick(IDLE);
-    const act = rivalAct(two.state, rival);
-    rival = act.rival;
-    two.tick(act.input);
-  }
-  assert.equal(one.status, "finished");
-  assert.equal(two.status, "finished");
-  assert.equal(hashDuel(one.state), hashDuel(two.state));
-  assert.equal(one.state.winner, 1);
-});
-
-test("a server turning you away, or the connection dropping, ends the search with a reason", () => {
-  const refused = remote();
-  const a = refused.service.findDuel();
-  refused.socket.opened();
-  refused.socket.arrive({ t: "rejected", reason: "Update your game" });
-  assert.deepEqual(a.poll(), { kind: "failed", reason: "Update your game" });
-  const dropped = remote();
-  const b = dropped.service.findDuel();
-  dropped.socket.drop();
-  assert.equal(b.poll().kind, "failed");
-});
-
-test("a server tournament follows the bracket it's sent", () => {
-  const { socket, service } = remote();
-  const session = service.enterTournament();
-  socket.opened();
-  assert.equal(session.status(), "waiting");
-  assert.deepEqual(sentBy(socket)[1], { t: "queue", mode: "tournament" });
-  const field: BracketEntrant[] = [{ id: "me", name: "Me", controller: "player" }, { id: "o", name: "O", controller: "remote" }];
-  socket.arrive({ t: "bracket", bracket: { size: 2, rounds: [field] } });
-  assert.equal(session.status(), "playing");
-  assert.equal(session.bracket()?.size, 2);
-  session.report(true);
-  assert.deepEqual(sentBy(socket).at(-1), { t: "result", won: true });
-  socket.arrive({ t: "bracket", bracket: { size: 2, rounds: [field, [field[0]]] } });
-  assert.equal(session.status(), "champion");
+test("signing out with no connection still finishes here, and the next load ends the session first", async () => {
+  const store = memoryStore();
+  let online = false;
+  const calls: string[] = [];
+  const fetcher = (async (url: string, init?: RequestInit) => {
+    calls.push(`${init?.method ?? "GET"} ${url}`);
+    if (!online) throw new TypeError("offline");
+    return new Response(JSON.stringify(url === "/api/me" ? { problem: "Please sign in." } : {}), { status: url === "/api/me" ? 401 : 200 });
+  }) as typeof fetch;
+  const reloads: unknown[] = [];
+  const options = { store, readRun: () => null, serverUrl: "/ws", fetcher, schedule() {}, reloadRun: (run: unknown) => void reloads.push(run) };
+  const hub = createOnlineHub(options);
+  const account = hub.account!;
+  (account as unknown as { current(): unknown }).current = () => ({ id: "e", username: "Emi", tutorial: false });
+  store.setItem(SAVE_KEY, JSON.stringify({ version: 1, run: createRunState() }));
+  hub.signOut();
+  await new Promise((resolve) => setImmediate(resolve));
+  const warning = hub.accountUi();
+  assert.ok(warning === null || warning.kind === "sign-out");
+  if (warning?.kind === "sign-out") warning.confirm();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(reloads, [null]);
+  assert.equal(store.getItem(SAVE_KEY), null);
+  online = true;
+  calls.length = 0;
+  const next = createOnlineHub(options);
+  await new Promise((resolve) => setImmediate(resolve));
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(calls[0], "POST /api/signout");
+  assert.equal(next.account!.status(), "signed-out");
 });
 
 test("multiplayer's shut until 1st dan with the lesson, or the short tutorial", () => {
