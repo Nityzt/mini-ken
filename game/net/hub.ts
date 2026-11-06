@@ -19,7 +19,10 @@ const SIGN_OUT_KEY = "tiny-kendo-sign-out";
 export type AccountUi =
   | { kind: "form"; submit(mode: "sign-in" | "sign-up", username: string, password: string): Promise<string | null>; cancel(): void }
   | { kind: "choice"; choice: SaveChoice }
-  | { kind: "sign-out"; confirm(): void; cancel(): void };
+  | { kind: "sign-out"; confirm(): void; cancel(): void }
+  | { kind: "guest"; signIn(): void; proceed(): void; cancel(): void };
+/** Whether there's a server to have an account on, and if so, whether you're signed in to it. */
+export type AccountState = "none" | "checking" | "guest" | "signed-in";
 export type LobbyIntent = { kind: "create" } | { kind: "type-code" } | { kind: "join"; code: string } | { kind: "return" };
 
 /** Everything the multiplayer screens share, kept out of the story's state entirely. */
@@ -55,6 +58,9 @@ export type OnlineHub = {
   accountUi(): AccountUi | null;
   openAccountForm(): void;
   signOut(): void;
+  accountState(): AccountState;
+  /** Runs `proceed` once someone's accepted that a guest's progress may not last. Asked once a session. */
+  warnGuest(proceed: () => void): void;
   /** Whether your story's been matched up with the account yet, so that your rank can be trusted. */
   storySettled(): boolean;
 };
@@ -99,6 +105,8 @@ export function createOnlineHub(options: {
   const identity = () => auth.identity();
   let formOpen = false;
   let signOutWarning = false;
+  let guestWarning: (() => void) | null = null;
+  let guestAccepted = false;
 
   /** Whoever you turn out to be, your story and what you've already done get matched up with the account. */
   const welcome = () => {
@@ -147,6 +155,7 @@ export function createOnlineHub(options: {
       return;
     }
     owesSignOut(!(await account!.signOut()));
+    guestAccepted = false;
     profile = readProfile(store);
     writeProfile(store, profile);
     options.reloadRun?.(null);
@@ -192,6 +201,24 @@ export function createOnlineHub(options: {
           },
         };
       }
+      if (guestWarning) {
+        const proceed = guestWarning;
+        return {
+          kind: "guest",
+          signIn() {
+            guestWarning = null;
+            formOpen = true;
+          },
+          proceed() {
+            guestWarning = null;
+            guestAccepted = true;
+            proceed();
+          },
+          cancel() {
+            guestWarning = null;
+          },
+        };
+      }
       if (!formOpen) return null;
       return {
         kind: "form",
@@ -216,5 +243,15 @@ export function createOnlineHub(options: {
       void finishSigningOut(false);
     },
     storySettled: () => !save || save.settled(),
+    accountState() {
+      if (!account) return "none";
+      const status = account.status();
+      if (status === "unknown") return "checking";
+      return status === "signed-in" ? "signed-in" : "guest";
+    },
+    warnGuest(proceed) {
+      if (guestAccepted) proceed();
+      else guestWarning = proceed;
+    },
   };
 }

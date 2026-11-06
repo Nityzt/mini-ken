@@ -178,6 +178,11 @@ Free plans can change, and accounts are the one thing that can't be recreated. A
 - **Signing out with no connection finishes here,** and the next load ends the session on the server before doing anything else.
 - **A lost connection says to check Match history,** because a one-sided drop records a loss while a server restart records nothing.
 
+- **Accounts are for the whole game, not just multiplayer (owner).** Signed out, the title offers signing in first, and everything else as a guest. Starting or continuing a story as a guest warns once a session that progress may be lost after this session, with signing in offered right there. The story menu has "Sign in to save progress", which keeps the story that's under way.
+- **Multiplayer is always offered from the story menu (owner),** wherever leaving the story can actually happen. Being below 1st dan leads to the tutorial rather than hiding the option.
+- **The story waits while an account form is open.** A live match doesn't.
+- **Rate limits read the address Cloudflare sets** (`cf-connecting-ip`), because the host only adds to `X-Forwarded-For`, so a visitor can fake the front of it. The server logs which header it used, once.
+
 ## Documents to keep true
 
 Update `docs/superpowers/specs/2026-11-05-tiny-kendo-design.md` (its "Not in this version" list and Multiplayer section, including the separate guest name) and `docs/multiplayer.md`.

@@ -22,7 +22,6 @@ import { createArtSheet } from "./scenes/art-sheet.ts";
 import { createCharacterScene } from "./scenes/character-select.ts";
 import { createOnlineHub, type AccountUi } from "./net/hub.ts";
 import { clearInvite, inviteFromUrl } from "./net/invite.ts";
-import { isOpen } from "./progress.ts";
 import { HP_MAX, regen, REGEN_TICKS } from "./health.ts";
 import { createOnlineBracketScene } from "./scenes/online-bracket.ts";
 import { createOnlineDuelScene } from "./scenes/online-duel.ts";
@@ -321,10 +320,12 @@ export function createGame(
     lastRun = game.run;
   };
 
+  /** Only offered where it'll actually happen, rather than closing the menu and doing nothing. */
+  const canLeaveStory = () => canUseTicketIn(sceneName) && !flow.fadingTo && !scene().busy?.(game);
   const pauseItems = () => {
     const away = sceneName === "title" || sceneName === "art" || !!scene().outsideStory?.(game);
     const forfeit = flow.fadingTo ? null : scene().forfeitLabel?.(game) ?? null;
-    return menuItems({ forfeit, inGame: !away, hasTare: game.run.gear.tare, nameLabel: nameMenuLabel(playerName(game.run)), multiplayer: isOpen(game.run, "online") && canUseTicketIn(sceneName) });
+    return menuItems({ forfeit, inGame: !away, hasTare: game.run.gear.tare, nameLabel: nameMenuLabel(playerName(game.run)), multiplayer: canLeaveStory(), signIn: canLeaveStory() && game.online.accountState() === "guest" });
   };
 
   const showNextCard = () => {
@@ -413,10 +414,14 @@ export function createGame(
     }
     else if (step.action === "multiplayer") {
       flow = { ...flow, paused: false };
-      if (canUseTicketIn(sceneName) && !flow.fadingTo && !scene().busy?.(game)) {
+      if (canLeaveStory()) {
         game.online.returnTo = "story";
         game.go("online");
       }
+    }
+    else if (step.action === "sign-in") {
+      flow = { ...flow, paused: false };
+      game.online.openAccountForm();
     }
     else if (step.action === "forfeit") {
       flow = { ...flow, paused: false };
@@ -446,6 +451,8 @@ export function createGame(
     const ui = showAccountUi();
     // Being paused hands the keys back, or nobody could work the menu.
     game.input.setTyping(!!ui || (!flow.paused && (card?.kind === "name" || !!scene().typing?.())));
+    // A story waits for a form. Someone else's match can't.
+    if (ui && !scene().keepsRunning?.(game) && !scene().neverPauses?.(game)) return;
     if (game.input.wasPressed("mute")) muted = game.audio.toggleMute();
     const result = stepFlow(flow, game.input.wasPressed("pause") && !ui && !scene().neverPauses?.(game));
     flow = result.flow;

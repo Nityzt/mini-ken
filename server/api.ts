@@ -20,6 +20,28 @@ export function sessionToken(req: Pick<IncomingMessage, "headers">): string | un
   return undefined;
 }
 
+type Headers = IncomingMessage["headers"];
+const oneHeader = (headers: Headers, name: string) => {
+  const value = headers[name];
+  return (Array.isArray(value) ? value[0] : value)?.trim() || undefined;
+};
+
+/**
+ * Who a request's from, for rate limits. Cloudflare sits in front of the host and sets its own headers, while
+ * the host only adds to X-Forwarded-For, so a visitor can put anything at the front of that one. It's the last resort.
+ */
+export function clientAddress(headers: Headers, remote: string | undefined, trustProxy: boolean): { address: string; source: string } {
+  if (trustProxy) {
+    for (const name of ["cf-connecting-ip", "true-client-ip"]) {
+      const address = oneHeader(headers, name);
+      if (address) return { address, source: name };
+    }
+    const forwarded = oneHeader(headers, "x-forwarded-for")?.split(",")[0]?.trim();
+    if (forwarded) return { address: forwarded, source: "x-forwarded-for" };
+  }
+  return { address: remote || "unknown", source: "socket" };
+}
+
 export const originAllowed = (origin: string | undefined, publicOrigin: string): boolean => origin === publicOrigin;
 
 class HttpProblem extends Error {
@@ -69,10 +91,15 @@ export function createApi(deps: ApiDeps): (req: IncomingMessage, res: ServerResp
   const signUpsByAddress = createRateLimit(5, 60 * MINUTE);
   const signUpTriesByAddress = createRateLimit(20, 60 * MINUTE);
 
+  let sourceLogged = false;
   const addressOf = (req: IncomingMessage) => {
-    const forwarded = req.headers["x-forwarded-for"];
-    const first = trustProxy ? (Array.isArray(forwarded) ? forwarded[0] : forwarded)?.split(",")[0]?.trim() : undefined;
-    return first || req.socket.remoteAddress || "unknown";
+    const { address, source } = clientAddress(req.headers, req.socket.remoteAddress, trustProxy);
+    // Only which header it was, never the address: this is how to check the limits are really per visitor on the host.
+    if (!sourceLogged) {
+      sourceLogged = true;
+      console.log(`Rate limits read the visitor's address from: ${source}`);
+    }
+    return address;
   };
   const cookie = (value: string, maxAgeSeconds: number) => `${COOKIE}=${value}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${maxAgeSeconds}${secureCookies ? "; Secure" : ""}`;
   const SESSION_SECONDS = 30 * 24 * 60 * 60;

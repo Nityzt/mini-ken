@@ -32,6 +32,13 @@ export const HISTORY_EMPTY = "No matches yet.";
 export const HISTORY_LOADING = "Loading...";
 export const HISTORY_FAILED = "Can't reach the server right now.";
 export const HISTORY_BACK = "X: back";
+export const TITLE_SIGN_OUT = "Sign out";
+export const TITLE_START_GUEST = "Start as guest";
+export const TITLE_CONTINUE_GUEST = "Continue as guest";
+export const TITLE_NEW_GUEST = "New game as guest";
+export const TITLE_CONNECTING = "Connecting...";
+export const TITLE_SIGNED_IN = (name: string): string => `Signed in as ${name}. E or Space to choose`;
+export const TITLE_GUEST_NOTE = "Sign in to keep your progress. E or Space to choose";
 export const SAVE_CHOICE_NOTE = "Pick which story to keep. The other one is replaced.";
 export const JOIN_ALERT_TITLE = "Someone joined! - Tiny Kendo";
 

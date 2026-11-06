@@ -489,9 +489,9 @@ Nemu and Kan need 2nd dan, and Mizu, Hagane and Raiko need 3rd. Beating them is 
 
 The minimum rank is 1st dan. Real matches are duels through a lobby code or invite link, on an account. `docs/multiplayer.md` has the details, and `docs/superpowers/specs/2026-11-06-accounts-multiplayer-design.md` has the design.
 
-- **Two ways in.** Reach 1st dan in the story with the waza lesson (a Multiplayer option then appears in the menu, and on the title screen), or choose Multiplayer on the title screen and take a short tutorial, which goes straight in without starting a story.
+- **Two ways in.** Reach 1st dan in the story with the waza lesson, or take a short tutorial, which goes straight in without starting a story. Multiplayer is always on the title screen and in the story menu, and leads to the tutorial for anyone who hasn't done either.
 - **Short tutorial.** One go each at a strike, answering a tell, a parry, pushing in a lock, a pull-back strike and a crossing.
-- **Accounts (owner, 2026-11-06).** A unique username and a password, and nothing else. An account keeps your story, your record and your match history. The story still plays without one.
+- **Accounts (owner, 2026-11-06).** A unique username and a password, and nothing else. An account keeps your story, your record and your match history. The story still plays without one as a guest, after a warning that progress may be lost after this session.
 - **A story's money, ki and gear have no effect on a match:** everyone fights with the same ki and full armor.
 - **Tournaments are practice for now.** They play stand-ins, which are ordinary rivals getting harder round by round, and don't touch an account's record. With no server configured, duels are against stand-ins too, and the screen says so.
 - **A match can't be skipped** the way the ceremonies can in the story, because both players have to stay in step.

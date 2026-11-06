@@ -378,6 +378,57 @@ test("signing out with no connection still finishes here, and the next load ends
   assert.equal(next.account!.status(), "signed-out");
 });
 
+test("the account's state says whether someone's a guest, and a server that can't be reached counts as one", async () => {
+  assert.equal(createOnlineHub({ store: memoryStore(), readRun: () => null }).accountState(), "none");
+  const reply = (status: number, body: unknown) => (async () => new Response(JSON.stringify(body), { status })) as unknown as typeof fetch;
+  const settle = () => new Promise((resolve) => setImmediate(resolve));
+  const base = { store: memoryStore(), readRun: () => null, serverUrl: "/ws", schedule() {} };
+  const out = createOnlineHub({ ...base, fetcher: reply(401, {}) });
+  assert.equal(out.accountState(), "checking");
+  await settle();
+  await settle();
+  assert.equal(out.accountState(), "guest");
+  const offline = createOnlineHub({ ...base, fetcher: (async () => {
+    throw new TypeError("offline");
+  }) as unknown as typeof fetch });
+  await settle();
+  await settle();
+  assert.equal(offline.accountState(), "guest");
+  const signedIn = createOnlineHub({ ...base, store: memoryStore(), fetcher: reply(200, { account: { id: "e", username: "Emi", tutorial: false }, wins: 0, losses: 0, revision: 0, data: null, updatedAt: 0 }) });
+  await settle();
+  await settle();
+  assert.equal(signedIn.accountState(), "signed-in");
+});
+
+test("the guest warning goes on only if accepted, offers signing in instead, and is asked once", () => {
+  const hub = createOnlineHub({ store: memoryStore(), readRun: () => null, serverUrl: "/ws", fetcher: (async () => new Response("{}", { status: 401 })) as unknown as typeof fetch, schedule() {} });
+  let went = 0;
+  hub.warnGuest(() => went++);
+  const first = hub.accountUi();
+  assert.ok(first?.kind === "guest");
+  first.cancel();
+  assert.equal(hub.accountUi(), null);
+  assert.equal(went, 0);
+  hub.warnGuest(() => went++);
+  const second = hub.accountUi();
+  assert.ok(second?.kind === "guest");
+  second.signIn();
+  assert.equal(hub.accountUi()?.kind, "form");
+  assert.equal(went, 0);
+  const form = hub.accountUi();
+  assert.ok(form?.kind === "form");
+  form.cancel();
+  hub.warnGuest(() => went++);
+  const third = hub.accountUi();
+  assert.ok(third?.kind === "guest");
+  third.proceed();
+  assert.equal(went, 1);
+  assert.equal(hub.accountUi(), null);
+  hub.warnGuest(() => went++);
+  assert.equal(went, 2);
+  assert.equal(hub.accountUi(), null);
+});
+
 test("multiplayer's shut until 1st dan with the lesson, or the short tutorial", () => {
   const profile = createProfile(() => 0.5);
   const fresh = createRunState();

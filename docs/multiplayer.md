@@ -26,7 +26,7 @@ Only one Next dev server can run in this folder at a time, so stop `pnpm dev` be
 | `PUBLIC_ORIGIN` | The site's address, exactly as browsers send it, like `https://tiny-kendo.onrender.com`. Posts and WebSockets from anywhere else are refused, so **sign-in fails until this is right**. |
 | `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN` | The database. Without them, development uses a local file, and production refuses to start, since a host's disk is wiped on each deploy. Secrets: never `NEXT_PUBLIC_`. |
 | `ALLOW_LOCAL_DATABASE` | `1` lets production use a local file, only for testing a production build on this machine. |
-| `TRUST_PROXY` | `1` behind Render, to read the visitor's address for rate limits. |
+| `TRUST_PROXY` | `1` behind Render, to read the visitor's address for rate limits, from the header Cloudflare sets. The server logs which header it used, once. It should say `cf-connecting-ip`. |
 | `NEXT_PUBLIC_TINY_KENDO_SERVER` | Build time. `/ws` turns on real multiplayer. Unset means stand-ins. |
 
 ## Deploying to Render

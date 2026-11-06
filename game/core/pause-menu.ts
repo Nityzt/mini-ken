@@ -1,8 +1,8 @@
 import { layoutGrid, moveInGrid } from "../inventory-grid.ts";
 
-export type MenuItemId = "resume" | "progress" | "inventory" | "challenges" | "controls" | "name" | "insignia" | "multiplayer" | "forfeit" | "restart";
+export type MenuItemId = "resume" | "progress" | "inventory" | "challenges" | "controls" | "name" | "insignia" | "multiplayer" | "sign-in" | "forfeit" | "restart";
 export type MenuItem = { id: MenuItemId; label: string };
-export type MenuAction = "name" | "resume" | "insignia" | "multiplayer" | "forfeit" | "restart" | "use-ticket" | "wear" | null;
+export type MenuAction = "name" | "resume" | "insignia" | "multiplayer" | "sign-in" | "forfeit" | "restart" | "use-ticket" | "wear" | null;
 /** On the progress page `choice` is the row picked on the map, and `tab` is which of the three pages is showing. */
 export type PauseMenu = { page: "main" | "progress" | "inventory" | "challenges" | "controls" | "confirm"; choice: number; tab?: number };
 export type MenuKeys = { up: boolean; down: boolean; confirm: boolean; cancel: boolean; left?: boolean; right?: boolean };
@@ -14,13 +14,14 @@ export type ProgressMap = { goal: number; rows: number };
 
 export const createPauseMenu = (): PauseMenu => ({ page: "main", choice: 0 });
 
-export function menuItems(state: { forfeit: string | null; inGame: boolean; hasTare: boolean; multiplayer?: boolean; nameLabel?: string }): MenuItem[] {
+export function menuItems(state: { forfeit: string | null; inGame: boolean; hasTare: boolean; multiplayer?: boolean; signIn?: boolean; nameLabel?: string }): MenuItem[] {
   const items: MenuItem[] = [{ id: "resume", label: "Resume" }];
   if (!state.inGame) return [...items, { id: "controls", label: "Controls" }, ...(state.forfeit ? [{ id: "forfeit" as const, label: state.forfeit }] : [])];
   items.push({ id: "progress", label: "Progress" }, { id: "inventory", label: "Inventory" }, { id: "challenges", label: "Challenges" }, { id: "controls", label: "Controls" });
   if (state.nameLabel) items.push({ id: "name", label: state.nameLabel });
   if (state.hasTare) items.push({ id: "insignia", label: "Tare insignia" });
   if (state.multiplayer) items.push({ id: "multiplayer", label: "Multiplayer" });
+  if (state.signIn) items.push({ id: "sign-in", label: "Sign in to save progress" });
   if (state.forfeit) items.push({ id: "forfeit", label: state.forfeit });
   items.push({ id: "restart", label: "Restart game" });
   return items;

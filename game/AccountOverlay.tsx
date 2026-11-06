@@ -129,9 +129,40 @@ function SignOutWarning({ ui }: { ui: Extract<AccountUi, { kind: "sign-out" }> }
   );
 }
 
+function GuestWarning({ ui }: { ui: Extract<AccountUi, { kind: "guest" }> }) {
+  const first = useRef<HTMLButtonElement>(null);
+  useEffect(() => first.current?.focus(), []);
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") ui.cancel();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [ui]);
+  return (
+    <Dialog label="Play as a guest">
+      <h2 className="text-[18px] font-bold">Play as a guest?</h2>
+      <p className="mt-2 text-[14px] text-white/70">Your progress may be lost after this session. It&apos;s only kept in this browser, so it can&apos;t follow you to another device, and clearing your browser data or using a private window erases it.</p>
+      <p className="mt-2 text-[14px] text-white/70">With an account, your story and record are saved for you. It only takes a username and a password.</p>
+      <div className="mt-4 flex flex-col gap-2">
+        <button ref={first} type="button" className={buttonClass} onClick={ui.signIn}>
+          Sign in or create account
+        </button>
+        <button type="button" className={buttonClass} onClick={ui.proceed}>
+          Play as guest
+        </button>
+        <button type="button" className={buttonClass} onClick={ui.cancel}>
+          Back
+        </button>
+      </div>
+    </Dialog>
+  );
+}
+
 /** Real forms over the game, so that password managers work and a password is a real masked field. */
 export function AccountOverlay({ ui }: { ui: AccountUi }) {
   if (ui.kind === "form") return <AccountForm ui={ui} />;
   if (ui.kind === "choice") return <SaveChoiceDialog key={String(ui.choice.account?.lastPlayed)} ui={ui} />;
+  if (ui.kind === "guest") return <GuestWarning ui={ui} />;
   return <SignOutWarning ui={ui} />;
 }

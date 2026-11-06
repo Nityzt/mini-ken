@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { createServer, type IncomingMessage } from "node:http";
 import type { AddressInfo } from "node:net";
 import { createRunState } from "../game/run-state.ts";
-import { createApi, originAllowed, sessionToken } from "./api.ts";
+import { clientAddress, createApi, originAllowed, sessionToken } from "./api.ts";
 import { recordMatch } from "./matches.ts";
 import { createRateLimit, createSlots } from "./rate-limit.ts";
 import { tempDb } from "./test-db.ts";
@@ -280,4 +280,16 @@ test("only so many of a costly job run at once, and the rest wait their turn", a
   assert.equal(peak, 2);
   await assert.rejects(slots.run(() => Promise.reject(new Error("boom"))));
   assert.equal(await job(), "done");
+});
+
+test("behind the host, the address comes from what Cloudflare sets, because a visitor can fake the rest", () => {
+  assert.deepEqual(clientAddress({ "cf-connecting-ip": "1.1.1.1", "true-client-ip": "2.2.2.2", "x-forwarded-for": "6.6.6.6, 1.1.1.1" }, "10.0.0.1", true), { address: "1.1.1.1", source: "cf-connecting-ip" });
+  assert.deepEqual(clientAddress({ "true-client-ip": "2.2.2.2", "x-forwarded-for": "6.6.6.6" }, "10.0.0.1", true), { address: "2.2.2.2", source: "true-client-ip" });
+  assert.deepEqual(clientAddress({ "x-forwarded-for": "6.6.6.6, 1.1.1.1" }, "10.0.0.1", true), { address: "6.6.6.6", source: "x-forwarded-for" });
+  assert.deepEqual(clientAddress({}, "10.0.0.1", true), { address: "10.0.0.1", source: "socket" });
+});
+
+test("not behind a proxy, every such header is ignored, so nobody can fake one", () => {
+  assert.deepEqual(clientAddress({ "cf-connecting-ip": "1.1.1.1", "x-forwarded-for": "6.6.6.6" }, "10.0.0.1", false), { address: "10.0.0.1", source: "socket" });
+  assert.deepEqual(clientAddress({}, undefined, false), { address: "unknown", source: "socket" });
 });

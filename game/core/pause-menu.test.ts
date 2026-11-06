@@ -180,3 +180,13 @@ test("up and down walk the map and stop at both ends; on the other pages they le
   assert.equal(map(0, { up: true }), 0);
   assert.equal(map(2, { down: true }, 0), 2);
 });
+
+test("a guest can sign in from the story menu, and it's an action the game handles", () => {
+  const items = menuItems({ forfeit: null, inGame: true, hasTare: false, multiplayer: true, signIn: true });
+  const index = items.findIndex((i) => i.id === "sign-in");
+  assert.ok(index >= 0);
+  assert.ok(index < items.findIndex((i) => i.id === "restart"));
+  assert.equal(stepPauseMenu({ page: "main", choice: index }, items, { up: false, down: false, confirm: true, cancel: false }).action, "sign-in");
+  assert.ok(!menuItems({ forfeit: null, inGame: true, hasTare: false }).some((i) => i.id === "sign-in"));
+  assert.ok(!menuItems({ forfeit: null, inGame: false, hasTare: false, signIn: true }).some((i) => i.id === "sign-in"));
+});
