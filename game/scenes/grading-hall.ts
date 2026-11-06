@@ -1,0 +1,120 @@
+import { drawKendoka, NO_GEAR } from "../art/kendoka.ts";
+import { EXAMINER_COLORS, HALL_CROWD_COLORS, PALETTE } from "../art/palette.ts";
+import { drawPresence, drawRankTag } from "../art/presence.ts";
+import { TILE } from "../art/tiles.ts";
+import type { TileMap } from "../core/collision.ts";
+import { viewH, viewW } from "../core/scale.ts";
+import type { Game, Scene } from "../core/scene.ts";
+import { playerColors } from "../characters.ts";
+import { payGradingFee, talkToPanel } from "../grading.ts";
+import { danLabel, personDan, presenceOf } from "../ranks.ts";
+import type { OpponentId } from "../world/dojos.ts";
+import { interactionLabel } from "./club-story.ts";
+import { GRADING_HALL_NAME, HALL_ARRIVAL, HALL_OBJECTIVE } from "./content.ts";
+import { crowdDrawings, nearestShown } from "./crowd.ts";
+import { createDialogue } from "./dialogue.ts";
+import { findTiles, HALL_MAP, HALL_SOLID } from "./levels.ts";
+import { cameraFor, createWalker, drawRoom, drawWalker, tileInFront, updateWalker, type Walker } from "./topdown.ts";
+import { drawInteractPrompt, drawObjective, drawTopBar } from "./ui.ts";
+
+const MAP: TileMap = { rows: HALL_MAP, solid: HALL_SOLID, tile: TILE };
+/** Ono sits in the middle, with a 7th dan on either side. */
+const SIDE_EXAMINER_DAN = 7;
+
+/** Where your ticket takes you: nobody gets here any other way, and it isn't on the map. */
+export function createGradingHallScene(): Scene {
+  const dialogue = createDialogue();
+  let walker: Walker;
+  let tick = 0;
+  let seed = 0;
+
+  const startBout = (game: Game, fight: OpponentId) => {
+    game.versus = fight;
+    game.go("duel");
+  };
+  const talkPanel = (game: Game) => {
+    const reply = talkToPanel(game.run, game.grading);
+    const { fight, next } = reply;
+    dialogue.open(reply.lines, next ? () => {
+      // Backing out of the conversation costs nothing. Starting is what you pay for.
+      if (next === "kihon") game.run = payGradingFee(game.run);
+      game.grading = next;
+      if (fight) startBout(game, fight);
+      else game.go("line");
+    } : undefined);
+  };
+  const leaveHall = (game: Game) => {
+    game.grading = null;
+    game.ride = "fromHall";
+    game.go("travel");
+  };
+
+  return {
+    busy: () => dialogue.active,
+    enter(game) {
+      seed = Math.floor(Math.random() * 2 ** 31);
+      const [start] = findTiles(HALL_MAP, "@");
+      walker = createWalker(start.col, start.row);
+      if (game.message) {
+        const lines = game.message;
+        game.message = null;
+        // Past the demonstration, the bout follows straight on. Backing out just means walking back up to them.
+        if (game.grading === "tachiai") {
+          const reply = talkToPanel(game.run, "tachiai");
+          dialogue.open([...lines, ...reply.lines], reply.fight ? () => startBout(game, reply.fight!) : undefined);
+        } else dialogue.open(lines);
+      } else dialogue.open(HALL_ARRIVAL);
+    },
+    update(game) {
+      tick++;
+      game.debug.talking = dialogue.active;
+      if (dialogue.active) {
+        dialogue.update(game.input);
+        return;
+      }
+      updateWalker(walker, game.input, MAP);
+      game.debug.walker = walker.box;
+      const front = tileInFront(walker, HALL_MAP);
+      if (!game.input.wasPressed("confirm")) return;
+      if (front === "P") talkPanel(game);
+      else if (front === "D") leaveHall(game);
+    },
+    render(ctx, game) {
+      const cam = cameraFor(walker, HALL_MAP);
+      ctx.fillStyle = PALETTE.K;
+      ctx.fillRect(0, 0, viewW, viewH);
+      drawRoom(ctx, HALL_MAP, cam, true, "hall");
+      const you = { x: walker.box.x + walker.box.w / 2 - cam.x, y: walker.box.y - cam.y };
+      const tags: (() => void)[] = [];
+      const panel = findTiles(HALL_MAP, "P");
+      const tagged = nearestShown(you, panel.map((spot) => ({ x: spot.col * TILE - cam.x + 8, y: spot.row * TILE + 12 - cam.y })));
+      const examiners = panel.map((spot, i) => {
+        const x = spot.col * TILE - cam.x;
+        const y = spot.row * TILE - 4 - cam.y;
+        const dan = i === 1 ? personDan("examiner") : SIDE_EXAMINER_DAN;
+        if (i === tagged) tags.push(() => drawRankTag(ctx, danLabel(dan), x + 8, y - 8, true));
+        return {
+          y: spot.row * TILE,
+          draw: () => {
+            drawPresence(ctx, x + 8, y + 20, tick, presenceOf(dan), game.reducedMotion);
+            drawKendoka(ctx, x, y, "down", 0, NO_GEAR, { colors: EXAMINER_COLORS });
+          },
+        };
+      });
+      const people = [
+        ...examiners,
+        ...crowdDrawings(ctx, HALL_MAP, cam, tick, game.reducedMotion, (i) => HALL_CROWD_COLORS[i % HALL_CROWD_COLORS.length], seed, (draw) => tags.push(draw)),
+        { y: walker.box.y - 8, draw: () => drawWalker(ctx, walker, cam, game.run.gear, playerColors(game.run)) },
+      ];
+      people.sort((a, b) => a.y - b.y).forEach((who) => who.draw());
+      if (!dialogue.active) tags.forEach((tag) => tag());
+      drawTopBar(ctx, GRADING_HALL_NAME, game.run);
+      if (!dialogue.active) {
+        drawObjective(ctx, HALL_OBJECTIVE);
+        const label = interactionLabel(tileInFront(walker, HALL_MAP), "hall");
+        if (label) drawInteractPrompt(ctx, label, walker.box.x + walker.box.w / 2 - cam.x, walker.box.y - cam.y);
+      }
+      dialogue.render(ctx);
+    },
+  };
+}

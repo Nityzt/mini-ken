@@ -1,0 +1,327 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { cupOffer, doorResponse, finishSession, interactionLabel, lineOutcome, lineOffer, pendingChallenge, senseiMenu, sparOutcome, talkToMomo, talkToSenpai, talkToSensei } from "./club-story.ts";
+import { recordLinePass, recordWin } from "../run-state.ts";
+import { isOpen, LINE_PASSES_TO_UNLOCK } from "../progress.ts";
+import { DIALOGUE_LINES, DIALOGUE_WIDTH, DRILL_PRAISE, GEAR_LINES, GEN_DONE, GEN_DONE_AFTER, KOTE_DONE, SENPAI_LINES, SENSEI_ROUND_DONE } from "./content.ts";
+import { wrapText } from "../art/font.ts";
+import { createRunState, type RunState } from "../run-state.ts";
+
+const withGi = (): RunState => ({ ...createRunState(), metSenpai: true, gi: true });
+const armored = (): RunState => ({ ...withGi(), trained: true, gear: { tare: true, do: true, men: true, kote: true, shinai: true } });
+
+test("a new player has street clothes and nothing else", () => {
+  const run = createRunState();
+  assert.equal(run.metSenpai, false);
+  assert.equal(run.gi, false);
+  assert.equal(Object.values(run.gear).some(Boolean), false);
+});
+
+test("Momo's first talk unlocks the storage room", () => {
+  const { run } = talkToMomo(createRunState());
+  assert.equal(run.metSenpai, true);
+  assert.equal(run.gi, false);
+});
+
+test("Momo keeps pointing at storage until you have the gi", () => {
+  const first = talkToMomo(createRunState());
+  const second = talkToMomo(first.run);
+  assert.notDeepEqual(second.lines, first.lines);
+  assert.ok(second.lines.join(" ").includes("storage"));
+});
+
+test("Momo sends you to Sensei once you have the gi", () => {
+  assert.ok(talkToMomo(withGi()).lines.join(" ").includes("Sensei"));
+});
+
+test("Sensei won't see you in street clothes", () => {
+  const start = createRunState();
+  const reply = talkToSensei(start);
+  assert.equal(reply.session, null);
+  assert.equal(reply.run.gear.shinai, false);
+  assert.deepEqual(reply.run, start);
+});
+
+test("Sensei gives their old shinai and starts the first round", () => {
+  const reply = talkToSensei(withGi());
+  assert.equal(reply.run.gear.shinai, true);
+  assert.deepEqual(reply.session, { kind: "sensei", round: 0 });
+  assert.equal(reply.run.gear.tare, false);
+});
+
+test("Sensei restarts the round if you have the shinai but haven't finished it", () => {
+  const start = { ...withGi(), gear: { ...withGi().gear, shinai: true } };
+  assert.deepEqual(talkToSensei(start).session, { kind: "sensei", round: 0 });
+});
+
+const afterRound = (run: RunState, round: number): RunState => finishSession(run, { kind: "sensei", round }).run;
+const shinai = (): RunState => ({ ...withGi(), gear: { ...withGi().gear, shinai: true } });
+
+test("the first round ends with just a tare", () => {
+  const run = afterRound(shinai(), 0);
+  assert.deepEqual(run.gear, { tare: true, do: false, men: false, kote: false, shinai: true });
+});
+
+test("the armor loop runs Sensei, senpai, Sensei, senpai, until the kote", () => {
+  let run = afterRound(shinai(), 0);
+  // Sensei has nothing new until a senpai's challenge is passed.
+  assert.equal(talkToSensei(run).session, null);
+  assert.equal(pendingChallenge(run), 0);
+  assert.deepEqual(talkToSenpai(run, "aki").session, { kind: "senpai", senpai: "aki", level: 0 });
+
+  run = finishSession(run, { kind: "senpai", senpai: "aki", level: 0 }).run;
+  assert.equal(run.gear.do, true);
+  assert.equal(run.gear.men, false);
+  assert.equal(pendingChallenge(run), null);
+  assert.equal(talkToSenpai(run, "bo").session, null);
+  assert.deepEqual(talkToSensei(run).session, { kind: "sensei", round: 1 });
+
+  run = afterRound(run, 1);
+  assert.equal(run.gear.men, false);
+  assert.equal(talkToSensei(run).session, null);
+  run = finishSession(run, { kind: "senpai", senpai: "bo", level: 1 }).run;
+  assert.equal(run.gear.men, true);
+  assert.deepEqual(talkToSensei(run).session, { kind: "sensei", round: 2 });
+
+  run = afterRound(run, 2);
+  assert.equal(run.trained, false);
+  run = finishSession(run, { kind: "senpai", senpai: "yui", level: 2 }).run;
+  assert.equal(run.gear.kote, true);
+  assert.equal(run.trained, true);
+  assert.equal(talkToSensei(run).session, null);
+});
+
+test("no senpai offers a challenge before Sensei's first round", () => {
+  for (const id of ["aki", "bo", "yui"] as const) assert.equal(talkToSenpai(withGi(), id).session, null);
+});
+
+test("a rival dojo's sensei is someone you can walk up to", () => {
+  assert.equal(interactionLabel("X", "rival"), "Talk");
+});
+
+test("every senpai has something to say at every stage", () => {
+  for (const id of ["aki", "bo", "yui"] as const) {
+    assert.ok(talkToSenpai(withGi(), id).lines.length > 0);
+    assert.ok(talkToSenpai(afterRound(shinai(), 0), id).lines.length > 0);
+    assert.ok(talkToSenpai(armored(), id).lines.length > 0);
+  }
+});
+
+test("after full armor, Sensei says what's next and offers the line drill", () => {
+  const reply = talkToSensei(armored());
+  assert.equal(reply.session, null);
+  assert.equal(reply.menu, true);
+  assert.ok(reply.lines.join(" ").includes("beat a senpai"));
+  const next = talkToSensei(recordWin(armored(), "aki"));
+  assert.ok(next.lines.join(" ").includes("line drill 0/3"));
+});
+
+test("Sensei only offers the line drill once you're fully armored", () => {
+  assert.ok(!talkToSensei(withGi()).menu);
+  assert.ok(!talkToSensei(afterRound(shinai(), 0)).menu);
+});
+
+test("Sensei still has something to say when everything's open", () => {
+  const run = { ...armored(), beaten: ["aki", "radish"] as RunState["beaten"], linePasses: 9, bonusKi: 99, seme: true };
+  assert.ok(talkToSensei(run).lines.length > 0);
+});
+
+test("the door needs full armor and a win over a senpai", () => {
+  assert.equal(doorResponse(createRunState()).leaves, false);
+  assert.equal(doorResponse(withGi()).leaves, false);
+  assert.equal(doorResponse(afterRound(shinai(), 0)).leaves, false);
+  assert.equal(doorResponse(armored()).leaves, false);
+  assert.ok(doorResponse(armored()).lines.join(" ").includes("Aki"));
+  assert.equal(doorResponse(recordWin(armored(), "aki")).leaves, true);
+});
+
+test("the door's reason changes once you're armored", () => {
+  assert.notDeepEqual(doorResponse(withGi()).lines, doorResponse(armored()).lines);
+});
+
+test("once you're fully armored, every senpai will spar", () => {
+  for (const id of ["aki", "bo", "yui"] as const) {
+    const reply = talkToSenpai(armored(), id);
+    assert.equal(reply.fight, id);
+    assert.equal(reply.session, null);
+  }
+});
+
+test("nobody offers a real match before you're fully armored", () => {
+  for (const id of ["aki", "bo", "yui"] as const) {
+    assert.ok(!talkToSenpai(withGi(), id).fight);
+    assert.ok(!talkToSenpai(afterRound(shinai(), 0), id).fight);
+  }
+});
+
+test("earning the kote tells you what the door needs next, once you've seen the kote", () => {
+  const start = { ...shinai(), senseiRounds: 3, gear: { tare: true, do: true, men: true, kote: false, shinai: true } };
+  const reply = finishSession(start, { kind: "senpai", senpai: "bo", level: 2 });
+  assert.equal(reply.run.trained, true);
+  assert.deepEqual(reply.lines, [SENPAI_LINES.bo.pass]);
+  assert.equal(reply.after, undefined, "Sensei isn't in the room with you and Bo");
+  assert.deepEqual(reply.home, [KOTE_DONE]);
+});
+
+test("the tare is handed over before Sensei sends you on to a senpai", () => {
+  const reply = finishSession(shinai(), { kind: "sensei", round: 0 });
+  assert.deepEqual(reply.lines, [DRILL_PRAISE.tare]);
+  assert.deepEqual(reply.after, [SENSEI_ROUND_DONE[0]]);
+});
+
+test("the do and men have nothing to say after they're handed over", () => {
+  for (const level of [0, 1]) {
+    const reply = finishSession({ ...shinai(), senseiRounds: level + 1 }, { kind: "senpai", senpai: "aki", level });
+    assert.deepEqual(reply.lines, [SENPAI_LINES.aki.pass]);
+    assert.equal(reply.after, undefined);
+  }
+});
+
+test("Sensei hands over the shinai, and only then asks for drills", () => {
+  const reply = talkToSensei(withGi());
+  assert.match(reply.lines.at(-1)!, /It's yours/);
+  assert.equal(reply.after?.length, 1);
+  assert.match(reply.after![0], /Show me some drills/);
+});
+
+test("the shinai's own card explains it, so Sensei doesn't read it out as well", () => {
+  const reply = talkToSensei(withGi());
+  assert.ok(![...reply.lines, ...reply.after!].includes(GEAR_LINES.shinai));
+});
+
+test("a senpai win says the door's open the first time", () => {
+  const first = sparOutcome(armored(), "aki");
+  assert.equal(isOpen(first.run, "door"), true);
+  assert.equal(first.run.beaten.includes("aki"), true);
+  const again = sparOutcome(first.run, "aki");
+  assert.notDeepEqual(again.lines, first.lines);
+  assert.equal(again.run.bonusKi, first.run.bonusKi);
+});
+
+test("a second senpai still pays out ki, without announcing the door again", () => {
+  const first = sparOutcome(armored(), "aki");
+  const second = sparOutcome(first.run, "bo");
+  assert.equal(second.run.bonusKi, first.run.bonusKi + 5);
+  assert.ok(!second.lines.join(" ").includes("door"));
+});
+
+test("passing the line drill counts, and the third pass opens the streets", () => {
+  let run = armored();
+  for (let i = 1; i <= LINE_PASSES_TO_UNLOCK; i++) {
+    const reply = lineOutcome(run, { passed: true, cleans: 4, count: 4 });
+    assert.equal(reply.run.linePasses, i);
+    if (i === LINE_PASSES_TO_UNLOCK) assert.ok(reply.lines.join(" ").includes("streets"));
+    else assert.ok(reply.lines.join(" ").includes(`${i}`));
+    run = reply.run;
+  }
+});
+
+test("failing the line drill costs nothing and says how it went", () => {
+  const reply = lineOutcome(armored(), { passed: false, cleans: 2, count: 5 });
+  assert.equal(reply.run.linePasses, 0);
+  assert.equal(reply.run.bonusKi, 0);
+  assert.ok(reply.lines.join(" ").includes("2 of 5"));
+});
+
+test("runs beyond the third still get a word from Sensei", () => {
+  const run = { ...armored(), linePasses: LINE_PASSES_TO_UNLOCK };
+  assert.ok(lineOutcome(run, { passed: true, cleans: 5, count: 5 }).lines.length > 0);
+  assert.equal(recordLinePass(run).linePasses, LINE_PASSES_TO_UNLOCK + 1);
+});
+
+test("the last tier warns you the key prompts are gone", () => {
+  assert.notDeepEqual(lineOffer({ ...armored(), linePasses: 0 }), lineOffer({ ...armored(), linePasses: 2 }));
+  assert.ok(lineOffer({ ...armored(), linePasses: 2 }).join(" ").includes("no key"));
+});
+
+test("the line drill's words fit in the dialogue box", () => {
+  for (let passes = 0; passes < 5; passes++) {
+    const lines = [
+      ...lineOffer({ ...armored(), linePasses: passes }),
+      ...lineOutcome({ ...armored(), linePasses: passes }, { passed: true, cleans: 5, count: 5 }).lines,
+      ...lineOutcome({ ...armored(), linePasses: passes }, { passed: false, cleans: 0, count: 5 }).lines,
+    ];
+    for (const line of lines) assert.ok(wrapText(line, DIALOGUE_WIDTH).length <= DIALOGUE_LINES, line);
+  }
+});
+
+test("Momo challenges you only once you're fully armored, and stops once beaten", () => {
+  assert.equal(talkToMomo(withGi()).fight, false);
+  assert.equal(talkToMomo(armored()).fight, true);
+  assert.equal(talkToMomo({ ...armored(), momoBeaten: true }).fight, false);
+});
+
+test("Momo talks differently once you've learned seme", () => {
+  assert.notDeepEqual(talkToMomo(armored()).lines, talkToMomo({ ...armored(), seme: true }).lines);
+});
+
+test("Old Gen hands over seme, and explains what it costs once you've seen the card", () => {
+  const reply = finishSession(armored(), { kind: "master" });
+  assert.deepEqual(reply.lines, GEN_DONE);
+  assert.match(reply.lines.at(-1)!, /yours/);
+  assert.deepEqual(reply.after, GEN_DONE_AFTER);
+  assert.ok(reply.after!.join(" ").includes("Space"));
+  assert.ok(reply.after!.join(" ").includes("costs ki"));
+});
+
+test("Old Gen's words about seme fit the dialogue box", () => {
+  for (const line of [...GEN_DONE, ...GEN_DONE_AFTER]) assert.ok(wrapText(line, DIALOGUE_WIDTH).length <= DIALOGUE_LINES, line);
+});
+
+test("learning from the hermit gives you seme", () => {
+  const run = armored();
+  assert.equal(run.seme, false);
+  assert.equal(finishSession(run, { kind: "master" }).run.seme, true);
+});
+
+test("the notice board says what it takes while a cup is shut", () => {
+  const offer = cupOffer(createRunState(), "pinecone");
+  assert.equal(offer.enter, false);
+  assert.match(offer.lines[0], /Still to do/);
+});
+
+test("the notice board offers the cup once it's open, and mentions the prize only while there is one", () => {
+  const open = { ...createRunState(), linePasses: 3, beaten: ["aki"] as RunState["beaten"] };
+  const offer = cupOffer(open, "pinecone");
+  assert.equal(offer.enter, true);
+  assert.ok(offer.lines.join(" ").includes("Pinecone Cup"));
+  assert.ok(offer.lines.join(" ").includes("+15"));
+  const won = cupOffer({ ...open, cups: ["pinecone"] }, "pinecone");
+  assert.equal(won.enter, true);
+  assert.ok(!won.lines.join(" ").includes("+15"));
+});
+
+test("people and things say what pressing E will do", () => {
+  assert.equal(interactionLabel("M", "home"), "Talk");
+  assert.equal(interactionLabel("X", "home"), "Talk");
+  assert.equal(interactionLabel("N", "home"), "Notice board");
+  assert.equal(interactionLabel("D", "home"), "Leave");
+  assert.equal(interactionLabel("R", "rival"), "Talk");
+  assert.equal(interactionLabel("G", "rival"), "Talk");
+  assert.equal(interactionLabel("D", "rival"), "Leave");
+  assert.equal(interactionLabel(".", "home"), null);
+  assert.equal(interactionLabel("#", "rival"), null);
+});
+
+test("the same tile letter can mean different things at home and away", () => {
+  assert.equal(interactionLabel("G", "home"), null, "at home, G is the spare gi, which you walk onto");
+});
+
+test("Sensei offers the waza lesson once you're armored", () => {
+  const armored = { ...createRunState(), trained: true };
+  assert.ok(senseiMenu(armored).some((o) => o.id === "waza"));
+});
+
+test("finishing the waza lesson is recorded and pays, once", () => {
+  const start = createRunState();
+  const first = finishSession(start, { kind: "waza" });
+  assert.equal(first.run.waza, true);
+  assert.ok(first.run.xp > start.xp);
+  const again = finishSession(first.run, { kind: "waza" });
+  assert.equal(again.run, first.run);
+});
+
+test("the short tutorial changes nothing about a story run", () => {
+  const start = createRunState();
+  assert.equal(finishSession(start, { kind: "quick" }).run, start);
+});
