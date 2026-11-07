@@ -1,6 +1,7 @@
 export type Action =
   | "left" | "right" | "up" | "down"
   | "men" | "kote" | "do"
+  | "raise" | "wrist" | "drop"
   | "stomp" | "seme" | "confirm" | "cancel" | "pause" | "mute" | "copy";
 
 export type Input = {
@@ -22,7 +23,8 @@ const KEY_ACTIONS: Record<string, Action[]> = {
   arrowright: ["right"],
   d: ["right"],
   arrowup: ["up"],
-  w: ["up"],
+  w: ["up", "raise"],
+  q: ["wrist"],
   arrowdown: ["down"],
   s: ["down"],
   j: ["men"],
@@ -30,7 +32,7 @@ const KEY_ACTIONS: Record<string, Action[]> = {
   l: ["do"],
   i: ["seme"],
   " ": ["stomp", "confirm"],
-  e: ["confirm"],
+  e: ["confirm", "drop"],
   c: ["copy"],
   enter: ["confirm"],
   x: ["cancel"],

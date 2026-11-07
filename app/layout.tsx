@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Tiny Kendo",
-  description: "A cute 8-bit kendo game from the York University Kendo Club. Put on your armor, train, and take on the city's dojos.",
+  description: "A cute 8-bit kendo game. Put on your armor, train, and take on the city's dojos.",
 };
 
 export const viewport: Viewport = {

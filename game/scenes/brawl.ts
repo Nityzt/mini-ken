@@ -40,7 +40,7 @@ type Floater = { text: string; x: number; y: number; ticks: number; color: strin
 export function createBrawlScene(): Scene {
   const cards = createTeachCards();
   let state: BrawlState;
-  let control = createPlayerControl();
+  let control = createPlayerControl({ openings: false });
   let tick = 0;
   let finishing = 0;
   let camX = 0;
@@ -127,7 +127,7 @@ export function createBrawlScene(): Scene {
     },
     enter(game) {
       state = createBrawl({ bullies: GANGS[game.run.node] ?? [], seed: Math.floor(Math.random() * 2 ** 31), kiMax: playerKiMax(game.run), hp: game.run.hp });
-      control = createPlayerControl();
+      control = createPlayerControl({ openings: false });
       tick = 0;
       finishing = 0;
       camX = 0;

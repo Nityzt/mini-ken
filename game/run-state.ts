@@ -245,6 +245,8 @@ export function duelOptionsFor(run: RunState, versus?: OpponentId | null, atFull
     ...(opponent.points ? { pointsToWin: opponent.points } : {}),
     ...(gazing ? { semeTaken: [SEME_WITH_GAZE, 1] as [number, number] } : {}),
     ...(opponent.kamae ? { kamae: ["chudan", opponent.kamae] as [Kamae, Kamae] } : {}),
+    // A rigged fight has a script, which a tired guard or the clock would walk straight around.
+    ...((opponent.style === "rigged" || opponent.style === "demonstration") ? { steadyGuard: [false, true] as [boolean, boolean], noClock: true } : {}),
   };
 }
 

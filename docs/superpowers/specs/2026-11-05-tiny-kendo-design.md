@@ -4,7 +4,7 @@
 
 ## Context
 
-Tiny Kendo is a cute browser game from the York University Kendo Club that lets people experience kendo in a fun way. It's its own project and repo, apart from the club's website (owner, 2026-11-06). **It is a fun sandbox and is not meant to recruit.**
+Tiny Kendo is a cute browser game that lets people experience kendo in a fun way. It's its own project and repo (owner, 2026-11-06). **It is a fun sandbox and is not meant to recruit.** Its association with the York University Kendo Club is removed for now (owner, 2026-11-07, issue #1): no club name, logo, favicon, links, Discord or email anywhere in the game, the page or the README. The previous wording and the removed files are in git history, in commit 860a2bb, for when it comes back.
 
 **It has grown past the prototype (owner, 2026-11-05).** It's now an open-world game: a story at home, a city to roam, optional fights and optional storylines. Multiplayer and collaboration come next, so new systems should leave room for other people without building that yet.
 
@@ -34,11 +34,11 @@ Tiny Kendo is a cute browser game from the York University Kendo Club that lets 
 - **Journey (revised 2026-11-05):** one club with one secret, a city map with optional fights, five rival dojos with Ren as the last of them, and a tournament.
 - **Views:** a top-down city map, top-down indoors, and side-on for duels and gang fights. No platforming.
 - **Borrowed from Hollow Knight:** hidden places and tough, learnable opponents only. The mood stays cute.
-- **Duel rules:** first to 2 points. One clean strike scores. Swinging and blocking drain ki, and low ki makes you slower and more open.
+- **Duel rules:** first to 2 points, with a 2-minute clock. One clean strike scores. Every ordinary strike starts from a visible opening (see Openings). Swinging, blocking and holding an opening drain ki, only plain guard recovers it, and low ki makes you slower and more open.
 - **World:** everything is fictional, including people and dojos, with no real sensei, officers or clubs.
 - **Devices:** keyboard first. Phones get a friendly "play on a computer" screen, and touch comes later if the game proves fun.
-- **Link to the club:** a small sticky logo or link back to the website, and that's it.
-- **End of the game:** no recruiting pitch. Any mention of the club points to email or Discord.
+- **Link to the club:** none for now (see above).
+- **End of the game:** no recruiting pitch, and no mention of any club.
 
 ## The player's journey
 
@@ -244,7 +244,7 @@ A small room, a few characters who hint at the rival's habits, a notice board fo
 See Duel design below. Losing leads straight to a rematch, with a tip based on how the player lost.
 
 ### 6. After a win
-There's no win screen: see After a fight, leaving, health and talk. Winning the Grand Taikai shows one quiet line, "Want to chat kendo? Say hi on Discord or by email.", using the club's Discord link and email. It contains no schedule, registration or sign-up pitch.
+There's no win screen: see After a fight, leaving, health and talk. Winning the Grand Taikai shows no extra line (the club contact line is removed for now, see above).
 
 ### Your own shinai (owner, 2026-11-06; the details are my call)
 The shinai you start with is Sensei's, and you owe it back. Nothing on the ladder depends on any of this.
@@ -274,7 +274,7 @@ Each shinai and each piece of armor has durability out of 100, shown on its inve
 - **Speech bubbles (owner, 2026-11-06).** What's said appears in a bubble next to whoever's saying it, with a tail pointing at them, just big enough for the words. It goes over their head if there's room, and otherwise wherever it doesn't cover them or you, and it's always on screen. A line with no name goes next to whoever you're talking to, or next to you. On the map it's all said where you're standing. Menus stay along the bottom, because they're yours and not anyone's speech.
 - **People move like they're there (owner, 2026-11-06; details are my call).** All of it is for show, and none of it changes what anyone can do.
   - **You go to them.** Facing someone with a clear line up to 3 tiles off, the prompt shows and E walks you over. They turn to look at you while you talk, unless they're asleep.
-  - **They come to you.** Ren and each dojo's next boss come in by the door and walk right up to you, say their piece, and go and stand in their spot. You wait while they do. After teaching the far-mountain gaze, Ren walks back out the door. If Ren's just fought you, they're already in the room and only walk over.
+  - **They come to you.** Ren and each dojo's next boss come in by the door and walk right up to you, say their piece, and go and stand in their spot. You wait while they do. After teaching the far-mountain gaze, Ren walks back out the door. A match doesn't move anybody: if Ren's just fought you, you're both right where you were, and Ren picks up talking from there. Until someone's come through the door, they aren't standing in the room.
   - **Coming in.** Arriving at home, a rival's dojo or the grading hall, you step in through the door. Coming back from a match, you're still standing where you were.
   - **Getting changed.** Walking onto the spare gi holds it up, spins you round in a flurry of cloth, and you come out wearing it with a little hop, and only then does its card appear. Armor you earn goes on the same way, the next chance there is at home. E cuts it short. With reduced motion you just stand there and change.
 - **A Controls page** in the Esc menu lists every key. **P** also opens the menu, because Esc only leaves fullscreen when you're in it.
@@ -284,7 +284,7 @@ Each shinai and each piece of armor has durability out of 100, shown on its inve
   - **Online matches never stop for one**, because the other player's game is running in lockstep. Getting there takes the tutorial or the waza lesson anyway.
 
 ### Always on screen
-A small sticky club logo in a corner links to the club's website, https://www.yukendo.ca. It is a plain link outside the canvas and uses `public/yu-kendo-pixel64.png`, a copy of the site's pixel logo. This is the only exception to the code-only art, because it is the club's existing mark rather than game art.
+Nothing sits outside the canvas for now: the sticky club logo is removed with the club association (see above). The favicon, `app/icon.png`, is two crossed shinai drawn from a grid, like the rest of the game's art.
 
 ## Duel design
 
@@ -292,7 +292,8 @@ This is the core of the game. If it isn't fun, nothing else matters.
 
 **Controls**
 - **Move:** left and right, or A and D, sliding in and out of range in suriashi.
-- **Strikes:** J for men, K for kote, L for do.
+- **Openings:** hold W to raise the shinai, Q to open the wrist, E to drop the tip. A strike needs one.
+- **Strikes:** J for men, K for kote, L for do, from any opening.
 - **Fumikomi:** Space, with the strike.
 - **Block:** S or down arrow, held.
 - **Pause:** Esc. **Mute:** M. Other keys may be chosen by the builder.
@@ -301,15 +302,22 @@ This is the core of the game. If it isn't fun, nothing else matters.
 - **Fumikomi:** Space is the stomp. A clean hit with no stomp in the moment before it lands scores nothing and leaves the striker exposed.
 - **Zanshin:** a clean hit doesn't score yet. The striker must hold forward and slide all the way past the opponent in suriashi, shown by an on-screen prompt and meter, then turn back. Stopping short cancels the point and leaves the striker exposed.
 - **Footwork:** the right foot leads, the left foot stays grounded and drives, and the feet never cross. Double-tapping forward or back launches a long way, for ki.
-- **Seme (owner's direction, 2026-11-05):** learned from Old Gen on Ravine Trail. Hold `I` to press the opponent with your spirit. You plant your feet, your ki drains, and a flickering power-up aura builds around you. Enough pressure makes the opponent flinch: their attack is cancelled, they lose ki and they're wide open. You're fully exposed while powering up, and can cancel straight into a strike or block. In gang fights it works on everyone nearby, who cower together.
+- **Seme (owner's direction, 2026-11-05):** learned from Old Gen on Ravine Trail. Hold `I` to press the opponent with your spirit. You plant your feet, your ki drains, and a flickering power-up aura builds around you. Enough pressure makes the opponent flinch: their attack is cancelled, they lose ki and they're wide open. You're fully exposed while powering up, and can cancel straight into a strike or block. In gang fights it works on everyone nearby, who cower together. **If both hold seme, neither bar builds (owner, 2026-11-07),** kiai included: both burn ki until someone commits or backs off.
 - **Kiai (owner's direction, built 2026-11-05):** stomp with Space while holding seme to shout. It pushes the pressure up sharply, costs ki, and needs a moment before the next one (my call on all three).
 - **The ceremony:** each match opens with a bow with the shinai in the left hand (sageto), the shinai at the hip (taito), three steps in, the draw into sonkyo, and rising into guard. It can be skipped.
 
+**Openings (owner, 2026-11-07).** The full design is in `docs/superpowers/specs/2026-11-07-openings-and-baiting-design.md`.
+- **Every ordinary strike needs an opening, and any opening can lead to any strike.** Raising the shinai shows the do, opening the wrist shows the kote, and dropping the tip shows the men. It shows what's open and never what's coming. Only that target is exposed until the strike lands.
+- **It can be bait.** Hold it as long as you like, and cancel at any moment into a block, parry or seme. A strike can only start after 10 ticks of an opening; pressed sooner, it's queued and still goes if you let go, so W, J and Space together work as a quick tap. A parry's counter and a hiki strike need no opening.
+- **Bots live by this too.** A planned attack holds its opening for its old tell plus a little more, and can be bait, which turns into a parry if you bite. Answers (a punish or a meet) use the shortest opening. They go for an opening you show them. Lesson partners strike directly, because their slow windup is the drill.
+
+**The clock (owner, 2026-11-07).** A whole match has 2 minutes of fighting. When it runs out, whoever has a point wins, and at one all whoever scored first wins. With no points, they go back to their lines for encho, and the next point wins, with no further limit. A strike in the air still lands and a zanshin finishes. The clock stops during zanshin, the walk back, a wakare and a crossing. Scripted fights and lessons have none.
+
 **After a point (owner, 2026-11-05):** nothing stops. Both walk back to their starting lines with the tip lowered, turning to face each other as they arrive, and the next point starts as they settle (about a second, where it used to be 2.5 seconds and a jump). Ki comes back on the walk. The referee calls Hajime, Nihon-me, or Shobu at one all. Any tip after losing a point stays up a little way into the next one, since there's no pause left to read it in.
 
-**The end of a match (owner, 2026-11-05):** only after the last point, because nobody sheathes between points. Both walk back to their lines, then go into sonkyo, sheathe while still down (osame-to), rise, take small steps back with the shinai at the hip, lower it to the side, bow, turn and walk away. The result panel comes up as they leave, and the whole thing can be skipped. Nobody celebrates, because in real kendo that can cost you the point.
+**The end of a match (owner, 2026-11-05):** only after the last point, because nobody sheathes between points. Both walk back to their lines, then go into sonkyo and sheathe while still down (osame-to): the shinai goes up and over to the left side, then the right hand lets go and rests on the right thigh, leaving the left hand at the waist just under the tsuba with the tip towards the floor behind. They rise, take small steps back, bow, turn and walk away, holding the shinai that way throughout with the right hand free. It's held at 45 degrees standing, and flatter in sonkyo, where 45 degrees would put the tip through the floor. The result panel comes up as they leave, and the whole thing can be skipped. Nobody celebrates, because in real kendo that can cost you the point.
 
-**Parry (owner's request, built 2026-11-05; suriage in spirit):** tap S just before a strike lands (a tap works with up to 9 ticks to go). The opponent's tip shines before every strike you could parry (owner, 2026-11-06). It starts 17 ticks out, because the window's shorter than anyone can react, swells, and is at full size with extra rays from the first tick a tap would work. A short, high ting plays once as it appears. Tapping about 225 to 425ms after it appears parries, and a test holds that for every rival's every strike at full strength. Your own swing doesn't shine, a pull out of a lock doesn't because holding is its answer, and lessons without parries don't. Reduced motion keeps the shine at one size, since it's the cue. The strike is knocked aside, leaving the striker wide open for longer than a blocked one, and it costs you no ki where a block costs plenty. For a moment your next strike comes out fast. Mistiming it leaves you wide open and waiting before you can try again, so mashing doesn't work. Holding S on after the window just becomes a block. Rivals parry some of the time, by luck, more often the better they are and less often once they've beaten you a few times. Scripted fights and lessons have no parries.
+**Parry (owner's request, built 2026-11-05; suriage in spirit):** tap S just before a strike lands (a tap works with up to 9 ticks to go). The opponent's tip shines before every strike you could parry (owner, 2026-11-06). It starts 17 ticks out, because the window's shorter than anyone can react, swells, and is at full size with extra rays from the first tick a tap would work. A short, high ting plays once as it appears. Tapping about 225 to 425ms after it appears parries, and a test holds that for every rival's every strike at full strength. Your own swing doesn't shine, a pull out of a lock doesn't because holding is its answer, and lessons without parries don't. Reduced motion keeps the shine at one size, since it's the cue. The strike is knocked aside, leaving the striker wide open for longer than a blocked one, and it costs you no ki where a block costs plenty. For a moment your next strike comes out fast. Mistiming it leaves you wide open and waiting before you can try again, so mashing doesn't work. Holding S on after the window just becomes a block. **A counter can be parried once (owner, 2026-11-07),** in its last 4 ticks, which is shorter than the counter itself, so it's a read. You get one try while stuck, and missing it adds 14 ticks. A second parry gives nobody a counter or ki, and both are back in guard, unless they're within 32, where they bind. A first parry binds from within 26. A counter drives in about 8 as it goes. Rivals parry some of the time, by luck, more often the better they are and less often once they've beaten you a few times. Scripted fights and lessons have no parries.
 
 **Tsuba-zeriai (owner's request, built 2026-11-05):** walking right up to someone, launching into them (a body check, taiatari, which starts you ahead), striking from too close, or having a close strike blocked all lock you hilt to hilt. It's a three-way choice that the other fighter's pose gives away:
 - **Push (D)** beats a held guard: fill the bar and they're shoved off balance and wide open. Pushing costs ki, and whoever has more ki wins an even push.
@@ -331,7 +339,7 @@ If nothing's happened after about five seconds the referee calls Wakare, and bot
 
 **Pace (owner's direction, 2026-11-06; the numbers are my call).** Fights were too fast to follow, with a whole match in 6 to 9 seconds and your own men landing in 0.13. Now, against a player who answers everything in 250ms, a match takes 13 to 16 seconds with about 4 between exchanges, and it runs longer the more you get wrong. `game/duel/pace.test.ts` holds this.
 - **Tempo.** The rules move on two of every three frames, so a tick is 25ms instead of 16.7ms. Everything keeps its proportions, and a press on a skipped frame waits for the next tick. It's inside the rules' `step`, which counts only frames, so an online match needs no changes and both players stay on the same beat. The bow and the closing keep their own timing. Kirikaeshi and street fights aren't duels: they don't run on the tempo, and keep their tighter strikes and stomp.
-- **Strikes.** Men now takes 14 ticks (0.33s), kote 12, do 16, a quick strike 16. The stomp window is 20 ticks to fit them. Rivals' tells are a quarter longer, so answering a tell cleanly works up to about 400ms after it starts, where it was about 270ms. The quickest rivals also wait a little longer between swings.
+- **Strikes (retuned 2026-11-07 with openings).** Men takes 16 ticks (0.4s), kote 14, do 18, a quick strike 16, plus at least 10 for the opening. The stomp window is 28 ticks to fit them. Rivals' tells are a quarter longer, so answering a tell cleanly works up to about 400ms after it starts, where it was about 270ms. The quickest rivals also wait a little longer between swings.
 - **Freeze.** Contact holds everything still for a moment, as a pure count of frames in the rules: 16 frames for a landed cut or a broken guard, 12 for a parry, 10 for a crossing or ai-uchi, 8 for a shove, lock or flinch, and 6 for a block. The strike stays out and the pose finishes arriving, so the held picture is the one that matters. Keys pressed during it wait.
 - **After a point** there's half a second more on the line before the next one. Bo's opening at level 0 is now 2 seconds out of every 4, to fit the slower strike.
 - The game's easier to read as a result, which makes it somewhat easier to win. Rivals' parries and meets are unchanged. Tuning this further is the owner's call at the next playtest.
@@ -341,7 +349,7 @@ If nothing's happened after about five seconds the referee calls Wakare, and bot
 - **What state they're in.** A strip on the floor under each fighter is colored by what they're doing. A held guard shows a blue plate in front of them. Anyone left open has a label over them and a bar for how long's left: Open, Wide open, Stunned, Stumbling, and Parrying and Counter! on the good side. In a lock it says Push, Hold or Pull! for each of them. It only says what their pose already shows, so a tell's prompt is still only given where the fight allows it.
 - **Choppy but clear.** Everything in a duel animates on threes: a drawing holds for 3 frames before the next one, a strike gathers in 3 stages, and arms stay out for a third of a second. Labels last about twice as long. Reduced motion keeps every label and effect at one held frame, and drops the shake, the flash, the dark room and the afterimages. The freeze stays, because it isn't movement.
 
-**How it moves (owner's direction, 2026-11-06).** The movement comes from watching a real match between two 7th dan frame by frame. It only changed what's drawn. A strike's last 12 ticks gather: the hands keep rising and the body drives forward, and both feet leave the floor around the cut. The arms are fully out only for a moment, then go back up over the head and stay there through zanshin and a crossing. Nobody reels from being hit: the hands stay up and the knock is 2 pixels. In a lock the hands are at the chest and the blades upright, and a pull still drops them, because that's its tell. Parting from a lock, the bodies go first and the tip comes down last. The blade comes up high on the draw, sonkyo is a slow sink and rising from it is slow too. The men's ties and the hakama stream out at speed, and crossed tips move together. Reduced motion keeps the gathering, since it's part of the tell, and drops the hop and the rippling.
+**How it moves (owner's direction, 2026-11-06).** The movement comes from watching a real match between two 7th dan frame by frame. It only changed what's drawn. A strike's last 12 ticks gather: the hands keep rising and the body drives forward, and both feet leave the floor around the cut. The arms are fully out only for a moment, then go back up over the head and stay there through zanshin and a crossing. Nobody reels from being hit: the hands stay up and the knock is 2 pixels. In a lock the hands are at the chest and the blades upright, and a pull still drops them, because that's its tell. Parting from a lock, the bodies go first and the tip comes down last. The blade comes up high on the draw, sonkyo is a slow sink and rising from it is slow too, with the legs bending in stages so they always meet the body. The men's ties and the hakama stream out at speed, and crossed tips move together. Reduced motion keeps the gathering, since it's part of the tell, and drops the hop and the rippling.
 
 **Later, as more real waza (my suggestions, not built):** harai (sweeping their shinai aside to make an opening) and nuki (slipping a strike by stepping out of it and answering).
 
@@ -354,9 +362,10 @@ If nothing's happened after about five seconds the referee calls Wakare, and bot
 
 | Stance | Exposed targets | Notes |
 |---|---|---|
-| Guard, no key held | All three | Standing idle in range gets you hit |
-| Blocking, key held | None | Can't move or strike. No ki recovery, and every absorbed strike costs ki |
-| Winding up an attack (the tell) | Only the one target that attack leaves open | Example: hands rising for men exposes kote |
+| Plain guard, no key held | All three | The only place ki recovers, so resting is a risk you choose |
+| Blocking, key held | None | Can't move or strike. Drains ki slowly, and every absorbed strike costs more |
+| Holding an opening | Only the one target it shows | Can walk and launch. Drains ki a little faster than a block |
+| Striking from an opening | The same one target | Committed, with the tip's shine as the warning |
 | Recovering from a failed strike | All three | The price of a bad swing, which stops mashing |
 | Guard broken, ki ran out while blocking | All three | Brief stun, which stops turtling |
 | Parrying, just tapped | None | A short window, and you can't move or strike during it |
@@ -367,9 +376,9 @@ If nothing's happened after about five seconds the referee calls Wakare, and bot
 The rival's AI normally holds block when the player is in range. Its openings therefore come mainly from its own tells and recoveries, and from running its ki down. A clean strike shows the kiai as a speech bubble ("MEN!"). The three referees raise their flags 12 ticks after the hit, about as the striker gets past (owner, 2026-11-06), and the point itself only counts at the end of the slide. Stop short and the flags come back down, the way referees take a point back.
 
 **Ki**
-- Swinging and blocking drain it. It recovers while you hold your guard calmly.
+- Swinging, launching, holding an opening and holding a block all drain it, the last two slowly even when nothing touches you. It only recovers in plain guard, standing or walking (owner, 2026-11-07). An opening needs at least 10 to start.
 - Low ki means slower steps and strikes and longer recovery.
-- Ki never ends the match by itself, but running out while blocking breaks your guard.
+- Ki never ends the match by itself, but running out while blocking breaks your guard, and running out in an opening drops you into plain guard.
 
 **The rival** has about three readable habits, each with a tell that can be seen before it happens. The exact habits and numbers are tuned during playtesting. Rule: **every rival attack has a visible tell, and every loss has a learnable reason.**
 
@@ -395,7 +404,7 @@ The rival's AI normally holds block when the player is in range. Its openings th
 
 - **Own lightweight Canvas 2D code, with no game engine.** The game needs only a fixed 60Hz loop, keyboard input, tile collision and sprite drawing. Phaser (latest is 4.2.1) would add a large dependency for features we won't use, and movement and duels need custom tuning anyway.
 - **Its own project (owner, 2026-11-06).** A Next.js app with one page, at `/`. `app/page.tsx` is a server component. It renders a client wrapper, which lazy-loads the game with `dynamic(..., { ssr: false })`. `ssr: false` must be in a client component (`node_modules/next/dist/docs/01-app/02-guides/lazy-loading.md:94-95`).
-- **Links to the club (owner, 2026-11-06).** The logo and the phone screen link to the club's website. The site can link back once the game is hosted at its own address. The game shares no code, styles or analytics with the site, and is open to search engines (my call).
+- **Links to the club (owner, 2026-11-06; removed for now, owner, 2026-11-07).** There are none at the moment. The game shares no code, styles or analytics with the club's site, and is open to search engines (my call).
 - **Input:** the game calls `preventDefault` on keys it uses, and sets its own dark background and `touch-action`.
 - **Duel logic has no canvas or browser code.** It is a pure `step(state, inputsA, inputsB)` with both fighters driven by the same input structure and the rival's AI producing inputs. That makes it unit-testable, and it's what online matches run on (see Multiplayer).
 - **Tests:** Node's built-in `node --test` on pure logic, with no new dependencies. `tsconfig.json` has `allowImportingTsExtensions`, allowed because `noEmit` is on. Node is 24.18, which runs TypeScript directly.
@@ -427,7 +436,7 @@ Once this design is approved, it is saved to `docs/superpowers/specs/2026-11-05-
     - The rival's tells get longer after each loss.
 - **Build:** `npm run build` passes with type checking.
 - **Real playthrough:** use Chrome DevTools with real keyboard events to go from the title through a win over a dojo's head. Confirm gear changes the sprite, the cracked screen breaks, the secret raises ki, a loss shows a tip, and the Grand Taikai's Discord and email options work. Check that the console has no errors.
-- **Sticky logo:** it stays visible in every scene and goes to the club's website.
+- **Sticky logo:** removed for now, along with the club association.
 - **Phone:** with mobile emulation, the page shows the message and requests no game code.
 - **Search engines:** the HTML has no noindex tag.
 - **Screen fit:** at any window size or shape, the canvas covers the window with no bars, pixels stay square, the whole stage is on screen, and resizing mid-fight keeps the fight going.
@@ -490,7 +499,8 @@ Nemu and Kan need 2nd dan, and Mizu, Hagane and Raiko need 3rd. Beating them is 
 The minimum rank is 1st dan. Real matches are duels through a lobby code or invite link, on an account. `docs/multiplayer.md` has the details, and `docs/superpowers/specs/2026-11-06-accounts-multiplayer-design.md` has the design.
 
 - **Two ways in.** Reach 1st dan in the story with the waza lesson, or take a short tutorial, which goes straight in without starting a story. Multiplayer is always on the title screen and in the story menu, and leads to the tutorial for anyone who hasn't done either.
-- **Short tutorial.** One go each at a strike, answering a tell, a parry, pushing in a lock, a pull-back strike and a crossing.
+- **Short tutorial.** One go each at openings, a strike, answering a tell, a parry, seme, pushing in a lock, a pull-back strike and a crossing. The seme step gives nobody seme in the story.
+- **The offer before a match (owner, 2026-11-07).** Everyone has seme online. Anyone about to play who hasn't been shown openings or seme is told so, once, and offered a quick tutorial, which they can decline.
 - **Accounts (owner, 2026-11-06).** A unique username and a password, and nothing else. An account keeps your story, your record and your match history. The story still plays without one as a guest, after a warning that progress may be lost after this session.
 - **A story's money, ki and gear have no effect on a match:** everyone fights with the same ki and full armor.
 - **Tournaments are practice for now.** They play stand-ins, which are ordinary rivals getting harder round by round, and don't touch an account's record. With no server configured, duels are against stand-ins too, and the screen says so.

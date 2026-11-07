@@ -12,7 +12,15 @@ const GUEST_SPREAD = 9000;
  * Kept apart from the story save, so someone going straight to multiplayer never starts a story by accident,
  * and nothing here can ever change a story.
  */
-export type OnlineProfile = { id: string; name: string; tutorial: boolean; wins: number; losses: number };
+export type OnlineProfile = {
+  id: string;
+  name: string;
+  tutorial: boolean;
+  wins: number;
+  losses: number;
+  /** They've taken today's tutorial, or been offered it and said no. */
+  primer?: boolean;
+};
 export type ProfileStore = Pick<Storage, "getItem" | "setItem">;
 
 export function createProfile(roll: () => number = Math.random): OnlineProfile {
@@ -29,7 +37,7 @@ export function readProfile(store: ProfileStore | null, roll?: () => number): On
       const saved = JSON.parse(text) as Record<string, unknown>;
       const p = saved?.profile as Record<string, unknown> | undefined;
       if (saved?.version === PROFILE_VERSION && p && typeof p.id === "string" && typeof p.tutorial === "boolean" && isCount(p.wins) && isCount(p.losses)) {
-        return { id: p.id, name: cleanName(p.name), tutorial: p.tutorial, wins: p.wins, losses: p.losses };
+        return { id: p.id, name: cleanName(p.name), tutorial: p.tutorial, wins: p.wins, losses: p.losses, ...(p.primer === true ? { primer: true } : {}) };
       }
     }
   } catch {

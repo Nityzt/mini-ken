@@ -47,7 +47,6 @@ import { createGradingHallScene } from "./scenes/grading-hall.ts";
 import { CHALLENGE_DONE, TICKET_NOT_NOW, REST_NOTICE, nameMenuLabel } from "./scenes/content.ts";
 import { createTravelScene } from "./scenes/travel.ts";
 
-export type GameOverlay = "win" | null;
 
 const IS_DEV = process.env.NODE_ENV !== "production";
 const FADE_STEPS = 4;
@@ -75,7 +74,7 @@ const HEALING_SCENES: SceneName[] = ["club", "rival-dojo", "map", "travel", "gra
 
 export function createGame(
   screen: HTMLCanvasElement,
-  options: { onOverlay(overlay: GameOverlay): void; onAccountUi?(ui: AccountUi | null): void },
+  options: { onAccountUi?(ui: AccountUi | null): void },
 ): { start(): void; dispose(): void; resize(fit: CanvasFit): void } {
   const ctx = screen.getContext("2d");
   if (!ctx) throw new Error("Canvas 2D is unavailable");
@@ -270,7 +269,6 @@ export function createGame(
       startFresh({ ...createRunState(), character, name });
       game.go("club");
     },
-    overlay: options.onOverlay,
   };
 
   const goNow = (next: SceneName) => {

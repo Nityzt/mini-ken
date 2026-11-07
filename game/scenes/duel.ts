@@ -17,10 +17,10 @@ import { guiPoint, onGui, onStage, STAGE_H, STAGE_W, stageX, stageY, viewH, view
 import type { Game, Scene } from "../core/scene.ts";
 import { FLAG_AFTER_HIT, KI_LOW, POINTS_TO_WIN, RANGE_MAX, RANGE_MIN, SEME_TICKS, TSUBA_BREAK } from "../duel/constants.ts";
 import { createDashDetector, legsFor } from "../duel/footwork.ts";
-import { counterPrompt, fighterStatus, kiBarFill, kiBarWidth, promptsShown, type StatusKind } from "../duel/hud.ts";
+import { clockLabel, fighterStatus, kiBarFill, kiBarWidth, promptsShown, targetPrompt, type StatusKind } from "../duel/hud.ts";
 import { ceremonyAt, closingAt, parryShine, poseFor, WALK_OFF_SPEED, windupCoil, type TsubaAction } from "../duel/poses.ts";
 import { createRival, moodOf, rivalAct, withMood, type RivalState } from "../duel/rival.ts";
-import { ATTACKS, createDuel, distance, faceDir, screenX, skipBow, skipClosing, startX, step, type AttackKind, type DuelEvent, type DuelState, type Fighter, type FighterInput, type Target } from "../duel/rules.ts";
+import { ATTACKS, createDuel, distance, exposedTargets, faceDir, screenX, skipBow, skipClosing, startX, step, type AttackKind, type DuelEvent, type DuelState, type Fighter, type FighterInput, type Opening, type Target } from "../duel/rules.ts";
 import { tipFor } from "../duel/tips.ts";
 import { gradingOutcome, recommendationOutcome, verificationOutcome, type GradingStage } from "../grading.ts";
 import { payBet, withFeat } from "../money.ts";
@@ -38,7 +38,7 @@ import { challengerHome, challengerWin, isChallenger } from "./challengers.ts";
 import { sparOutcome } from "./club-story.ts";
 import { renPointOutcome } from "./visits.ts";
 import type { SenpaiId } from "./curriculum.ts";
-import { betHud, betLost, betWon, CALL_HAJIME, CALL_NIHONME, CALL_SHOBU, CALL_WAKARE, CHALLENGER_WALKED, CLOSING_LINE, CROSSED, LOCK_CALL, PARRIED, SHOVED, TSUBA_LABEL, FLINCH, FORFEIT_MATCH, GOT_YOU, GRADING_BOW, GRADING_WALKED, moodLine, RECOMMEND_BOW, RECOMMEND_WALKED, VERIFY_BOW, VERIFY_WALKED, KIAI_SHOUT, TAIKAI_LOST, MOMO_BEATEN, MOMO_CRUSHED, MOMO_KEEP_TRYING, MOMO_LOSE_NO_SEME, MOMO_LOSE_SEME, NO_STOMP, NO_ZANSHIN, REN_BOW_GAZE, REN_LATER, REN_POINT_NEXT, REN_POINT_TIP, SENPAI_LINES, STATUS_COUNTER, STATUS_HOLD, STATUS_OPEN, STATUS_PARRYING, STATUS_PULL, STATUS_PUSH, STATUS_STUMBLING, STATUS_STUNNED, STATUS_WIDE_OPEN, STOPPED_SHORT, ZANSHIN_PROMPT, CANT_GO_ON, HP_LABEL, hpLost, reclaimed, wornOutLine } from "./content.ts";
+import { betHud, betLost, betWon, CALL_ENCHO, CALL_HAJIME, CALL_NIHONME, CALL_SHOBU, CALL_TIME, CALL_WAKARE, NEEDS_OPENING, STATUS_SHOWS_DO, STATUS_SHOWS_KOTE, STATUS_SHOWS_MEN, CHALLENGER_WALKED, CLOSING_LINE, CROSSED, LOCK_CALL, PARRIED, SHOVED, TSUBA_LABEL, FLINCH, FORFEIT_MATCH, GOT_YOU, GRADING_BOW, GRADING_WALKED, moodLine, RECOMMEND_BOW, RECOMMEND_WALKED, VERIFY_BOW, VERIFY_WALKED, KIAI_SHOUT, TAIKAI_LOST, MOMO_BEATEN, MOMO_CRUSHED, MOMO_KEEP_TRYING, MOMO_LOSE_NO_SEME, MOMO_LOSE_SEME, NO_STOMP, NO_ZANSHIN, REN_BOW_GAZE, REN_LATER, REN_POINT_NEXT, REN_POINT_TIP, SENPAI_LINES, STATUS_COUNTER, STATUS_HOLD, STATUS_OPEN, STATUS_PARRYING, STATUS_PULL, STATUS_PUSH, STATUS_STUMBLING, STATUS_STUNNED, STATUS_WIDE_OPEN, STOPPED_SHORT, ZANSHIN_PROMPT, CANT_GO_ON, HP_LABEL, hpLost, reclaimed, wornOutLine } from "./content.ts";
 
 const GROUND = 128;
 // The arms are only fully out for a moment before they go back up, but it's long enough to see which cut it was.
@@ -72,17 +72,22 @@ const IMPACT_DIM = 0.35;
 const LOCK_DIM = 0.22;
 const IMPACT_DIM_TICKS = 14;
 const KI_BAR_WIDTH = 60;
+/** The last ten seconds stand out. */
+const LOW_TIME_TICKS = 400;
 const OVER_MIN_TICKS = 30;
 
 type Floater = { text: string; x: number; y: number; ticks: number; color: string };
 type Dust = { x: number; ticks: number };
 type Ghost = { i: 0 | 1; x: number; pose: DuelPose; flip: boolean; ticks: number };
 
-const HELP_LINES = ["J men K kote L do Space stomp S block", "Hold I: seme   Space while holding: kiai", "Double-tap toward them: launch", "Tap S when their tip shines: parry", "Both swing together? Pass, turn, go on"];
+const HELP_LINES = ["Hold W Q E to open, then J K L + Space. S block", "Hold I: seme   Space while holding: kiai", "Double-tap toward them: launch", "Tap S when their tip shines: parry", "Both swing together? Pass, turn, go on"];
 const HELP_NO_SEME = HELP_LINES[3];
 /** The controls while hilt to hilt, which are nothing like the usual ones. Which key pushes depends on which side you're on. */
 export const lockHelp = (towardThemIsRight: boolean): string => (towardThemIsRight ? "D push  S hold  JKL cut back  A out" : "A push  S hold  JKL cut back  D out");
 const HELP_LINE_TICKS = 300;
+const OPENING_KEYS: Opening[] = ["raise", "wrist", "drop"];
+/** How many times a match reminds you that strikes come from an opening. */
+const OPENING_HINTS = 3;
 
 /** The controls don't all fit at once, so the line takes turns. */
 export const helpLine = (tick: number, seme = true): string => {
@@ -106,9 +111,10 @@ function readPlayerAttack(input: Input): AttackKind | null {
 }
 
 /** Reads the keyboard into a fighter's input. A strike pressed just before recovery ends still counts. */
-export function createPlayerControl(): (input: Input, me: Pick<Fighter, "stance">, canSeme?: boolean, crossed?: boolean) => FighterInput {
+export function createPlayerControl({ openings = true }: { openings?: boolean } = {}): (input: Input, me: Pick<Fighter, "stance"> & Partial<Pick<Fighter, "counterTicks">>, canSeme?: boolean, crossed?: boolean) => FighterInput {
   let buffered: AttackKind | null = null;
   let bufferTicks = 0;
+  let opening: Opening | null = null;
   const detectDash = createDashDetector();
   return (input, me, canSeme = true, crossed = false) => {
     const pressed = readPlayerAttack(input);
@@ -118,8 +124,12 @@ export function createPlayerControl(): (input: Input, me: Pick<Fighter, "stance"
     } else if (bufferTicks > 0 && --bufferTicks === 0) {
       buffered = null;
     }
-    const canAct = me.stance === "guard" || me.stance === "block" || me.stance === "tsuba";
-    const attack = canAct ? buffered : null;
+    for (const shown of OPENING_KEYS) if (input.wasPressed(shown)) opening = shown;
+    if (opening && !input.isDown(opening)) opening = OPENING_KEYS.find((shown) => input.isDown(shown)) ?? null;
+    const canAct = me.stance === "guard" || me.stance === "block" || me.stance === "tsuba" || me.stance === "opening";
+    // Hilt to hilt and a parry's answer need no opening. Otherwise the strike waits a moment for one, and the rules get to hear about it once.
+    const ready = !openings || me.stance === "tsuba" || me.stance === "opening" || !!opening || (me.counterTicks ?? 0) > 0;
+    const attack = canAct && ready ? buffered : null;
     if (attack) {
       buffered = null;
       bufferTicks = 0;
@@ -130,7 +140,7 @@ export function createPlayerControl(): (input: Input, me: Pick<Fighter, "stance"
     const dash = detectDash(input.wasPressed("left"), input.wasPressed("right"));
     // Keys always mean left and right on the screen, whichever side you've ended up on.
     const mirrored = (n: -1 | 0 | 1): -1 | 0 | 1 => (crossed && n !== 0 ? (-n as -1 | 1) : n);
-    return { move: mirrored(onScreen), block: input.isDown("down"), parry: input.wasPressed("down"), attack, stomp: input.wasPressed("stomp"), seme: canSeme && input.isDown("seme"), dash: mirrored(dash) };
+    return { move: mirrored(onScreen), block: input.isDown("down"), parry: input.wasPressed("down"), attack: attack ?? (canAct ? pressed : null), opening, stomp: input.wasPressed("stomp"), seme: canSeme && input.isDown("seme"), dash: mirrored(dash) };
   };
 }
 
@@ -147,7 +157,7 @@ export function playDuelSounds(audio: GameAudio, events: DuelEvent[]): void {
     else if (event.type === "aiuchi" || event.type === "cross") audio.play("clash");
     else if (event.type === "parry") audio.play("parry");
     else if (event.type === "lock" || event.type === "shove" || event.type === "taiatari") audio.play("clash");
-    else if (event.type === "wakare") audio.play("flag");
+    else if (event.type === "wakare" || event.type === "time" || event.type === "encho") audio.play("flag");
     else if (event.type === "broken") audio.play("break");
   }
 }
@@ -164,6 +174,9 @@ export type DuelView = {
   striking: [Target | null, Target | null];
   strikeTicks: [number, number];
   floaters: Floater[];
+  /** Who gets reminded that strikes come from an opening, and how many times they have been. */
+  hintFor: 0 | 1;
+  openingHints: number;
   /** Each thing that's happened, in its own shape. */
   fx: Fx[];
   dust: Dust[];
@@ -208,6 +221,8 @@ export function createDuelView(duel: DuelState): DuelView {
     striking: [null, null],
     strikeTicks: [0, 0],
     floaters: [],
+    hintFor: 0,
+    openingHints: 0,
     fx: [],
     dust: [],
     ghosts: [],
@@ -253,7 +268,7 @@ const SHINAI_REACH = 12;
 const BLEND_TICKS: Partial<Record<DuelPose, number>> = {
   strikeMen: 6, strikeKote: 6, strikeDo: 6, hikiMen: 6, hikiKote: 6, hikiDo: 6,
   hit: 3, suriage: 3, deflected: 3, parry: 6, stumble: 6,
-  sonkyo: 22, sonkyoSheathe: 14, taito: 10, sageto: 8, bow: 10, draw: 10, walkHome: 12, guard: 12, recover: 9, block: 6, zanshin: 9,
+  sonkyo: 22, sonkyoTurn: 18, sonkyoTuck: 21, sonkyoSheathe: 15, taitoFree: 12, bowTaito: 12, taito: 10, sageto: 8, bow: 10, draw: 10, walkHome: 12, guard: 12, recover: 9, block: 6, zanshin: 9,
   tellBigRaise: 15, tellHandsUp: 9, tellTipDip: 9,
   tsuba: 9, tsubaPush: 9, tsubaGuard: 9, tsubaPull: 9, tsubaPart: 24,
 };
@@ -264,6 +279,9 @@ const SLOW_TO_GUARD: Partial<Record<DuelPose, number>> = { sonkyo: 20, tsubaPart
 export const blendOf = (track: PoseTrack) => Math.min(1, (held(track.age) + ANIMATION_HOLD) / ((track.now === "guard" ? SLOW_TO_GUARD[track.was] : undefined) ?? BLEND_TICKS[track.now] ?? DEFAULT_BLEND_TICKS));
 
 const STATUS_LOOK: Record<StatusKind, { label: string; color: string }> = {
+  showsMen: { label: STATUS_SHOWS_MEN, color: PALETTE.Y },
+  showsKote: { label: STATUS_SHOWS_KOTE, color: PALETTE.Y },
+  showsDo: { label: STATUS_SHOWS_DO, color: PALETTE.Y },
   open: { label: STATUS_OPEN, color: UI.bad },
   wideOpen: { label: STATUS_WIDE_OPEN, color: UI.accent },
   stunned: { label: STATUS_STUNNED, color: SPIRIT },
@@ -275,6 +293,7 @@ const STATUS_LOOK: Record<StatusKind, { label: string; color: string }> = {
   pull: { label: STATUS_PULL, color: UI.accent },
 };
 const STRIP_FOR: Partial<Record<Fighter["stance"], string>> = {
+  opening: PALETTE.L,
   windup: PALETTE.Y,
   block: PALETTE.i,
   parry: PALETTE.C,
@@ -314,6 +333,7 @@ function fighterPose(view: DuelView, i: 0 | 1): DuelPose {
 export function refereeCall(duel: DuelState, from: DuelState["phase"]): string | null {
   if (from === "wakare" || from === "bow") return CALL_HAJIME;
   if (from !== "point") return null;
+  if (duel.encho && duel.fighters.every((f) => f.points === 0)) return CALL_ENCHO;
   const toWin = duel.options.pointsToWin ?? POINTS_TO_WIN;
   return duel.fighters.every((f) => f.points === toWin - 1) ? CALL_SHOBU : CALL_NIHONME;
 }
@@ -397,6 +417,13 @@ export function applyEvents(view: DuelView, events: DuelEvent[], reducedMotion: 
       view.dust.push({ x: at(event.by === 0 ? 1 : 0), ticks: 8 });
       fx("shove", at(event.by === 0 ? 1 : 0), GROUND - 22, faceDir(view.duel, event.by));
       if (!reducedMotion) view.shake = SHAKE_TICKS / 2;
+    } else if (event.type === "time" || event.type === "encho") {
+      float(CALL_TIME, undefined, UI.text);
+    } else if (event.type === "noopening") {
+      if (event.by === view.hintFor && view.openingHints < OPENING_HINTS) {
+        view.openingHints++;
+        float(NEEDS_OPENING, undefined, UI.dim);
+      }
     } else if (event.type === "wakare") {
       float(CALL_WAKARE, undefined, UI.text);
     } else if (event.type === "parry" && event.by !== undefined) {
@@ -584,6 +611,8 @@ export function drawDuelHud(ctx: CanvasRenderingContext2D, view: DuelView, names
     drawText(ctx, names[1], rivalNameX, 2, UI.text);
     drawPips(ctx, rivalNameX - 4 - toWin * 9, 2, rival.points, UI.text, toWin);
     drawKiBar(ctx, viewW - 5, 13, rival.ki, rival.kiMax, view.walkTick);
+    const clock = view.duel.phase === "bow" ? null : clockLabel(view.duel);
+    if (clock) drawTextCentered(ctx, clock, viewW / 2, 11, view.duel.clock !== null && view.duel.clock <= LOW_TIME_TICKS ? UI.accent : UI.dim);
 
     if (view.duel.phase === "fight") {
       const dist = distance(view.duel);
@@ -1027,13 +1056,13 @@ export function createDuelScene(): Scene {
       const { duel } = view;
       // On the easier fights, show which key answers the tell that's coming.
       const them = duel.fighters[1];
-      if (duel.phase === "fight" && them.stance === "windup" && them.attack && tellsShown(game)) {
-        const windup = duel.options.windups?.[1]?.[them.attack] ?? ATTACKS[them.attack].windup;
-        const left = them.stanceTicks / windup;
-        onStage(ctx, () => drawKeyPrompt(ctx, screenX(duel, them.x), GROUND, counterPrompt(them.attack!, them.kamae), left));
+      if (duel.phase === "fight" && (them.stance === "opening" || (them.stance === "windup" && them.attack)) && tellsShown(game)) {
+        // While it's only an opening, nothing's coming yet, so the bar's full. Once the strike starts, it's how long you've got.
+        const left = them.stance === "opening" ? 1 : them.stanceTicks / (them.opening ? ATTACKS[them.attack!].windup : (duel.options.windups?.[1]?.[them.attack!] ?? ATTACKS[them.attack!].windup));
+        onStage(ctx, () => drawKeyPrompt(ctx, screenX(duel, them.x), GROUND, targetPrompt(exposedTargets(them)[0]), left));
       }
       onGui(ctx, () => {
-        if (stake && view.duel.phase !== "over") drawTextCentered(ctx, betHud(stake), viewW / 2, 12, UI.accent);
+        if (stake && view.duel.phase !== "over") drawTextCentered(ctx, betHud(stake), viewW / 2, 21, UI.accent);
         if (duel.phase === "bow") {
           ctx.fillStyle = UI.panel;
           ctx.fillRect(0, 22, viewW, 12);
@@ -1045,7 +1074,7 @@ export function createDuelScene(): Scene {
             drawTextCentered(ctx, moodText, viewW / 2, 34, UI.accent);
           }
         }
-        if (duel.phase === "point" && duel.lastScore) {
+        if (duel.phase === "point" && duel.lastScore && !duel.timeUp) {
           const scorer = duel.lastScore.by === 0;
           const label = "IPPON!";
           ctx.fillStyle = UI.panel;

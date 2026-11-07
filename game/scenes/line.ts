@@ -36,7 +36,7 @@ type Floater = { text: string; x: number; y: number; ticks: number; color: strin
 export function createLineScene(): Scene {
   const cards = createTeachCards();
   let state: LineState;
-  let control = createPlayerControl();
+  let control = createPlayerControl({ openings: false });
   let tick = 0;
   let camX = 0;
   let finishing = 0;
@@ -126,7 +126,7 @@ export function createLineScene(): Scene {
     forfeit: leave,
     enter(game) {
       state = createLine({ tier: examining(game) ? LINE_TIERS.length - 1 : game.helping ? 0 : lineTierFor(game.run.linePasses), seed: Math.floor(Math.random() * 2 ** 31), kiMax: playerKiMax(game.run) });
-      control = createPlayerControl();
+      control = createPlayerControl({ openings: false });
       tick = 0;
       camX = 0;
       finishing = FINISH_TICKS;

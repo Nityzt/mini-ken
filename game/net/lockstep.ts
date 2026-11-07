@@ -16,7 +16,7 @@ export type LockstepStatus = "running" | "finished" | "left" | "desynced";
 
 /** A cheap fingerprint of everything that matters, to notice if two players' games ever disagree. */
 export function hashDuel(state: DuelState): number {
-  const text = JSON.stringify([state.phase, state.phaseTicks, state.fighters, state.winner, state.lock, state.crossed, state.zanshin]);
+  const text = JSON.stringify([state.phase, state.phaseTicks, state.fighters, state.winner, state.lock, state.crossed, state.zanshin, state.clock, state.encho, state.firstPoint]);
   let hash = 0x811c9dc5;
   for (let i = 0; i < text.length; i++) {
     hash ^= text.charCodeAt(i);

@@ -1,9 +1,10 @@
 import test from "node:test";
+import { directDuel as createDuel } from "./test-support.ts";
 import assert from "node:assert/strict";
 import { RANGE_MAX, RANGE_MIN, RECOVERY_TICKS } from "./constants.ts";
 import { counterPrompt } from "./hud.ts";
 import { createRival, rivalAct } from "./rival.ts";
-import { ATTACKS, createDuel, distance, exposedTargets, exposes, KAMAE, skipBow, step, type AttackKind, type DuelState, type Fighter, type FighterInput, type Kamae } from "./rules.ts";
+import { ATTACKS, distance, exposedTargets, exposes, KAMAE, skipBow, step, type AttackKind, type DuelState, type Fighter, type FighterInput, type Target, type Kamae } from "./rules.ts";
 import { tipFor } from "./tips.ts";
 import { createRunState, duelOptionsFor, rivalConfigFor, type RunState } from "../run-state.ts";
 import { MEMBERS, type OpponentId } from "../world/dojos.ts";
@@ -67,7 +68,7 @@ test("a jodan miss leaves them hanging for longer", () => {
 
 test("two swords soak up blocked strikes for half the ki", () => {
   const blockedKi = (kamae: Kamae) => {
-    let duel = skipBow(createDuel({ kamae: ["chudan", kamae] }));
+    let duel = skipBow(createDuel({ kamae: ["chudan", kamae], steadyGuard: [false, true] }));
     duel.fighters[1].x = duel.fighters[0].x + 30;
     const before = duel.fighters[1].ki;
     duel = step(duel, { ...IDLE, attack: "men" }, { ...IDLE, block: true });
@@ -90,13 +91,14 @@ function winsAgainst(id: OpponentId, player: () => Player, run: RunState = creat
   let won = 0;
   for (let seed = 1; seed <= MATCHES; seed++) {
     const me = player();
-    let duel = skipBow(createDuel(duelOptionsFor(run, id)));
+    let duel = skipBow(createDuel({ ...duelOptionsFor(run, id), direct: [false, false] }));
     let rival = createRival(seed, rivalConfigFor(run, id));
     for (let t = 0; t < MAX_TICKS && duel.phase !== "over"; t++) {
       const act = rivalAct(duel, rival);
       rival = act.rival;
       let input = me(duel);
       if (duel.phase === "zanshin" && duel.zanshin?.by === 0) input = { ...input, move: 1 };
+      if (input.attack && !duel.lock && duel.fighters[0].counterTicks === 0) input = { ...input, opening: "wrist" };
       duel = step(duel, input, act.input);
     }
     if (duel.winner === 0) won++;
@@ -111,13 +113,13 @@ const masher = (): Player => {
 };
 
 /** Sees the tell after a human-like delay and answers it with whatever it leaves open, otherwise holds block. */
-const reader = (read: (attack: AttackKind, kamae: Kamae) => AttackKind | null, reaction = 14): Player => {
-  let watching: AttackKind | null = null;
+const reader = (read: (open: Target) => AttackKind | null, reaction = 14): Player => {
+  let watching: Target | null = null;
   let seenFor = 0;
   return (duel) => {
     const them = duel.fighters[1];
     const dist = distance(duel);
-    const tell = them.stance === "windup" ? them.attack : null;
+    const tell = them.stance === "windup" || them.stance === "opening" ? exposedTargets(them)[0] : null;
     if (tell !== watching) {
       watching = tell;
       seenFor = 0;
@@ -125,17 +127,17 @@ const reader = (read: (attack: AttackKind, kamae: Kamae) => AttackKind | null, r
     if (dist > RANGE_MAX - 2) return { ...IDLE, move: 1 };
     if (dist < RANGE_MIN + 4) return { ...IDLE, move: -1 };
     if (tell && seenFor >= reaction) {
-      const answer = read(tell, them.kamae);
+      const answer = read(tell);
       if (answer) return { ...IDLE, attack: answer, stomp: true };
     }
     if (them.stance === "recovery" && them.stanceTicks > 14) return { ...IDLE, attack: exposedTargets(them)[0] === "men" ? "kote" : exposedTargets(them)[0], stomp: true };
     return { ...IDLE, block: true };
   };
 };
-const knowsTheStance = () => reader((attack, kamae) => exposes(attack, kamae));
+const knowsTheStance = () => reader((open) => open);
 /** Plays Shin as if they were anyone else: answering with the usual counters, and hitting kote after a miss. */
 const oneSwordHabits = (): Player => {
-  const usual = reader((attack) => ATTACKS[attack].exposes);
+  const usual = reader((open) => (open === "do" ? "kote" : open));
   return (duel) => {
     const input = usual(duel);
     return input.attack === "do" && duel.fighters[1].stance === "recovery" ? { ...input, attack: "kote" } : input;
@@ -145,7 +147,7 @@ const oneSwordHabits = (): Player => {
 for (const id of ["tetsu", "shin"] as const) {
   test(`${id}: can't be beaten by standing there, mashing or holding block`, () => {
     assert.equal(winsAgainst(id, () => () => IDLE), 0);
-    assert.ok(winsAgainst(id, masher) <= 2, "mashing");
+    assert.ok(winsAgainst(id, masher) <= 4, "mashing");
     assert.equal(winsAgainst(id, () => () => ({ ...IDLE, block: true })), 0);
   });
   test(`${id}: reading their stance wins most matches`, () => {

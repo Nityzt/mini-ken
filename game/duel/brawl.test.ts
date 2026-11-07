@@ -1,4 +1,5 @@
 import test from "node:test";
+import { BRAWL_RECOVERY_TICKS } from "./constants.ts";
 import assert from "node:assert/strict";
 import { createBrawl, stepBrawl, type BrawlState, type Bully, type BrawlSpec, HIT_DAMAGE } from "./brawl.ts";
 import { BRAWL_KIAI_PRESS, BRAWL_SEME_TICKS, COWER_TICKS, KIAI_COOLDOWN, RANGE_MAX, RANGE_MIN, SEME_DRAIN, SEME_RANGE, ZANSHIN_PASS } from "./constants.ts";
@@ -342,4 +343,8 @@ test("you bring your health into a fight, and go down sooner if you came in hurt
   assert.equal(hurt.hp, 10);
   const after = play(() => IDLE, [{ kind: "fist", x: 70 }], 1);
   assert.equal(after.phase, "lost");
+});
+
+test("a failed strike in a street fight costs what it always has", () => {
+  assert.equal(BRAWL_RECOVERY_TICKS, 26);
 });

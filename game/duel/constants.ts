@@ -23,13 +23,24 @@ export const ABSORB_COST = 25;
 export const KI_RECOVERY = 0.25;
 export const KI_AFTER_BREAK = 35;
 
-export const RECOVERY_TICKS = 26;
+// Long enough that someone in plain guard can see a miss, open up and punish it: a reaction, plus the opening, plus the strike.
+export const RECOVERY_TICKS = 38;
+/** Street fights run at full speed on their own rules, and a miss there costs what it always has. */
+export const BRAWL_RECOVERY_TICKS = 26;
 export const BROKEN_TICKS = 50;
 export const LOW_KI_SLOWDOWN = 1.3;
 export const LOW_KI_WALK = 0.75;
 
-// Fumikomi: the stomp must land this close before the strike does. It has to cover the slowest usual strike, since the stomp starts it.
-export const STOMP_WINDOW = 20;
+// Openings: every ordinary strike starts from one, which shows a target and says nothing about what's coming.
+/** How long a new opening has to be held before a strike can start from it. */
+export const OPENING_MIN = 10;
+export const OPENING_START_KI = 10;
+export const OPENING_DRAIN = 0.2;
+/** A held block costs a little even when nothing hits it, so nobody can sit behind one for ever. */
+export const BLOCK_DRAIN = 0.1;
+
+// Fumikomi: the stomp must land this close before the strike does. It has to cover the shortest opening and the slowest usual strike, since the stomp can start them both.
+export const STOMP_WINDOW = 28;
 /** Kirikaeshi and street fights run at full speed, not on a duel's tempo, so they keep the tighter stomp. */
 export const DRILL_STOMP_WINDOW = 14;
 // Zanshin: after a hit, slide all the way past the opponent within the window.
@@ -65,12 +76,14 @@ export const BRAWL_KIAI_PRESS = 25;
 
 export const BOW_TICKS = 150;
 export const POINTS_TO_WIN = 2;
+// The whole match has two minutes of fighting, at 25ms a tick.
+export const MATCH_TICKS = 4800;
 // After a point, both walk back to their lines. There's no other wait: the next point starts when they get there.
 export const RETURN_WALK = 1.8;
 export const RETURN_SETTLE = 30;
 export const RETURN_KI_RATE = 0.06;
 // Sonkyo, sheathe, rise, step back, bow, and go.
-export const CLOSING_TICKS = 190;
+export const CLOSING_TICKS = 230;
 
 // Parry (suriage): a tap just before a strike lands. Mistiming it leaves you waiting to try again.
 export const PARRY_WINDOW = 10;
@@ -80,6 +93,16 @@ export const DEFLECT_TICKS = 34;
 export const DEFLECT_KI_LOSS = 8;
 export const COUNTER_TICKS = 30;
 export const COUNTER_WINDUP = 6;
+/** A counter drives in as it goes: this many ticks at launch speed. */
+export const COUNTER_DRIVE_TICKS = 2;
+/** Parrying a counter is a read, not a reaction: the window's shorter than the counter itself. Only one try, and missing it costs. */
+/** A tap's window runs out on the same tick as a strike this far off, as with a parry, so the latest tap is one less. */
+export const REPARRY_WINDOW = 5;
+export const REPARRY_MISS = 14;
+/** A first parry from this close has no room for a counter, which drives in about 8, so the two bind. */
+export const PARRY_LOCK_WITHIN = 26;
+/** And a second parry, since the counter has driven them closer. */
+export const REPARRY_LOCK_WITHIN = 32;
 /** How long before a strike lands their tip starts to shine. The shine has to lead the window by a reaction: at the duel's tempo, tapping 225 to 425ms after it appears works. */
 export const PARRY_SHINE_LEAD = 17;
 /** The most ticks a strike can have left for a tap to parry it. A tap's window runs out on the same tick as a strike this far off, hence the one less. */

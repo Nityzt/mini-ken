@@ -1,9 +1,10 @@
 import test from "node:test";
+import { directDuel as createDuel } from "./test-support.ts";
 import assert from "node:assert/strict";
 import { COUNTER_TICKS, COUNTER_WINDUP, DEFLECT_TICKS, PARRY_COOLDOWN, PARRY_WINDOW, RING_MAX, RING_MIN } from "./constants.ts";
 import { parryShine } from "./poses.ts";
 import { rivalConfig, type RivalStyle } from "./rival.ts";
-import { createDuel, exposedTargets, skipBow, ruleTick as step, type AttackKind, type DuelState, type FighterInput } from "./rules.ts";
+import { exposedTargets, skipBow, ruleTick as step, type AttackKind, type DuelState, type FighterInput } from "./rules.ts";
 
 const IDLE: FighterInput = { move: 0, block: false, attack: null };
 const TAP: FighterInput = { ...IDLE, block: true, parry: true };

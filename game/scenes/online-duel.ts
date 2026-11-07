@@ -150,6 +150,7 @@ export function createOnlineDuelScene(): Scene {
       waitedTicks = 0;
       if (!match.live) startLockstep();
       view = createDuelView(initial);
+      view.hintFor = match.side;
       control = createPlayerControl();
       overTicks = 0;
       recorded = false;
@@ -217,7 +218,7 @@ export function createOnlineDuelScene(): Scene {
           ctx.fillRect(0, 22, viewW, 12);
           drawTextCentered(ctx, strip, viewW / 2, 24, UI.text);
         }
-        if (duel.phase === "point" && duel.lastScore) {
+        if (duel.phase === "point" && duel.lastScore && !duel.timeUp) {
           const text = "IPPON!";
           ctx.fillStyle = UI.panel;
           ctx.fillRect(0, 22, viewW, 30);

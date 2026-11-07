@@ -103,6 +103,7 @@ export function createVisit(setup: { rows: string[]; solid: string; start: Tile;
   const path = walkable?.path ?? [open[0] ?? start];
   let trail = trailOf(start, path);
   let phase: VisitPhase = setup.alreadyHere ? "talking" : "coming";
+  if (setup.alreadyHere) faceEachOther(walker, player);
 
   return {
     walker,

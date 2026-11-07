@@ -1,7 +1,8 @@
 import test from "node:test";
+import { directDuel as createDuel } from "./test-support.ts";
 import assert from "node:assert/strict";
 import { CROSS_CLEAN_WINDOW, CROSS_GAP, CROSS_LOCK_WITHIN, CROSS_SETTLE, CROSS_WRONG_WINDOW, RANGE_MAX, RANGE_MIN, RING_MAX, RING_MIN, TSUBA_GAP } from "./constants.ts";
-import { createDuel, distance, faceDir, screenX, skipBow, startX, ruleTick as step, type AttackKind, type DuelState, type FighterInput } from "./rules.ts";
+import { distance, faceDir, screenX, skipBow, startX, ruleTick as step, type AttackKind, type DuelState, type FighterInput } from "./rules.ts";
 
 const IDLE: FighterInput = { move: 0, block: false, attack: null };
 const swing = (attack: AttackKind): FighterInput => ({ ...IDLE, attack, stomp: true });
@@ -112,7 +113,7 @@ test("it can happen again and again, and two crossings put them back", () => {
   let s = afterCross();
   s.fighters[0].x = 110;
   s.fighters[1].x = 150;
-  s = step({ ...s, options: { windups: [{ men: 8 }, { men: 8 }] } }, swing("men"), swing("men"));
+  s = step({ ...s, options: { direct: [true, true], windups: [{ men: 8 }, { men: 8 }] } }, swing("men"), swing("men"));
   for (let i = 0; i < 20 && s.phase === "fight"; i++) s = step(s, STOMP, STOMP);
   assert.equal(s.phase, "crossing");
   s = afterCross(s);

@@ -17,7 +17,8 @@ export type Session =
   /** Sensei on the parry, the lock and crossing, before 1st dan. */
   | { kind: "waza" }
   /** The short tutorial for anyone going straight to multiplayer. It isn't part of any story. */
-  | { kind: "quick" };
+  /** Just these steps of it, for someone who's already been through the rest in their story. */
+  | { kind: "quick"; only?: string[] };
 
 export type Lesson = {
   id: string;
@@ -73,6 +74,13 @@ const inThenOutThenIn = (_events: DuelEvent[], duel: DuelState, memo: Record<str
   return !!memo.cameOut && gap <= RANGE_MAX;
 };
 
+/** All three openings, one after another. */
+const showedThemAll = (_events: DuelEvent[], duel: DuelState, memo: Record<string, boolean>) => {
+  const { stance, opening } = duel.fighters[0];
+  if (stance === "opening" && opening) memo[opening] = true;
+  return !!memo.raise && !!memo.wrist && !!memo.drop;
+};
+
 const launchedIn = (events: DuelEvent[], _duel: DuelState, memo: Record<string, boolean>) => {
   if (events.some((e) => e.type === "launch" && e.by === 0)) memo.launched = true;
   return !!memo.launched && finished("men")(events);
@@ -82,6 +90,7 @@ const launchedIn = (events: DuelEvent[], _duel: DuelState, memo: Record<string, 
 export const SENSEI_ROUNDS: Lesson[][] = [
   [
     { id: "suriashi", ...lessonText("suriashi"), windups: {}, partner: () => IDLE, done: inThenOutThenIn },
+    { id: "opening", ...lessonText("opening"), windups: {}, gap: LESSON_DISTANCE, partner: () => IDLE, done: showedThemAll },
     { id: "fumikomi", ...lessonText("fumikomi"), windups: {}, gap: LESSON_DISTANCE, partner: () => IDLE, done: hit("men") },
     { id: "zanshin", ...lessonText("zanshin"), windups: {}, gap: LESSON_DISTANCE, partner: () => IDLE, done: finished("men") },
   ],
@@ -144,9 +153,11 @@ const WAZA_LESSONS: Lesson[] = [
 
 /** Everything you need to not be lost in a real match, a step at a time, with one go at each. */
 const QUICK_LESSONS: Lesson[] = [
+  { id: "quick-opening", ...lessonText("quickOpening"), full: true, windups: {}, gap: LESSON_DISTANCE, partner: () => IDLE, done: showedThemAll },
   { id: "quick-strike", ...lessonText("quickStrike"), full: true, windups: {}, partner: () => ({ ...IDLE, block: false }), done: finished("men") },
   { id: "quick-tell", ...lessonText("quickTell"), full: true, windups: { men: QUICK_TELL }, gap: LESSON_DISTANCE, partner: repeats("men"), done: finished("kote") },
   { id: "quick-parry", ...lessonText("quickParry"), full: true, cue: true, windups: { men: WAZA_SWING }, gap: LESSON_DISTANCE, partner: repeats("men"), done: did("parry", 0) },
+  { id: "quick-seme", ...lessonText("quickSeme"), full: true, windups: {}, gap: LESSON_DISTANCE, partner: () => IDLE, done: (events) => events.some((e) => e.type === "shaken" && e.by === 1) },
   { id: "quick-push", ...lessonText("quickPush"), full: true, windups: {}, gap: TSUBA_GAP, partner: holdsGuard, done: did("shove", 0) },
   { id: "quick-hiki", ...lessonText("quickHiki"), full: true, longLock: true, windups: {}, gap: TSUBA_GAP, partner: leansIn, done: (events) => events.some((e) => e.type === "clean" && e.by === 0) },
   { id: "quick-cross", ...lessonText("quickCross"), full: true, windups: {}, gap: LESSON_DISTANCE, partner: meetsYourSwing, done: did("cross") },
@@ -203,7 +214,7 @@ type SenpaiStyle = {
 } & (typeof SENPAI_LINES)[SenpaiId];
 
 /** Bo's guard drops for a moment in each cycle. */
-const BO_CYCLE = 240;
+const BO_CYCLE = 280;
 const BO_GUARD_TICKS = 120;
 const AKI_STEP_TICKS = 22;
 
@@ -273,7 +284,7 @@ export const lessonsFor = (session: Session): Lesson[] => {
   if (session.kind === "sensei") return SENSEI_ROUNDS[session.round];
   if (session.kind === "senpai") return [challengeFor(session.senpai, session.level)];
   if (session.kind === "waza") return WAZA_LESSONS;
-  if (session.kind === "quick") return QUICK_LESSONS;
+  if (session.kind === "quick") return session.only ? QUICK_LESSONS.filter((l) => session.only!.includes(l.id)) : QUICK_LESSONS;
   return SEME_LESSONS;
 };
 
@@ -300,6 +311,10 @@ export function createLessonDuel(lesson: Lesson): DuelState {
   const duel = createDuel({
     windups: [{}, lesson.windups],
     harmless: [false, true],
+    // A partner's slow windup is the tell, and their guard is part of the drill.
+    direct: [false, true],
+    steadyGuard: [false, true],
+    noClock: true,
     ...(lesson.full ? {} : { basics: true }),
     ...(lesson.longLock ? { longLock: true } : {}),
     ...(lesson.presence ? { presence: [0, lesson.presence] as [number, number] } : {}),

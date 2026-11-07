@@ -8,6 +8,7 @@ import { parryShine } from "../duel/poses.ts";
 import { screenX, skipBow, step } from "../duel/rules.ts";
 import { finishSession } from "./club-story.ts";
 import { FORFEIT_TRAINING, GEN_FAIL, LESSON_GOOD, LESSON_WRONG, PARRY_NOW } from "./content.ts";
+import { wasTaught } from "./teaching.ts";
 import { createLessonDuel, judge, lessonsFor, partnerColors, partnerName, SENPAI, sessionPartner, sessionPlace, type Lesson, type Session } from "./curriculum.ts";
 import { figureAt } from "./bubble.ts";
 import { createDialogue } from "./dialogue.ts";
@@ -56,6 +57,8 @@ export function createTrainingScene(nameOf: () => string): Scene {
 
   const startLesson = (game: Game, index: number) => {
     lessonIndex = index;
+    // Sensei's teaching it right now, so nobody needs the card that explains it to older saves.
+    if (lesson().id === "opening" && !wasTaught(game.run, "openings")) game.run = { ...game.run, seen: [...game.run.seen, "taught:openings"] };
     reps = 0;
     misses = 0;
     startRep(game);

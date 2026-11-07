@@ -1,11 +1,12 @@
 import test from "node:test";
+import { directDuel as createDuel } from "../duel/test-support.ts";
 import assert from "node:assert/strict";
 import { GLYPHS, measureText, wrapText } from "../art/font.ts";
 import { STAGE_H, STAGE_W } from "../core/scale.ts";
 import type { Action, Input } from "../core/input.ts";
 import type { Game } from "../core/scene.ts";
 import { RANGE_MAX } from "../duel/constants.ts";
-import { createDuel, distance, skipBow, type DuelState } from "../duel/rules.ts";
+import { distance, skipBow, type DuelState } from "../duel/rules.ts";
 import { createRunState } from "../run-state.ts";
 import { lessonsFor, SENPAI_IDS, type Session } from "./curriculum.ts";
 import { createDuelScene } from "./duel.ts";
@@ -164,6 +165,7 @@ test("the lock and the follow-through name the key that goes toward them, whiche
 
 test("a tell's card names the key that answers this strike", () => {
   const duel = skipBow(createDuel());
+  duel.fighters[1].stance = "windup";
   duel.fighters[1].attack = "bigMen";
   assert.equal(momentCard("tell", duel).keys[0][0], "L + Space");
 });
@@ -172,7 +174,7 @@ const moments = (duel: DuelState, waza = false, tellsShown = true) => duelMoment
 
 test("nothing's explained during the bow, because the fight hasn't started", () => {
   assert.deepEqual(moments(createDuel()), []);
-  assert.deepEqual(moments(skipBow(createDuel())), ["firstMatch"]);
+  assert.deepEqual(moments(skipBow(createDuel())), ["firstMatch", "openings"]);
 });
 
 test("a tell only needs explaining in fights that show its prompt", () => {
@@ -192,7 +194,7 @@ test("the parry, the lock and crossing come up when they happen, unless Sensei's
   duel.events = [{ type: "lock" }, { type: "cross" }];
   const fresh = moments(duel, false, false);
   for (const moment of ["parry", "lock", "cross"] as const) assert.ok(fresh.includes(moment), moment);
-  assert.deepEqual(moments(duel, true, false), ["firstMatch"]);
+  assert.deepEqual(moments(duel, true, false), ["firstMatch", "openings"]);
 });
 
 test("a drill doesn't start until you've read its card", () => {
@@ -230,8 +232,8 @@ test("each new drill in a session gets its own card", () => {
   };
   walkUntil("right", () => distance(duel()) <= RANGE_MAX);
   walkUntil("left", () => distance(duel()) >= RANGE_MAX + 12);
-  walkUntil("right", () => game.debug.teachCard === "Fumikomi");
-  assert.equal(game.debug.lesson, "fumikomi");
+  walkUntil("right", () => game.debug.teachCard === "Openings");
+  assert.equal(game.debug.lesson, "opening");
 });
 
 test("a first match freezes as the fight starts, with the rival waiting, then goes on when you say", () => {
@@ -263,7 +265,7 @@ test("a first match freezes as the fight starts, with the rival waiting, then go
 
 test("the second match has no first-match card", () => {
   const { game, press, release } = fakeGame({ versus: "aki" });
-  game.run = { ...game.run, seen: ["taught:firstMatch"] };
+  game.run = { ...game.run, seen: ["taught:firstMatch", "taught:openings"] };
   const scene = createDuelScene();
   scene.enter!(game);
   press("confirm");

@@ -32,7 +32,7 @@ import { createDialogue } from "./dialogue.ts";
 import { createEntrance, createStride, createVisit, dressingAt, facingToward, gainedGear, personAhead, type Visit } from "./moves.ts";
 import { homeArrival, homeVisitor, learnGaze, talkToVisitor, type HomeVisitor, type Talk } from "./visits.ts";
 import { CLUB_HALL_ROWS, CLUB_MAP, CLUB_SOLID, clubRows, findTiles } from "./levels.ts";
-import { createEscort, type Escort } from "./club-intro.ts";
+import { createEscort, tileOf, type Escort, type Tile } from "./club-intro.ts";
 import { cameraFor, createWalker, drawClothPuffs, drawRoom, drawWalker, tileInFront, touchesTile, updateWalker, type Walker } from "./topdown.ts";
 import { walkingGear, type RunState } from "../run-state.ts";
 
@@ -86,11 +86,15 @@ export function createClubScene(nameOf: () => string): Scene {
   /** Someone walking over to you, and what they've come to say. */
   let visit: Visit | null = null;
   let visitTalk: Talk | null = null;
+  /** Someone's on their way but hasn't come through the door yet, so they aren't standing around in here. */
+  let arriving = false;
+  /** Where whoever you're fighting was standing, because a match doesn't move anybody. */
+  let foughtFrom: Tile | null = null;
   let dressing: Dressing | null = null;
   /** What you've actually got on, so anything new can be put on where people can see. */
   let worn: Gear | null = null;
 
-  const visitorHere = (game: Game) => lingering ?? homeVisitor(game.run);
+  const visitorHere = (game: Game) => (arriving ? null : lingering ?? homeVisitor(game.run));
   const rowsFor = (game: Game) => {
     const rows = clubRows({ storageOpen: game.run.metSenpai, screenBroken: game.run.screenBroken, momoGuards: game.run.trained && !game.run.momoBeaten, visitor: visitorHere(game) !== null });
     // Momo's out walking, so her usual spot is empty.
@@ -276,6 +280,7 @@ export function createClubScene(nameOf: () => string): Scene {
       return;
     }
     dialogue.open(talk.lines, talk.fight ? () => {
+      foughtFrom = visit ? tileOf(visit.walker) : findTiles(rowsFor(game), "V")[0];
       game.versus = "renVisit";
       game.go("duel");
     } : undefined);
@@ -306,6 +311,7 @@ export function createClubScene(nameOf: () => string): Scene {
       talkingTo = null;
       visit = null;
       visitTalk = null;
+      arriving = false;
       dressing = null;
       worn ??= walkingGear(game.run);
       // Home's where you get your strength back, however you got here.
@@ -314,31 +320,44 @@ export function createClubScene(nameOf: () => string): Scene {
         game.wokeUp = false;
         walker = newWalker();
       }
+      // Nobody ends up standing inside someone who's just dropped by.
+      const visitorSpot = findTiles(rowsFor(game), "V")[0];
+      if (visitorSpot && touchesTile(walker, visitorSpot.col, visitorSpot.row)) walker = newWalker();
       // A fresh run, or coming back in off the road, starts at the front door.
       // Coming back from Momo's fight, there's something to say and you're still standing there.
       const arrival = homeArrival(game.run);
-      // Whoever's just fought you is already in the room. Anyone else comes in by the door.
+      // Whoever's just fought you is still right where they were, and picks up from there.
+      const fought = game.fromFight ? foughtFrom : null;
+      foughtFrom = null;
+      if (fought) visit = createVisit({ rows: rowsFor(game).map((row) => row.replace("V", ".")), solid: CLUB_SOLID, start: fought, door: place("D"), player: walker, alreadyHere: true });
+      // Anyone else comes in by the door.
+      arriving = !!arrival && !fought;
       const greet = () => {
-        if (arrival) comeOver(game, arrival, game.fromFight ? findTiles(rowsFor(game), "V")[0] : undefined);
+        if (!arrival) return;
+        arriving = false;
+        if (fought) playTalk(game, arrival);
+        else comeOver(game, arrival);
       };
       if (game.message) {
         // Whoever's waiting for you can wait until this has been said.
-        const nothing = () => {};
-        dialogue.open(game.message, arrival ? greet : undefined, arrival ? nothing : undefined);
+        const waits = () => {
+          arriving = false;
+        };
+        dialogue.open(game.message, arrival ? greet : undefined, arrival ? waits : undefined);
         game.message = null;
       } else if ((!game.run.metSenpai || game.run.trained) && !game.fromFight) {
         walker = newWalker();
         entrance = createEntrance(walker, place("D"), place("@"), { rows: CLUB_MAP, solid: "", tile: TILE });
         afterEntrance = greet;
       } else greet();
-      // Nobody ends up standing inside someone who's just dropped by.
-      const visitorSpot = findTiles(rowsFor(game), "V")[0];
-      if (visitorSpot && touchesTile(walker, visitorSpot.col, visitorSpot.row)) walker = newWalker();
+      game.debug.visitor = visit?.walker.box ?? null;
+      game.debug.visitorStanding = visitorHere(game) !== null;
       game.debug.club = { screenBroken: game.run.screenBroken };
       game.debug.walker = walker.box;
     },
     update(game) {
       tick++;
+      game.debug.visitor = visit?.walker.box ?? null;
       game.debug.talking = dialogue.active || menu.active || shop.active;
       if (dialogue.active) {
         dialogue.update(game.input, game.audio);

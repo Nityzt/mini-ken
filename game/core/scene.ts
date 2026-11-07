@@ -52,7 +52,6 @@ export type Game = {
   continueGame(): void;
   /** Erases any save and starts from the beginning, as this character. */
   newGame(character: CharacterId, name?: string): void;
-  overlay(overlay: "win" | null): void;
 };
 
 export type Scene = {

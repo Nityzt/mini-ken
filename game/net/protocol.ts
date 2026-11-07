@@ -1,7 +1,7 @@
-import type { AttackKind, FighterInput } from "../duel/rules.ts";
+import type { AttackKind, FighterInput, Opening } from "../duel/rules.ts";
 
 /** Bumped whenever two clients on different versions couldn't play each other. The server should turn away a mismatch. */
-export const PROTOCOL_VERSION = 2;
+export const PROTOCOL_VERSION = 3;
 
 export type Identity = { id: string; name: string; dan: number; guest: boolean };
 export type BracketEntrant = { id: string; name: string; controller: "player" | "remote" | "bot" };
@@ -43,6 +43,7 @@ export const LOBBY_CODE_ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
 export const LOBBY_CODE_LENGTH = 5;
 
 const ATTACKS: (AttackKind | null)[] = [null, "men", "kote", "do", "bigMen", "quickMen"];
+const OPENINGS: (Opening | null)[] = [null, "raise", "wrist", "drop"];
 const moveBits = (n: number | undefined) => (n === 1 ? 1 : n === -1 ? 2 : 0);
 const bitsMove = (n: number): -1 | 0 | 1 => (n === 1 ? 1 : n === 2 ? -1 : 0);
 
@@ -55,7 +56,8 @@ export function encodeInput(input: FighterInput): number {
     (input.stomp ? 1 << 4 : 0) |
     (input.seme ? 1 << 5 : 0) |
     (moveBits(input.dash) << 6) |
-    (Math.max(0, ATTACKS.indexOf(input.attack)) << 8)
+    (Math.max(0, ATTACKS.indexOf(input.attack)) << 8) |
+    (Math.max(0, OPENINGS.indexOf(input.opening ?? null)) << 11)
   );
 }
 
@@ -68,6 +70,7 @@ export function decodeInput(bits: number): FighterInput {
     seme: !!(bits & (1 << 5)),
     dash: bitsMove((bits >> 6) & 3),
     attack: ATTACKS[(bits >> 8) & 7] ?? null,
+    opening: OPENINGS[(bits >> 11) & 3] ?? null,
   };
 }
 

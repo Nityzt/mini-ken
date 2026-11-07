@@ -35,7 +35,6 @@ const place = (rows: string[], char: string) => findTiles(rows, char)[0];
 const visitorHere = (game: Game) => dojoVisitor(game.run, dojoFor(game.run.node));
 /** How someone's holding their shinai, if it says something about how they fight. */
 const STANCE_HELD: Record<string, HeldShinai> = { jodan: "jodan", nito: "nito" };
-const roomHere = (game: Game) => (visitorHere(game) ? roomWithVisitor(dojoHere(game).room) : dojoHere(game).room);
 
 /** Who can be walked up to and talked to. */
 const PEOPLE = "RXGEJV";
@@ -59,6 +58,9 @@ export function createRivalDojoScene(nameOf: () => string): Scene {
   /** Whoever's next, walking over to have a word, and what it is they've got to say. */
   let visit: Visit | null = null;
   let visitLines: string[] | null = null;
+  /** Whoever's next hasn't come through the door yet, so they aren't standing around in here. */
+  let arriving = false;
+  const roomHere = (game: Game) => (visitorHere(game) && !arriving ? roomWithVisitor(dojoHere(game).room) : dojoHere(game).room);
 
   /** Asking about grading here. Winning earns a letter to take home, which is all anyone here can give you. */
   const askAboutGrading = (game: Game, who: OpponentId) => {
@@ -95,6 +97,7 @@ export function createRivalDojoScene(nameOf: () => string): Scene {
       talkingTo = null;
       visit = null;
       visitLines = null;
+      arriving = false;
       // Back from a match, you're still standing where you started it.
       const stayed = game.fromFight && walkerAt === game.run.node;
       if (!stayed) walker = createWalker(start.col, start.row);
@@ -103,6 +106,7 @@ export function createRivalDojoScene(nameOf: () => string): Scene {
       const arrival = dojoArrival(game.run, dojoFor(game.run.node));
       const meetThem = () => {
         if (!arrival) return;
+        arriving = false;
         game.run = arrival.run;
         // They come in by the door, and over to you.
         const door = place(dojo.room, "D");
@@ -110,8 +114,11 @@ export function createRivalDojoScene(nameOf: () => string): Scene {
         visitLines = arrival.lines;
       };
       if (game.message) {
+        arriving = !!arrival;
         // X skips what's being said, and whoever's waiting is still there next time.
-        dialogue.open(game.message, arrival ? meetThem : undefined, arrival ? () => {} : undefined);
+        dialogue.open(game.message, arrival ? meetThem : undefined, arrival ? () => {
+          arriving = false;
+        } : undefined);
         game.message = null;
       } else if (arrival) meetThem();
       else if (!stayed) {
@@ -119,7 +126,7 @@ export function createRivalDojoScene(nameOf: () => string): Scene {
         afterEntrance = () => dialogue.open([arrivalLine(dojo, Math.random())]);
       }
       // Nobody ends up standing inside someone who's just dropped by.
-      const visitorSpot = findTiles(roomHere(game), "V")[0];
+      const visitorSpot = visitorHere(game) && findTiles(roomWithVisitor(dojo.room), "V")[0];
       if (visitorSpot && touchesTile(walker, visitorSpot.col, visitorSpot.row)) walker = createWalker(start.col, start.row);
     },
     update(game) {
@@ -277,7 +284,7 @@ export function createRivalDojoScene(nameOf: () => string): Scene {
         const them = MEMBERS[dojo.challenger];
         people.push(person("J", dojo.challenger, "side", FULL_GEAR, { colors: them.colors, flip: true, held: STANCE_HELD[them.kamae ?? ""] }));
       }
-      const visitor = visitorHere(game);
+      const visitor = arriving ? null : visitorHere(game);
       if (visit && visitor) {
         const { walker: comer } = visit;
         figures.V = figureAt(ctx, comer.box.x + comer.box.w / 2 - cam.x, comer.box.y - 12 - cam.y, comer.box.y + 8 - cam.y);

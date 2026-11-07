@@ -1,11 +1,12 @@
 import test from "node:test";
+import { directDuel as createDuel } from "../duel/test-support.ts";
 import assert from "node:assert/strict";
 import { measureText } from "../art/font.ts";
 import { STAGE_W } from "../core/scale.ts";
 import { FLAG_AFTER_HIT, FREEZE_HIT, PARRY_SHINE_LEAD } from "../duel/constants.ts";
 import { fighterStatus } from "../duel/hud.ts";
 import { FX_LIFE } from "../art/duel-fx.ts";
-import { ATTACKS, createDuel, skipBow, startX, step, type DuelEvent, type FighterInput } from "../duel/rules.ts";
+import { ATTACKS, skipBow, startX, step, type DuelEvent, type FighterInput } from "../duel/rules.ts";
 import { CALL_HAJIME, CALL_NIHONME, CALL_SHOBU, CLOSING_LINE } from "./content.ts";
 import { applyEvents, blendOf, createDuelView, createPlayerControl, helpLine, lockHelp, playShineTing, refereeCall, tickView, hpSlot } from "./duel.ts";
 import type { GameAudio, SoundName } from "../core/audio.ts";
@@ -317,7 +318,7 @@ test("a strike pressed during a freeze isn't lost", () => {
   assert.equal(control(input, { stance: "recovery" }).attack, null);
   pressed.clear();
   for (let i = 0; i < FREEZE_HIT; i++) assert.equal(control(input, { stance: "recovery" }).attack, null);
-  assert.equal(control(input, { stance: "guard" }).attack, "men");
+  assert.equal(control(input, { stance: "opening" }).attack, "men");
 });
 
 test("only the newest few words stay up", () => {

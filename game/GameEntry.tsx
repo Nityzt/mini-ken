@@ -8,8 +8,6 @@ const GameCanvas = dynamic(() => import("./GameCanvas"), {
   loading: () => <p className="text-[20px] text-white/70">Loading...</p>,
 });
 
-/** The club's website, which this game lives apart from. */
-const CLUB_SITE = "https://www.yukendo.ca";
 const PHONE_QUERY = "(pointer: coarse) and (hover: none)";
 type Device = "unknown" | "phone" | "keyboard";
 
@@ -34,25 +32,8 @@ export function GameEntry() {
         <div className="px-6 text-center text-white">
           <p className="text-[28px] font-bold">Tiny Kendo needs a keyboard.</p>
           <p className="mt-2 text-white/70">Come back on a computer!</p>
-          <a href={CLUB_SITE} className="mt-6 inline-block text-white underline">
-            Visit the club's website
-          </a>
         </div>
       )}
-      <a
-        href={CLUB_SITE}
-        aria-label="Back to York University Kendo Club"
-        className="fixed bottom-2 right-2 z-10 block opacity-80 transition-opacity hover:opacity-100 focus-visible:opacity-100"
-      >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src="/yu-kendo-pixel64.png"
-          alt=""
-          width={32}
-          height={32}
-          style={{ imageRendering: "pixelated" }}
-        />
-      </a>
     </div>
   );
 }

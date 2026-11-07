@@ -30,6 +30,9 @@ test("every input survives being squeezed into a number", () => {
     { move: 0, block: false, attack: "bigMen" },
     { move: 0, block: false, attack: "do" },
     { move: 0, block: false, attack: "kote" },
+    { move: 0, block: false, attack: null, opening: "raise" },
+    { move: 1, block: false, attack: "do", opening: "wrist", stomp: true },
+    { move: 0, block: false, attack: null, opening: "drop" },
   ];
   for (const input of inputs) {
     const back = decodeInput(encodeInput(input));
@@ -83,6 +86,7 @@ function chaos(seed: number): () => FighterInput {
       block: roll() < 0.2,
       parry: roll() < 0.2,
       attack: kind < 0.25 ? "men" : kind < 0.4 ? "kote" : kind < 0.5 ? "do" : null,
+      opening: roll() < 0.6 ? (["raise", "wrist", "drop"] as const)[Math.floor(roll() * 3)] : null,
       stomp: roll() < 0.7,
       seme: roll() < 0.1,
       dash: roll() < 0.15 ? 1 : 0,
@@ -145,7 +149,7 @@ test("crossings stay in step over a connection too", () => {
   const two = createLockstep({ initial: createDuel(ONLINE_RULES), side: 1, link: b });
   const standOffAndSwing = (state: DuelState, toward: -1 | 1): FighterInput => {
     if (distance(state) > 44) return { move: toward, block: false, attack: null };
-    return { move: 0, block: false, attack: "men", stomp: true };
+    return { move: 0, block: false, attack: "men", opening: "raise", stomp: true };
   };
   const hashes = new Map<number, string>();
   let crossings = 0;

@@ -1,6 +1,6 @@
 import {
   ABSORB_COST, BRAWL_KIAI_PRESS, BRAWL_SEME_TICKS, BROKEN_TICKS, COWER_TICKS, SEME_DECAY, SEME_DRAIN, SEME_RANGE, SEME_START_KI, KI_AFTER_BREAK, KIAI_COOLDOWN, KIAI_COST, KI_LOW, KI_MAX, KI_RECOVERY, LAUNCH_COST, LAUNCH_SPEED, LAUNCH_TICKS, LOCK_DISTANCE,
-  LOW_KI_SLOWDOWN, LOW_KI_WALK, RANGE_MAX, RANGE_MIN, RECOVERY_TICKS, DRILL_STOMP_WINDOW, SWING_COST, WALK, ZANSHIN_PASS, ZANSHIN_SLIDE, ZANSHIN_WINDOW,
+  LOW_KI_SLOWDOWN, LOW_KI_WALK, RANGE_MAX, RANGE_MIN, BRAWL_RECOVERY_TICKS, DRILL_STOMP_WINDOW, SWING_COST, WALK, ZANSHIN_PASS, ZANSHIN_SLIDE, ZANSHIN_WINDOW,
 } from "./constants.ts";
 import { nextRandom } from "./rival.ts";
 import { ATTACKS, type AttackKind, type FighterInput, type Stance, type Target } from "./rules.ts";
@@ -112,7 +112,7 @@ const tired = (p: BrawlPlayer) => p.ki < KI_LOW;
 function startRecovery(p: BrawlPlayer): void {
   p.stance = "recovery";
   p.attack = null;
-  p.stanceTicks = tired(p) ? Math.round(RECOVERY_TICKS * LOW_KI_SLOWDOWN) : RECOVERY_TICKS;
+  p.stanceTicks = tired(p) ? Math.round(BRAWL_RECOVERY_TICKS * LOW_KI_SLOWDOWN) : BRAWL_RECOVERY_TICKS;
 }
 
 function targetInFront(s: BrawlState): Bully | null {

@@ -1,6 +1,6 @@
-import { counterPrompt } from "../duel/hud.ts";
+import { targetPrompt } from "../duel/hud.ts";
 import { parryShine } from "../duel/poses.ts";
-import type { DuelState, Target } from "../duel/rules.ts";
+import { exposedTargets, type DuelState, type Target } from "../duel/rules.ts";
 import type { Game } from "../core/scene.ts";
 import type { RunState } from "../run-state.ts";
 import { BRAWL_HELP, LESSON_PROMPTS, LINE_NO_KEYS } from "./content.ts";
@@ -27,6 +27,9 @@ const LESSON_CARDS: Record<keyof typeof LESSON_PROMPTS, { title: string; keys: T
   lockHold: { title: "Lock: hold", keys: [["S", "hold when the hands drop"]] },
   cross: { title: "Ai-uchi", keys: [strike("J", "swing as Sensei does")] },
   crossTurn: { title: "Ai-uchi, then on", keys: [strike("J", "men"), ["A", "walk back in, hold to finish"]] },
+  opening: { title: "Openings", keys: [["W", "raise: shows your do"], ["Q", "wrist: shows your kote"], ["E", "drop: shows your men"]] },
+  quickOpening: { title: "Openings", keys: [["W", "raise: shows your do"], ["Q", "wrist: shows your kote"], ["E", "drop: shows your men"]] },
+  quickSeme: { title: "Seme", keys: [["I", "hold to press"], ["Space", "shout while pressing"]] },
   quickStrike: { title: "Men", keys: [["D", "slide in"], MEN, SLIDE] },
   quickTell: { title: "Read the tell", keys: [strike("K", "kote"), SLIDE] },
   quickParry: { title: "Parry", keys: [["S", "tap as the tip shines"]] },
@@ -39,14 +42,21 @@ const LESSON_CARDS: Record<keyof typeof LESSON_PROMPTS, { title: string; keys: T
 };
 
 /** Everything a drill needs to say about itself, on the card and during it. */
-export const lessonText = (id: keyof typeof LESSON_PROMPTS) => ({ prompt: LESSON_PROMPTS[id], ...LESSON_CARDS[id] });
+export const lessonText = (id: keyof typeof LESSON_PROMPTS) => {
+  const card = LESSON_CARDS[id];
+  // Pulling back from a lock and a parry's counter come with their own start. Everything else needs an opening first.
+  const opensFirst = !NO_OPENING_NEEDED.has(id) && card.keys.some(([key]) => key.includes("J") || key.includes("K") || key.includes("L"));
+  return { prompt: LESSON_PROMPTS[id], ...card, keys: opensFirst ? [OPEN_FIRST, ...card.keys] : card.keys };
+};
+const NO_OPENING_NEEDED = new Set<string>(["lockHiki", "quickHiki", "parryCounter"]);
+const OPEN_FIRST: TeachKey = ["W Q E", "hold an opening first"];
 
 const TARGET_KEY: Record<Target, string> = { men: "J", kote: "K", do: "L" };
 const CHALLENGE_TITLE = (name: string) => `${name}'s challenge`;
 /** A senpai's challenge names a target, and past the first one they hit back. */
 export const challengeText = (name: string, target: Target, canBeHit: boolean): { title: string; keys: TeachKey[] } => ({
   title: CHALLENGE_TITLE(name),
-  keys: [MOVE, strike(TARGET_KEY[target], target), ...(canBeHit ? [["S", "hold to block"] as TeachKey] : []), SLIDE],
+  keys: [MOVE, OPEN_FIRST, strike(TARGET_KEY[target], target), ...(canBeHit ? [["S", "hold to block"] as TeachKey] : []), SLIDE],
 });
 
 export const KIRIKAESHI_CARD: TeachCard = {
@@ -70,25 +80,33 @@ export const BRAWL_CARD: TeachCard = {
   keys: [MOVE, ["J K L", "men, kote, do"], ["Space", "stomp with the strike"], ["S", "hold to block"], ["A D", "hold forward after a hit"]],
 };
 
+/** What someone going online hasn't been shown yet. Having been asked once is enough, whatever they said. */
+export function primerNeeds(run: RunState, asked: boolean): ("opening" | "seme")[] {
+  if (asked) return [];
+  return [...(wasTaught(run, "openings") ? [] : (["opening"] as const)), ...(run.seme ? [] : (["seme"] as const))];
+}
+
 const taughtKey = (id: string) => `taught:${id}`;
 export const wasTaught = (run: RunState, id: string): boolean => run.seen.includes(taughtKey(id));
 
 /** Shows a card the first time something comes up in this save, and never again. */
 export function teachOnce(game: Pick<Game, "run" | "audio" | "debug">, cards: TeachCards, id: string, card: TeachCard): void {
   if (wasTaught(game.run, id)) return;
-  game.run = { ...game.run, seen: [...game.run.seen, taughtKey(id)] };
+  // A first match explains openings along with everything else, so only an older save needs its own card for them.
+  const alongside = id === "firstMatch" && !wasTaught(game.run, "openings") ? [taughtKey("openings")] : [];
+  game.run = { ...game.run, seen: [...game.run.seen, taughtKey(id), ...alongside] };
   cards.show(game, card);
 }
 
 /** Things a real match can spring on you. Each one stops the match at the moment it first happens. */
-export type DuelMoment = "firstMatch" | "tell" | "parry" | "lock" | "cross";
+export type DuelMoment = "openings" | "firstMatch" | "tell" | "parry" | "lock" | "cross";
 
 /** What's happening right now that might need explaining. The parry, the lock and crossing have a lesson, and anyone who's had it knows. */
 export function duelMoments(duel: Pick<DuelState, "phase" | "fighters" | "options" | "events">, known: { waza: boolean; tellsShown: boolean }): DuelMoment[] {
   const moments: DuelMoment[] = [];
-  if (duel.phase === "fight") moments.push("firstMatch");
+  if (duel.phase === "fight") moments.push("firstMatch", "openings");
   const them = duel.fighters[1];
-  if (known.tellsShown && duel.phase === "fight" && them.stance === "windup" && them.attack) moments.push("tell");
+  if (known.tellsShown && duel.phase === "fight" && (them.stance === "opening" || (them.stance === "windup" && them.attack))) moments.push("tell");
   if (!known.waza) {
     if (parryShine(duel, 1) > 0) moments.push("parry");
     if (duel.events.some((e) => e.type === "lock")) moments.push("lock");
@@ -102,18 +120,24 @@ export function momentCard(moment: DuelMoment, duel: Pick<DuelState, "fighters" 
   const away = duel.crossed ? "D" : "A";
   const through: TeachKey = [toward, "hold to slide through"];
   switch (moment) {
+    case "openings":
+      return {
+        title: "Openings",
+        text: "Every strike now starts from an opening, and yours shows what's open. Any opening can lead to any strike, so what you show is real or it's bait. Plain guard is the only place ki comes back.",
+        keys: [["W", "raise: shows your do"], ["Q", "wrist: shows your kote"], ["E", "drop: shows your men"], ["S", "cancel into a block or parry"]],
+      };
     case "firstMatch":
       return {
         title: "Your first match",
-        text: "Strike and stomp together, then slide all the way through. No stomp or no slide, no point.",
-        keys: [["A D", "move"], ["J K L", "men, kote, do"], ["Space", "stomp with the strike"], ["S", "hold to block"], through],
+        text: "Open up, strike and stomp together, then slide through. No stomp or no slide, no point.",
+        keys: [["A D", "move"], ["W Q E, J K L", "open, then strike"], ["Space", "stomp with the strike"], ["S", "hold to block"], through],
       };
     case "tell": {
       const them = duel.fighters[1];
-      const [key, name] = counterPrompt(them.attack!, them.kamae).split(" ");
+      const [key, name] = targetPrompt(exposedTargets(them)[0]).split(" ");
       return {
         title: "Read the tell",
-        text: "Every strike gives itself away. The box over them names the key that answers it, and its bar is how long you've got.",
+        text: "Every strike starts from an opening, and what it shows is what's open. The box over them names the key that hits it, and its bar is how long you've got. It might only be bait.",
         keys: [strike(key, name), through],
       };
     }

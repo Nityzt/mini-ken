@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { FREEZE_BLOCK, FREEZE_HIT, TEMPO_FRAMES, TEMPO_TICKS } from "./constants.ts";
 import { createRival, rivalAct, rivalConfig, type RivalStyle } from "./rival.ts";
-import { ATTACKS, createDuel, distance, exposes, ruleTick, skipBow, step, ticksNext, type AttackKind, type DuelState, type FighterInput } from "./rules.ts";
+import { ATTACKS, createDuel, distance, exposedTargets, ruleTick, skipBow, step, ticksNext, type AttackKind, type DuelState, type FighterInput } from "./rules.ts";
 
 const IDLE: FighterInput = { move: 0, block: false, attack: null };
 const FRAMES_PER_SECOND = 60;
@@ -17,9 +17,9 @@ function inRange(gap = 40): DuelState {
 
 /** How many frames from pressing a strike to it landing. */
 function pressToContact(attack: AttackKind): number {
-  let s = step(inRange(), { ...IDLE, attack, stomp: true }, { ...IDLE, block: true });
+  let s = step(inRange(), { ...IDLE, opening: "raise", attack, stomp: true }, { ...IDLE, block: true });
   let frames = 1;
-  while (s.fighters[0].stance === "windup") {
+  while (s.fighters[0].stance === "windup" || s.fighters[0].stance === "opening") {
     s = step(s, IDLE, { ...IDLE, block: true });
     frames++;
   }
@@ -38,16 +38,16 @@ test("no strike lands in under a quarter of a second, so it can be seen coming",
   for (const attack of ["men", "kote", "do", "quickMen"] as const) {
     assert.ok(seconds(pressToContact(attack)) >= 0.25, `${attack}: ${seconds(pressToContact(attack))}s`);
   }
-  assert.ok(seconds(pressToContact("men")) <= 0.4, "but your own strike still answers you");
+  assert.ok(seconds(pressToContact("men")) <= 0.7, "but your own strike still answers you");
 });
 
 test("a key pressed on a frame the rules skip still counts", () => {
   let s = inRange();
   while (ticksNext(s)) s = step(s, IDLE, IDLE);
-  s = step(s, { ...IDLE, attack: "men", stomp: true }, IDLE);
+  s = step(s, { ...IDLE, opening: "raise", stomp: true }, IDLE);
   assert.equal(s.fighters[0].stance, "guard");
-  s = step(s, IDLE, IDLE);
-  assert.equal(s.fighters[0].stance, "windup");
+  s = step(s, { ...IDLE, opening: "raise" }, IDLE);
+  assert.equal(s.fighters[0].stance, "opening");
   assert.equal(s.fighters[0].stompAge, 0);
 });
 
@@ -64,7 +64,7 @@ test("a press is only used once", () => {
 /** Runs until something happens, and returns how long everything then holds still. */
 function freezeAfter(event: string, defender: FighterInput): number {
   let s = inRange();
-  s = step(s, { ...IDLE, attack: "men", stomp: true }, defender);
+  s = step(s, { ...IDLE, opening: "raise", attack: "men", stomp: true }, defender);
   for (let i = 0; i < 200 && !s.events.some((e) => e.type === event); i++) s = step(s, IDLE, defender);
   assert.ok(s.events.some((e) => e.type === event), `never saw ${event}`);
   return s.freeze;
@@ -78,7 +78,7 @@ test("contact holds everything still, and bigger moments hold longer", () => {
 
 test("nothing moves during the freeze, and a press made during it waits", () => {
   let s = inRange();
-  s = step(s, { ...IDLE, attack: "men", stomp: true }, IDLE);
+  s = step(s, { ...IDLE, opening: "raise", attack: "men", stomp: true }, IDLE);
   while (!s.events.some((e) => e.type === "hit")) s = step(s, IDLE, IDLE);
   const held = s;
   for (let i = 0; i < FREEZE_HIT; i++) {
@@ -95,7 +95,7 @@ test("nothing moves during the freeze, and a press made during it waits", () => 
 test("a step doesn't change the state it was given", () => {
   const s = inRange();
   const before = structuredClone(s);
-  step(s, { ...IDLE, attack: "men", stomp: true }, IDLE);
+  step(s, { ...IDLE, opening: "raise", attack: "men", stomp: true }, IDLE);
   step(step(s, IDLE, IDLE), IDLE, IDLE);
   assert.deepEqual(s, before);
 });
@@ -134,12 +134,13 @@ function playMatch(style: RivalStyle, seed: number, reaction: number): { frames:
   while (s.phase !== "closing" && s.phase !== "over" && frames < FRAMES_PER_SECOND * 300) {
     const [me, them] = s.fighters;
     const gap = distance(s);
-    seen = them.stance === "windup" ? seen + 1 : 0;
+    const showing = them.stance === "windup" || them.stance === "opening";
+    seen = showing ? seen + 1 : 0;
     let input = IDLE;
     if (s.phase === "zanshin" && s.zanshin?.by === 0) input = { ...IDLE, move: s.zanshin.dir };
     else if (s.lock) input = { ...IDLE, move: 1 };
     else if (me.stance === "guard" && gap > 44) input = { ...IDLE, move: 1 };
-    else if (me.stance === "guard" && seen === reaction && them.attack) input = { ...IDLE, attack: exposes(them.attack, them.kamae), stomp: true };
+    else if (me.stance === "guard" && seen >= reaction && showing) input = { ...IDLE, opening: "wrist", attack: exposedTargets(them)[0], stomp: true };
     const act = rivalAct(s, rival);
     rival = act.rival;
     s = step(s, input, act.input);
@@ -179,7 +180,8 @@ test("every rival's tell leaves at least 400ms once your own strike's length is 
   const slowest = Math.max(ATTACKS.men.windup, ATTACKS.kote.windup, ATTACKS.do.windup);
   for (const style of TOURNAMENT_STYLES) {
     const { tell } = rivalConfig(0, style);
-    const ticks = Math.min(tell.men, tell.kote) - slowest;
+    // Their opening and strike last their tell, a shortest opening and a little more. Yours has to fit inside that, with the same shortest opening of your own.
+    const ticks = Math.min(tell.men, tell.kote) + 2 - slowest;
     assert.ok((ticks * TEMPO_FRAMES) / TEMPO_TICKS / FRAMES_PER_SECOND >= 0.4, `${style}: ${ticks} ticks`);
   }
 });

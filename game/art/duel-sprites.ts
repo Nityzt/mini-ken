@@ -12,7 +12,7 @@ export type DuelPose =
   | "tellHandsUp" | "tellTipDip" | "tellBigRaise"
   | "strikeMen" | "strikeKote" | "strikeDo"
   | "zanshin" | "recover" | "stunned"
-  | "walkHome" | "sonkyoSheathe" | "hit"
+  | "walkHome" | "sonkyoTurn" | "sonkyoTuck" | "sonkyoSheathe" | "taitoFree" | "bowTaito" | "hit"
   | "parry" | "suriage" | "deflected" | "stumble"
   | "tsuba" | "tsubaPush" | "tsubaGuard" | "tsubaPull" | "tsubaPart"
   | "hikiMen" | "hikiKote" | "hikiDo"
@@ -151,6 +151,22 @@ const LEGS_CLOSE = grid(FIGHTER_WIDTH, 12, [
   ".......KKKKKKKKKKKKKK",
 ]);
 
+/** Halfway down into sonkyo or up from it: the knees are opening and the heels have come up. */
+const LEGS_SINK = grid(FIGHTER_WIDTH, 12, [
+  "",
+  "",
+  "",
+  "......NNNNKNNNNNKNNNNN",
+  ".....NNNNNKNNNNNKNNNNNN",
+  "....NNNNNNKNNNNNKNNNNNNN",
+  "....NNNNNNNNNNNNNNNNNNNNN",
+  "...NNNNNNNNN...NNNNNNNNNN",
+  "....NNNNNN.......NNNNNNN",
+  ".......NSSN.......NSSN",
+  ".......KSSK.......KSSK",
+  ".......KKKK.......KKKK",
+]);
+
 /** Sonkyo: balanced on the balls of the feet, with the knees open. */
 const LEGS_SONKYO = grid(FIGHTER_WIDTH, 12, [
   "",
@@ -227,6 +243,7 @@ export const DUEL_GRIDS: Record<string, string[]> = {
   duelLegsStep: LEGS_STEP,
   duelLegsLunge: LEGS_LUNGE,
   duelLegsClose: LEGS_CLOSE,
+  duelLegsSink: LEGS_SINK,
   duelLegsSonkyo: LEGS_SONKYO,
   bullyDown: BULLY_DOWN,
   referee: REFEREE,
@@ -240,10 +257,21 @@ export type PoseDef = {
   angle: number;
   head?: [number, number];
   torso?: [number, number];
-  legs?: "stand" | "step" | "lunge" | "sonkyo";
+  legs?: "stand" | "step" | "lunge" | "sink" | "sonkyo";
   /** Held in the left hand and not yet drawn. */
   sheathed?: boolean;
+  /** How far down the blade from the tsuba the hand holding it sits. */
+  handBelowTsuba?: number;
+  /** Where the right hand is, once it's let go of the shinai. Without this, both hands are on the grip. */
+  rightHand?: [number, number];
 };
+
+/** Back and down at 45 degrees, reached by going over the top from guard. */
+const TIP_BEHIND = -225;
+/** Crouching brings the hip so near the floor that the tip has to sit flatter, or it goes through the boards. */
+const TIP_BEHIND_CROUCHED = -208;
+const HAND_BELOW_TSUBA = 4;
+const HIP_CROUCHED: PoseDef = { hand: [14, 28], angle: TIP_BEHIND_CROUCHED, handBelowTsuba: HAND_BELOW_TSUBA, head: [0, 9], torso: [0, 9], legs: "sonkyo", sheathed: true };
 
 export const POSES: Record<DuelPose, PoseDef> = {
   guard: { hand: [24, 26], angle: -22 },
@@ -273,8 +301,15 @@ export const POSES: Record<DuelPose, PoseDef> = {
   stunned: { hand: [20, 31], angle: 50, head: [0, 3], torso: [0, 2] },
   // Walking back to the line, with the tip lowered. It isn't a guard, because nobody's fighting yet.
   walkHome: { hand: [21, 30], angle: 24, head: [0, 1], torso: [0, 1] },
-  // Osame-to: still crouched, with the shinai brought back to the left hip.
-  sonkyoSheathe: { hand: [13, 33], angle: 14, head: [0, 9], torso: [0, 9], legs: "sonkyo", sheathed: true },
+  // Osame-to, still crouched. The tip goes up and over to the left side, so these angles keep counting past
+  // -180 rather than wrapping: a blend between them has to swing over the top, not back through the body.
+  sonkyoTurn: { hand: [19, 28], angle: -105, head: [0, 9], torso: [0, 9], legs: "sonkyo", sheathed: true, rightHand: [21, 27] },
+  sonkyoTuck: { ...HIP_CROUCHED, rightHand: [21, 24] },
+  // The right hand lets go and rests on the right thigh. The left holds on just under the tsuba, tip to the floor behind.
+  sonkyoSheathe: { ...HIP_CROUCHED, rightHand: [20, 34] },
+  // Standing, and all the way out of the ring: the same hold at the waist, with the right hand free at the thigh.
+  taitoFree: { hand: [14, 23], angle: TIP_BEHIND, handBelowTsuba: HAND_BELOW_TSUBA, sheathed: true, rightHand: [18, 31] },
+  bowTaito: { hand: [15, 23], angle: TIP_BEHIND, handBelowTsuba: HAND_BELOW_TSUBA, head: [4, 4], torso: [2, 1], sheathed: true, rightHand: [20, 31] },
   // Taking one: nobody reels or drops their hands. The head gives a little and the hands come up, too late.
   hit: { hand: [24, 23], angle: -40, head: [-2, 0] },
   // Rising to meet the strike, then knocking it off line.
@@ -337,15 +372,32 @@ const mixPair = (a: [number, number] | undefined, b: [number, number] | undefine
   Math.round(mix(a?.[1] ?? 0, b?.[1] ?? 0, t)),
 ];
 
-/** Partway from one pose to another. The hands and body move, and the legs and which hand holds it go straight to the new pose. */
+/** How far down the body has to be for each stage of the legs to reach it, from 0 for standing to 1 for sonkyo. */
+const SINK_LEGS_AT = 1 / 3;
+const SONKYO_LEGS_AT = 2 / 3;
+
+/** Going down or coming up, the legs change only once the body has got to them, or it would float above them. */
+function legsBetween(from: PoseDef, to: PoseDef, t: number): PoseDef["legs"] {
+  if ((from.legs === "sonkyo") === (to.legs === "sonkyo")) return to.legs;
+  const down = to.legs === "sonkyo" ? t : 1 - t;
+  if (down >= SONKYO_LEGS_AT) return "sonkyo";
+  if (down >= SINK_LEGS_AT) return "sink";
+  return to.legs === "sonkyo" ? from.legs : to.legs;
+}
+
+/** Partway from one pose to another. The hands and body move, the legs follow the body, and which hand holds it goes straight to the new pose. */
 export function blendPose(from: PoseDef, to: PoseDef, t: number): PoseDef {
   if (t >= 1) return to;
   return {
     ...to,
+    legs: legsBetween(from, to, t),
     hand: mixPair(from.hand, to.hand, t),
     angle: mix(from.angle, to.angle, t),
     head: mixPair(from.head, to.head, t),
     torso: mixPair(from.torso, to.torso, t),
+    handBelowTsuba: mix(from.handBelowTsuba ?? 0, to.handBelowTsuba ?? 0, t),
+    // Letting go starts from wherever the hands were together.
+    rightHand: to.rightHand && mixPair(from.rightHand ?? from.hand, to.rightHand, t),
   };
 }
 
@@ -376,14 +428,16 @@ function drawArmAndShinai(
   kote: boolean,
   weapon: "shinai" | "stick" | "none",
   blade = SHINAI_BLADE,
+  handBelowTsuba = 0,
 ): void {
   const dx = Math.cos((angle * Math.PI) / 180);
   const dy = Math.sin((angle * Math.PI) / 180);
   if (weapon === "shinai") {
-    // Grip behind the hand, then the blade forward of it.
+    // Grip behind the tsuba, then the blade forward of it.
+    const tsuba = [hand[0] - dx * handBelowTsuba, hand[1] - dy * handBelowTsuba];
     for (let i = -SHINAI_GRIP; i <= blade; i++) {
-      const x = Math.round(hand[0] + dx * i);
-      const y = Math.round(hand[1] + dy * i);
+      const x = Math.round(tsuba[0] + dx * i);
+      const y = Math.round(tsuba[1] + dy * i);
       let color = PALETTE.Y;
       if (i < 0) color = PALETTE.W;
       else if (i <= 1) color = PALETTE.K;
@@ -468,6 +522,7 @@ export function drawFighter(
   const legs =
     def.legs === "lunge" ? LEGS_LUNGE
     : def.legs === "sonkyo" ? LEGS_SONKYO
+    : def.legs === "sink" ? LEGS_SINK
     : def.legs === "step" ? LEGS_STEP
     : walkLegs;
 
@@ -476,7 +531,6 @@ export function drawFighter(
     const drawX = flip ? left + FIGHTER_WIDTH - width - dx : left + dx;
     drawSprite(ctx, rows, drawX, top + dy, { flip, colors });
   };
-  place(legs, 0, 28);
 
   // The men's details share their default colors with other things, and those mustn't change along with them.
   const swaps = new Map(Object.entries(colors ?? {}).filter(([key]) => !(key in MEN_INHERITS)).map(([key, value]) => [PALETTE[key], value]));
@@ -488,8 +542,14 @@ export function drawFighter(
   const px = (dx: number, dy: number, color: string, size = 1) => exactly(dx, dy, swaps.get(color) ?? color, size);
   // Facing right, the left hand is on the far side of the body.
   const shoulder: [number, number] = [16 + torsoX, 20 + torsoY];
-  const armBehind = def.sheathed && side === "player" && !flip;
-  if (armBehind) drawArmAndShinai(px, shoulder, def.hand, def.angle, gear.kote, weapon);
+  const armBehind = def.sheathed && !flip;
+  const shinaiArm = () => drawArmAndShinai(px, shoulder, def.hand, def.angle, gear.kote, weapon, SHINAI_BLADE, def.handBelowTsuba);
+  // A free right hand is on the near side when the left is on the far side, and the other way round.
+  const rightArm = () => def.rightHand && drawArmAndShinai(px, shoulder, def.rightHand, 0, gear.kote, "none");
+  // The far side goes behind the legs as well as the body.
+  if (armBehind) shinaiArm();
+  place(legs, 0, 28);
+  if (!armBehind) rightArm();
   place(gear.do ? CHEST_DO : CHEST_GI, torsoX, 17 + torsoY);
   place(gear.tare ? WAIST_TARE : WAIST_PLAIN, torsoX, 22 + torsoY);
 
@@ -524,7 +584,8 @@ export function drawFighter(
   // Arms raised over the head go on after it.
   const overHead = kamae !== "chudan" && def.hand[1] < 12;
   if (overHead) place(gear.men ? HEAD : HEAD_BARE, headX, headY);
-  if (!armBehind) drawArmAndShinai(px, shoulder, def.hand, def.angle, gear.kote, weapon);
+  if (armBehind) rightArm();
+  else shinaiArm();
   if (kamae === "nito" && !def.sheathed) {
     const short = pose === "block" ? SHORT_BLOCK : SHORT_SWORD;
     drawArmAndShinai(px, [shoulder[0] + 2, shoulder[1] + 1], [short.hand[0] + torsoX, short.hand[1] + torsoY], short.angle, gear.kote, weapon, SHORT_BLADE);
@@ -563,10 +624,10 @@ export function drawSwingTrail(ctx: CanvasRenderingContext2D, x: number, y: numb
 /** Where the tip of the shinai is drawn right now. x is the fighter's center and y is the ground. */
 export function shinaiTip(x: number, y: number, pose: DuelPose, flip: boolean, kamae: Kamae = "chudan", from?: DuelPose, blend = 1, coil = 0): [number, number] {
   const target = poseDef(pose, kamae);
-  const { hand, angle } = coiled(from && from !== pose ? blendPose(poseDef(from, kamae), target, blend) : target, coil);
+  const { hand, angle, handBelowTsuba = 0 } = coiled(from && from !== pose ? blendPose(poseDef(from, kamae), target, blend) : target, coil);
   const radians = (angle * Math.PI) / 180;
-  const tipX = hand[0] + Math.cos(radians) * SHINAI_BLADE;
-  const tipY = hand[1] + Math.sin(radians) * SHINAI_BLADE;
+  const tipX = hand[0] + Math.cos(radians) * (SHINAI_BLADE - handBelowTsuba);
+  const tipY = hand[1] + Math.sin(radians) * (SHINAI_BLADE - handBelowTsuba);
   const left = Math.round(x) - FIGHTER_WIDTH / 2;
   // The blade is two pixels wide, so its middle is one in from where it's drawn.
   return [Math.round(flip ? left + FIGHTER_WIDTH - tipX - 1 : left + tipX + 1), Math.round(y) - FIGHTER_HEIGHT + Math.round(tipY) + 1];

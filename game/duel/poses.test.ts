@@ -2,12 +2,12 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { ceremonyAt, closingAt, poseFor, windupCoil, COIL_TICKS } from "./poses.ts";
 import { BOW_TICKS, CLOSING_TICKS } from "./constants.ts";
-import { POSES } from "../art/duel-sprites.ts";
+import { blendPose, DUEL_GRIDS, POSES, shinaiTip, type DuelPose } from "../art/duel-sprites.ts";
 import type { AttackKind, Fighter, Stance } from "./rules.ts";
 
 const fighter = (stance: Stance, attack: AttackKind | null = null): Fighter => ({
   kamae: "chudan",
-  x: 100, ki: 100, kiMax: 100, stance, stanceTicks: 5, attack, points: 0, stompAge: 9999, launchTicks: 0, launchDir: 0, pressure: 0, kiaiTicks: 0, parryCooldown: 0, counterTicks: 0, hiki: false,
+  x: 100, ki: 100, kiMax: 100, stance, stanceTicks: 5, attack, points: 0, stompAge: 9999, launchTicks: 0, launchDir: 0, pressure: 0, kiaiTicks: 0, parryCooldown: 0, counterTicks: 0, hiki: false, opening: null, openingTicks: 0, queued: null, countering: false, reparryTicks: 0, reparryUsed: false,
 });
 const fight = { phase: "fight" as const, striking: null, scored: false };
 
@@ -86,7 +86,7 @@ test("sonkyo crouches lower than standing", () => {
 
 test("both fighters bow at the start, and have gone by the end with the shinai at their side", () => {
   assert.equal(poseFor(fighter("guard"), { phase: "bow", striking: null, scored: false }), "bow");
-  assert.equal(poseFor(fighter("guard"), { phase: "over", striking: null, scored: true }), "sageto");
+  assert.equal(poseFor(fighter("guard"), { phase: "over", striking: null, scored: true }), "taitoFree");
 });
 
 test("the closing ceremony runs in the real order: sonkyo, sheathe, rise, step back, bow, leave", () => {
@@ -95,7 +95,7 @@ test("the closing ceremony runs in the real order: sonkyo, sheathe, rise, step b
     const { pose } = closingAt(left);
     if (order[order.length - 1] !== pose) order.push(pose);
   }
-  assert.deepEqual(order, ["guard", "sonkyo", "sonkyoSheathe", "taito", "sageto", "bow", "sageto"]);
+  assert.deepEqual(order, ["guard", "sonkyo", "sonkyoTurn", "sonkyoTuck", "sonkyoSheathe", "taitoFree", "bowTaito", "taitoFree"]);
 });
 
 test("the shinai is sheathed while still in sonkyo, and nobody moves until they've risen", () => {
@@ -103,7 +103,7 @@ test("the shinai is sheathed while still in sonkyo, and nobody moves until they'
   assert.equal(POSES.sonkyoSheathe.sheathed, true);
   for (let left = CLOSING_TICKS; left >= 1; left--) {
     const { pose, stepBack } = closingAt(left);
-    if (pose === "guard" || pose === "sonkyo" || pose === "sonkyoSheathe") assert.equal(stepBack, 0, pose);
+    if (POSES[pose].legs === "sonkyo" || pose === "guard") assert.equal(stepBack, 0, pose);
   }
 });
 
@@ -114,12 +114,12 @@ test("they step back before the bow, never forward, and only walk away after it"
     const at = closingAt(left);
     assert.ok(at.stepBack >= last, "only ever further back");
     last = at.stepBack;
-    if (at.pose === "bow") {
+    if (at.pose === "bowTaito") {
       bowed = true;
       assert.ok(at.stepBack > 0, "stepped back first");
       assert.equal(at.walking, false, "stands still to bow");
     }
-    assert.equal(at.away, bowed && at.pose === "sageto" && at.walking, `at ${left}`);
+    assert.equal(at.away, bowed && at.pose === "taitoFree" && at.walking, `at ${left}`);
   }
   assert.ok(bowed);
   assert.equal(closingAt(1).away, true, "ends walking away");
@@ -127,7 +127,93 @@ test("they step back before the bow, never forward, and only walk away after it"
 
 test("the closing ceremony shows through poseFor", () => {
   assert.equal(poseFor(fighter("guard"), { phase: "closing", striking: null, scored: false, closingTicksLeft: CLOSING_TICKS }), "guard");
-  assert.equal(poseFor(fighter("guard"), { phase: "closing", striking: null, scored: false, closingTicksLeft: 1 }), "sageto");
+  assert.equal(poseFor(fighter("guard"), { phase: "closing", striking: null, scored: false, closingTicksLeft: 1 }), "taitoFree");
+});
+
+// The first row of the legs that shows: sonkyo's thighs are drawn level, over the waist.
+const THIGH_CROUCHED = 34;
+const THIGH_STANDING = 28;
+const LEG_GRIDS: Record<string, string[]> = { sonkyo: DUEL_GRIDS.duelLegsSonkyo, sink: DUEL_GRIDS.duelLegsSink ?? [] };
+const WAIST_BOTTOM = 27;
+const LEGS_TOP = 28;
+
+test("going down into sonkyo and rising from it, the body never floats above the legs", () => {
+  const moves: [DuelPose, DuelPose][] = [["guard", "sonkyo"], ["draw", "sonkyo"], ["sonkyo", "guard"], ["sonkyoSheathe", "taitoFree"]];
+  for (const [from, to] of moves) {
+    for (let t = 0; t <= 1; t += 1 / 24) {
+      const blended = blendPose(POSES[from], POSES[to], t);
+      const rows = LEG_GRIDS[blended.legs ?? ""] ?? DUEL_GRIDS.duelLegsStand;
+      const firstRow = rows.findIndex((row) => row.replace(/\./g, "") !== "");
+      const bottom = WAIST_BOTTOM + (blended.torso?.[1] ?? 0);
+      assert.ok(bottom + 1 >= LEGS_TOP + firstRow, `${from} to ${to} at ${t.toFixed(2)}: waist ends at ${bottom}, legs start at ${LEGS_TOP + firstRow}`);
+    }
+  }
+});
+
+test("the legs bend in stages on the way down and on the way up", () => {
+  const legsAlong = (from: DuelPose, to: DuelPose) => {
+    const seen: string[] = [];
+    for (let t = 0; t <= 1; t += 1 / 24) {
+      const legs = blendPose(POSES[from], POSES[to], t).legs ?? "standing";
+      if (seen[seen.length - 1] !== legs) seen.push(legs);
+    }
+    return seen;
+  };
+  assert.deepEqual(legsAlong("guard", "sonkyo"), ["standing", "sink", "sonkyo"]);
+  assert.deepEqual(legsAlong("sonkyoSheathe", "taitoFree"), ["sonkyo", "sink", "standing"]);
+});
+
+const CLOSING_HOLD = ["sonkyoTuck", "sonkyoSheathe", "taitoFree", "bowTaito"] as const;
+
+test("sheathing, the shinai swings over the top to behind the body, not back through it", () => {
+  const path = [POSES.sonkyo.angle, POSES.sonkyoTurn.angle, POSES.sonkyoTuck.angle];
+  assert.ok(path[0] > path[1] && path[1] > path[2], "one way round");
+  assert.ok(path[1] <= -90, "up past upright");
+  assert.ok(path[2] < -180, "and on over, past flat behind");
+});
+
+test("sheathing, the shinai goes over on the left side, and the right hand stays on the grip until it's there", () => {
+  const { hand, angle, handBelowTsuba = 0, rightHand } = POSES.sonkyoTuck;
+  const radians = (angle * Math.PI) / 180;
+  const along = (i: number) => [hand[0] + Math.cos(radians) * (i - handBelowTsuba), hand[1] + Math.sin(radians) * (i - handBelowTsuba)];
+  assert.ok(POSES.sonkyoTurn.sheathed && POSES.sonkyoTuck.sheathed, "the far side");
+  assert.ok(rightHand, "held by both");
+  const near = Math.min(...[-1, -2, -3, -4, -5, -6].map((i) => Math.hypot(along(i)[0] - rightHand[0], along(i)[1] - rightHand[1])));
+  assert.ok(near <= 1.5, `the right hand is ${near} from the grip`);
+});
+
+test("once sheathed, the right hand rests on the thigh and the left holds on under the tsuba", () => {
+  for (const pose of ["sonkyoSheathe", "taitoFree", "bowTaito"] as const) {
+    const { hand, rightHand, torso, handBelowTsuba = 0 } = POSES[pose];
+    assert.ok(rightHand, pose);
+    assert.ok(rightHand[1] >= (POSES[pose].legs === "sonkyo" ? THIGH_CROUCHED : THIGH_STANDING), `${pose}: on the thigh`);
+    assert.ok(handBelowTsuba >= 3, `${pose}: the hand's clear of the tsuba`);
+    assert.ok(Math.abs(hand[1] - ((torso?.[1] ?? 0) + 22)) <= 3, `${pose}: at the waist`);
+  }
+});
+
+test("standing, the shinai is held at 45 degrees with the tip behind them and towards the ground", () => {
+  for (const pose of ["taitoFree", "bowTaito"] as const) {
+    const radians = (POSES[pose].angle * Math.PI) / 180;
+    assert.ok(Math.cos(radians) < 0, `${pose}: behind`);
+    assert.ok(Math.sin(radians) > 0, `${pose}: down`);
+    assert.ok(Math.abs(Math.cos(radians) + Math.sin(radians)) < 0.01, `${pose}: at 45 degrees`);
+  }
+});
+
+test("the tip never goes through the floor, crouched or standing", () => {
+  const GROUND = 100;
+  for (const pose of CLOSING_HOLD) assert.ok(shinaiTip(50, GROUND, pose, false)[1] < GROUND, pose);
+});
+
+test("from the moment it's sheathed to walking out, the shinai stays at the waist with the right hand free", () => {
+  let sheathed = false;
+  for (let left = CLOSING_TICKS; left >= 1; left--) {
+    const { pose } = closingAt(left);
+    if (pose === "sonkyoSheathe") sheathed = true;
+    if (sheathed) assert.ok(POSES[pose].rightHand && POSES[pose].handBelowTsuba, `${left}: ${pose}`);
+  }
+  assert.ok(sheathed);
 });
 
 test("new stances have their own poses", () => {

@@ -220,15 +220,18 @@ export const LESSON_PROMPTS = {
   lockHold: "Sensei: When my hands drop, I'm about to pull back and cut. Hold S as soon as you see it.",
   cross: "Sensei: Go for men just as I do: J and Space. Neither lands, and we pass. That's ai-uchi. It happens a lot.",
   crossTurn: "Sensei: Again, then keep going. You'll be on my other side, so walk in with A, strike, and hold A to finish.",
-  quickStrike: "Coach: Slide in with D. Then J and Space together for men, and hold D to slide through. No slide, no point.",
-  quickTell: "Coach: My hands rising means men, and that opens my wrist. K and Space for kote, then hold D.",
+  opening: "Sensei: Every strike starts from an opening. Hold W to raise your shinai, Q to open your wrist, E to drop your tip.",
+  quickOpening: "Coach: Every strike starts from an opening. Hold W, Q and E in turn. What's showing is what's open.",
+  quickSeme: "Coach: Hold I to press me until I flinch. Space shouts, for a harder push. You're open while you do it.",
+  quickStrike: "Coach: Slide in with D. Hold W, then J and Space together for men, and hold D to slide through. No slide, no point.",
+  quickTell: "Coach: My hands are rising, so my wrist is open. Hold an opening of your own, K and Space for kote, then hold D.",
   quickParry: "Coach: When my tip shines, tap S, and the strike's knocked aside for free. Holding S is only a block.",
   quickPush: "Coach: Hilts locked: tsuba-zeriai. Pushing beats a held guard. Hold D until I'm off balance.",
   quickHiki: "Coach: A held guard beats a pull, and a pull beats a push. I'm pushing, so J and Space, then hold A.",
   quickCross: "Coach: Swing as I do: J and Space. Nobody scores, you pass, and you fight on from there.",
   suriashi: "Sensei: Footwork first. Slide in with D until it says In range, back out with A, then slide in again.",
-  fumikomi: "Sensei: Strike and foot as one. Press J and Space together: men with fumikomi!",
-  zanshin: "Sensei: Now finish it. J and Space, then hold D to slide through. That's zanshin.",
+  fumikomi: "Sensei: Strike and foot as one. Hold W, then press J and Space together: men with fumikomi!",
+  zanshin: "Sensei: Now finish it. Open up, J and Space, then hold D to slide through. That's zanshin.",
   block: "Sensei: You wear a do now, so I can really hit it. See my tip dip? Hold S to block!",
   do: "Sensei: Hands up high leaves my side open. I'll stop short of your head. L and Space, then slide through!",
   kote: "Sensei: See my hands rising? My wrist is open. K and Space, then slide through!",
@@ -330,14 +333,14 @@ export const CONTROL_ROWS: { keys: string; does: string; needsSeme?: boolean }[]
   { keys: "Arrows WASD", does: "Move" },
   { keys: "E Space", does: "Talk, choose" },
   { keys: "X", does: "Back out" },
-  { keys: "J K L", does: "Men, kote, do" },
+  { keys: "Hold W Q E", does: "Show do, kote, men" },
+  { keys: "J K L", does: "Men, kote, do, from one" },
   { keys: "Space", does: "Stomp with a strike" },
   { keys: "S", does: "Block. Tap it: parry" },
   { keys: "Tap D D", does: "Long launch" },
   { keys: "I", does: "Hold for seme", needsSeme: true },
   { keys: "Esc P", does: "Menu" },
-  { keys: "M", does: "Mute" },
-  { keys: "F", does: "Fullscreen" },
+  { keys: "M F", does: "Mute, fullscreen" },
 ];
 export const CHARACTER_TITLE = "Who are you?";
 export const INSIGNIA_TITLE = "Your tare";
@@ -460,7 +463,7 @@ export const REN_LINES = [
 ];
 /** Ren's first visit, while you're still in your first bits of armor. The line about your tare goes after the first. */
 export const REN_FIRST = [
-  "Someone you don't know has been watching your drills from across the hall. They wave you over.",
+  "Someone you don't know has been watching your drills from across the hall. Now they've walked over.",
   "Ren: Don't stop on my account. I'm Ren, from Thunder Radish. I used to sweep this floor.",
   "Ren: Go on, a senpai's waiting to test you. Maybe I'll still be around when you've earned the rest.",
 ];
@@ -965,6 +968,12 @@ export const CALL_HAJIME = "Hajime!";
 export const CALL_NIHONME = "Nihon-me!";
 export const CALL_SHOBU = "Shobu!";
 export const CALL_WAKARE = "Wakare!";
+export const CALL_TIME = "Time!";
+export const CALL_ENCHO = "Encho!";
+export const NEEDS_OPENING = "Hold W, Q or E first";
+export const STATUS_SHOWS_MEN = "Men open";
+export const STATUS_SHOWS_KOTE = "Kote open";
+export const STATUS_SHOWS_DO = "Do open";
 export const LOCK_CALL = "Tsuba-zeriai!";
 export const TSUBA_LABEL = "Tsuba-zeriai";
 export const PARRIED = "Parry!";
@@ -994,6 +1003,12 @@ export const ONLINE_TITLE = "Multiplayer";
 export const ONLINE_DUEL = "Duel";
 export const ONLINE_TOURNAMENT = "Tournament";
 export const ONLINE_TUTORIAL = "Short tutorial (about two minutes)";
+export const ONLINE_PRIMER_YES = "Show me (under a minute)";
+export const ONLINE_PRIMER_NO = "Not now, go on";
+export const onlinePrimerNote = (needs: readonly string[]): string => {
+  const missing = needs.map((n) => (n === "opening" ? "openings" : "seme")).join(" or ");
+  return `You don't know ${missing} yet, and the other player will use them. Want a quick tutorial first?`;
+};
 export const ONLINE_TUTORIAL_AGAIN = "Short tutorial again";
 export const ONLINE_BACK = "Back";
 export const ONLINE_GATE = "Multiplayer is for 1st dan and up. Earn it in the story, with Sensei's waza lesson, or take the short tutorial and go straight in.";

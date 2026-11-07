@@ -32,6 +32,8 @@ export type OnlineHub = {
   identity(): Identity;
   access(): ReturnType<typeof onlineAccess>;
   finishTutorial(): void;
+  /** They've been offered the bits of the tutorial they missed, whichever way they answered. */
+  primerAsked(): void;
   recordResult(won: boolean): void;
   /** Your record: the account's if you're signed in, and this browser's if not. */
   record(): AccountRecord;
@@ -167,8 +169,11 @@ export function createOnlineHub(options: {
     identity,
     access: () => onlineAccess({ ...profile, tutorial: profile.tutorial || !!account?.current()?.tutorial }, readRun()),
     finishTutorial() {
-      update({ ...profile, tutorial: true });
+      update({ ...profile, tutorial: true, primer: true });
       void account?.finishTutorial();
+    },
+    primerAsked() {
+      update({ ...profile, primer: true });
     },
     recordResult: (won) => update(withResult(profile, won)),
     record: () => account?.record() ?? { wins: profile.wins, losses: profile.losses },

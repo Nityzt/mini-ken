@@ -88,12 +88,9 @@ export function createTournamentScene(): Scene {
         celebrated = true;
         game.run = recordCup(game.run, t.cup);
         game.audio.play("secret");
-        // The grandest win gets the same quiet line as the win screen.
-        if (t.cup === "grand") game.overlay("win");
       }
     },
     leave(game) {
-      game.overlay(null);
       celebrated = false;
     },
     update(game) {

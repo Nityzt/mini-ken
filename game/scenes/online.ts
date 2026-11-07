@@ -8,8 +8,9 @@ import { resumeScene } from "../save.ts";
 import { nextInviteStep } from "../net/invite.ts";
 import type { Search } from "../net/service.ts";
 import { createMenu } from "./choice.ts";
+import { primerNeeds } from "./teaching.ts";
 import { ONLINE_CONNECTING, ONLINE_CREATE_LOBBY, ONLINE_HISTORY, ONLINE_JOIN_LOBBY, ONLINE_PRACTICE_CUP, ONLINE_SIGN_IN, ONLINE_SIGN_IN_NOTE, ONLINE_SIGN_OUT, ONLINE_SIGNED_IN, ONLINE_UNREACHABLE } from "./online-lines.ts";
-import { ONLINE_BACK, ONLINE_CANCEL, ONLINE_DUEL, ONLINE_GATE, ONLINE_PRACTICE, ONLINE_RECORD, ONLINE_SEARCHING, ONLINE_TITLE, ONLINE_TOURNAMENT, ONLINE_TUTORIAL, ONLINE_TUTORIAL_AGAIN } from "./content.ts";
+import { ONLINE_BACK, ONLINE_CANCEL, ONLINE_DUEL, ONLINE_GATE, ONLINE_PRACTICE, ONLINE_PRIMER_NO, ONLINE_PRIMER_YES, ONLINE_RECORD, onlinePrimerNote, ONLINE_SEARCHING, ONLINE_TITLE, ONLINE_TOURNAMENT, ONLINE_TUTORIAL, ONLINE_TUTORIAL_AGAIN } from "./content.ts";
 
 const TITLE_Y = 26;
 
@@ -22,6 +23,9 @@ export function createOnlineScene(): Scene {
   let asked = false;
   /** Whether you were signed in when the menu was last drawn up. */
   let menuSignedIn: boolean | null = null;
+  /** What's being offered before going on to a real match, and where declining leads. */
+  let primerNote: string | null = null;
+  let declinePrimer: (() => void) | null = null;
 
   const back = (game: Game) => {
     const home = game.online.returnTo === "story" ? resumeScene(game.run) : "title";
@@ -31,6 +35,24 @@ export function createOnlineScene(): Scene {
   const tutorial = (game: Game) => {
     game.session = { kind: "quick" };
     game.go("training");
+  };
+  /** Before a real match, anyone who's missed something gets told, once, and can say no. */
+  const offerPrimer = (game: Game, goOn: () => void) => {
+    const needs = primerNeeds(game.run, !!game.online.profile().primer);
+    if (!needs.length) return goOn();
+    primerNote = onlinePrimerNote(needs);
+    declinePrimer = () => {
+      primerNote = null;
+      game.online.primerAsked();
+      goOn();
+    };
+    menu.open([{ id: "yes", label: ONLINE_PRIMER_YES }, { id: "no", label: ONLINE_PRIMER_NO }], (id) => {
+      if (id === "no") return declinePrimer!();
+      primerNote = null;
+      game.online.primerAsked();
+      game.session = { kind: "quick", only: needs.map((n) => (n === "opening" ? "quick-opening" : "quick-seme")) };
+      game.go("training");
+    });
   };
   const toLobby = (game: Game, intent: Game["online"]["lobbyIntent"]) => {
     game.online.lobbyIntent = intent;
@@ -53,11 +75,11 @@ export function createOnlineScene(): Scene {
   const openMenu = (game: Game) => {
     const pick = (id: string) => {
       failure = null;
-      if (id === "duel") search = game.online.service.findDuel();
+      if (id === "duel") offerPrimer(game, () => (search = game.online.service.findDuel()));
       else if (id === "tournament") game.go("online-bracket");
       else if (id === "tutorial") tutorial(game);
-      else if (id === "create") toLobby(game, { kind: "create" });
-      else if (id === "join") toLobby(game, { kind: "type-code" });
+      else if (id === "create") offerPrimer(game, () => toLobby(game, { kind: "create" }));
+      else if (id === "join") offerPrimer(game, () => toLobby(game, { kind: "type-code" }));
       else if (id === "history") game.go("online-history");
       else if (id === "sign-in") game.online.openAccountForm();
       else if (id === "sign-out") game.online.signOut();
@@ -91,13 +113,17 @@ export function createOnlineScene(): Scene {
       game.online.inviteTutorialTried = true;
       tutorial(game);
     } else {
-      game.online.invite = null;
-      toLobby(game, { kind: "join", code: invite });
+      // The invite stays until they're really on their way, so taking the tutorial first doesn't lose it.
+      offerPrimer(game, () => {
+        game.online.invite = null;
+        toLobby(game, { kind: "join", code: invite });
+      });
     }
     return true;
   };
   const notice = (game: Game): string => {
     if (failure) return failure;
+    if (primerNote) return primerNote;
     const { service, account, access } = game.online;
     if (!access().open) return ONLINE_GATE;
     if (!service.live) return ONLINE_PRACTICE;
@@ -123,6 +149,12 @@ export function createOnlineScene(): Scene {
       game.debug.online = { searching: !!search, open: game.online.access().open, failure, signedIn: !!game.online.account?.current() };
       // The form's a real one, over the game. Nothing else happens until it's closed.
       if (game.online.accountUi()) return;
+      // The offer has the screen until it's answered, and backing out of it counts as no.
+      if (primerNote) {
+        if (menu.active) menu.update(game.input);
+        else declinePrimer!();
+        return;
+      }
       if (followInvite(game)) return;
       const signedIn = !!game.online.account?.current();
       if (signedIn !== menuSignedIn) {

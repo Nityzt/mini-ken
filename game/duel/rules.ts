@@ -1,7 +1,7 @@
 import {
-  ABSORB_COST, BOW_TICKS, FREEZE_AIUCHI, FREEZE_BLOCK, FREEZE_BREAK, FREEZE_CROSS, FREEZE_HIT, FREEZE_LOCK, FREEZE_PARRY, FREEZE_SHAKEN, FREEZE_SHOVE, TEMPO_FRAMES, TEMPO_TICKS, BROKEN_TICKS, CLOSING_TICKS, CROSS_CLEAN_WINDOW, CROSS_GAP, CROSS_LOCK_WITHIN, CROSS_QUICK_WINDOW, CROSS_SETTLE, CROSS_SPEED, CROSS_WRONG_WINDOW, COUNTER_TICKS, COUNTER_WINDUP, DEFLECT_KI_LOSS, DEFLECT_TICKS, HIKI_STEP_TICKS, HIKI_TELL, HIKI_WINDUP,
+  ABSORB_COST, BOW_TICKS, FREEZE_AIUCHI, FREEZE_BLOCK, FREEZE_BREAK, FREEZE_CROSS, FREEZE_HIT, FREEZE_LOCK, FREEZE_PARRY, FREEZE_SHAKEN, FREEZE_SHOVE, TEMPO_FRAMES, TEMPO_TICKS, BROKEN_TICKS, CLOSING_TICKS, CROSS_CLEAN_WINDOW, CROSS_GAP, CROSS_LOCK_WITHIN, CROSS_QUICK_WINDOW, CROSS_SETTLE, CROSS_SPEED, CROSS_WRONG_WINDOW, BLOCK_DRAIN, COUNTER_DRIVE_TICKS, COUNTER_TICKS, COUNTER_WINDUP, DEFLECT_KI_LOSS, DEFLECT_TICKS, HIKI_STEP_TICKS, HIKI_TELL, HIKI_WINDUP,
   KI_AFTER_BREAK, KI_LOW, KI_MAX, KI_RECOVERY, LOCK_DISTANCE, LOW_KI_SLOWDOWN,
-  LOW_KI_WALK, MIN_DISTANCE, PARRY_COOLDOWN, PARRY_KI, PARRY_WINDOW, POINTS_TO_WIN, RANGE_MAX, RANGE_MIN, RECOVERY_TICKS, RETURN_KI_RATE, RETURN_SETTLE, RETURN_WALK, RING_MAX, RING_MIN,
+  LOW_KI_WALK, MATCH_TICKS, MIN_DISTANCE, OPENING_DRAIN, OPENING_MIN, OPENING_START_KI, PARRY_COOLDOWN, PARRY_KI, PARRY_LOCK_WITHIN, PARRY_WINDOW, POINTS_TO_WIN, RANGE_MAX, RANGE_MIN, RECOVERY_TICKS, REPARRY_LOCK_WITHIN, REPARRY_MISS, REPARRY_WINDOW, RETURN_KI_RATE, RETURN_SETTLE, RETURN_WALK, RING_MAX, RING_MIN,
   KIAI_COOLDOWN, KIAI_COST, KIAI_PRESS, LAUNCH_COST, LAUNCH_SPEED, LAUNCH_TICKS, SEME_DECAY, SEME_DRAIN, SEME_RANGE, SEME_START_KI, SEME_TICKS, SHAKEN_KI_LOSS, SHAKEN_TICKS, SHOVE_TICKS,
   START_DISTANCE, STOMP_WINDOW, STUMBLE_TICKS, SWING_COST, TAIATARI_BALANCE, TSUBA_BREAK, TSUBA_CARRY, TSUBA_CLOSE_SPEED, TSUBA_DRIFT, TSUBA_ENTER, TSUBA_GAP, TSUBA_PUSH_COST, TSUBA_TICKS, TSUBA_WAKARE_GAP,
   WALK, ZANSHIN_EDGE_MAX, ZANSHIN_EDGE_MIN, ZANSHIN_HIKI, ZANSHIN_PASS, ZANSHIN_SLIDE, ZANSHIN_WINDOW,
@@ -9,10 +9,22 @@ import {
 
 export type Target = "men" | "kote" | "do";
 export type AttackKind = Target | "bigMen" | "quickMen";
-export type Stance = "guard" | "block" | "windup" | "recovery" | "broken" | "seme" | "shaken" | "parry" | "deflected" | "tsuba" | "stumble";
+export type Stance = "guard" | "block" | "opening" | "windup" | "recovery" | "broken" | "seme" | "shaken" | "parry" | "deflected" | "tsuba" | "stumble";
 /** How someone stands: chudan like nearly everyone, jodan with the shinai overhead, or nito with two swords. */
 export type Kamae = "chudan" | "jodan" | "nito";
-export type FighterInput = { move: -1 | 0 | 1; block: boolean; attack: AttackKind | null; stomp?: boolean; dash?: -1 | 0 | 1; seme?: boolean; parry?: boolean };
+/** The three ways of showing an opening. Any of them can lead to any strike, so they say what's open and never what's coming. */
+export type Opening = "raise" | "wrist" | "drop";
+export type FighterInput = {
+  move: -1 | 0 | 1;
+  block: boolean;
+  attack: AttackKind | null;
+  stomp?: boolean;
+  dash?: -1 | 0 | 1;
+  seme?: boolean;
+  parry?: boolean;
+  /** Which opening is being held. Pressed together with a strike, it starts the opening and queues the strike. */
+  opening?: Opening | null;
+};
 export type Fighter = {
   kamae: Kamae;
   x: number;
@@ -36,9 +48,20 @@ export type Fighter = {
   counterTicks: number;
   /** This strike is being pulled back out of a lock. */
   hiki: boolean;
+  /** The opening being shown, which stays open until the strike from it has landed. */
+  opening: Opening | null;
+  /** How long this opening's been held. */
+  openingTicks: number;
+  /** A strike waiting for the opening's minimum. */
+  queued: AttackKind | null;
+  /** This strike is a parry's quick answer, which is the only thing a parried fighter can still parry. */
+  countering: boolean;
+  /** How much longer a parried fighter's one try at parrying the counter lasts. */
+  reparryTicks: number;
+  reparryUsed: boolean;
 };
 export type DuelEvent = {
-  type: "kiai" | "shout" | "stomp" | "launch" | "shaken" | "hit" | "flat" | "clean" | "nozanshin" | "blocked" | "whiff" | "lock" | "aiuchi" | "broken" | "bow" | "parry" | "shove" | "taiatari" | "wakare" | "stepout" | "cross";
+  type: "kiai" | "shout" | "stomp" | "launch" | "shaken" | "hit" | "flat" | "clean" | "nozanshin" | "blocked" | "whiff" | "lock" | "aiuchi" | "broken" | "bow" | "parry" | "shove" | "taiatari" | "wakare" | "stepout" | "cross" | "noopening" | "time" | "encho";
   by?: 0 | 1;
   target?: Target;
   /** The strike being announced is pulled back out of a lock. */
@@ -61,6 +84,12 @@ export type DuelOptions = {
   basics?: boolean;
   /** A lesson about the lock itself, which stays locked however hard anyone pushes, for as long as it takes. */
   longLock?: boolean;
+  /** Strikes need no opening, for scripted partners whose slow windup is the tell. */
+  direct?: [boolean, boolean];
+  /** Holding a guard costs nothing, for a fight or a lesson with a script to keep. */
+  steadyGuard?: [boolean, boolean];
+  /** A scripted fight or a lesson decides how it ends for itself. */
+  noClock?: boolean;
 };
 export type Tsuba = {
   ticks: number;
@@ -81,6 +110,14 @@ export type DuelState = {
   zanshin: { by: 0 | 1; attack: AttackKind; target: Target; defenderStance: Stance; traveled: number; needed: number; left: number; dir: -1 | 1 } | null;
   /** Hilt to hilt. */
   lock: Tsuba | null;
+  /** How much of the match's time is left, in ticks of fighting, or null if there's no limit (any more). */
+  clock: number | null;
+  /** Who scored first, which decides a match that runs out of time at one all. */
+  firstPoint: 0 | 1 | null;
+  /** Time ran out with nobody scoring, so the next point wins. */
+  encho: boolean;
+  /** It's the clock that's just sent them back to their lines, not a point. */
+  timeUp: boolean;
   /**
    * They've passed each other, so each is on the other's side. Every rule assumes the first fighter is
    * on the left, so the rules carry on untouched and only the screen and the keys are mirrored.
@@ -100,13 +137,13 @@ export type DuelState = {
   pressed: [Pressed, Pressed];
 };
 /** The once-only parts of an input, as opposed to what's being held down. */
-type Pressed = Pick<FighterInput, "attack" | "stomp" | "dash" | "parry">;
+type Pressed = Pick<FighterInput, "attack" | "stomp" | "dash" | "parry" | "opening">;
 
 /** What each attack strikes, what it leaves open while winding up, and how long that takes. */
 export const ATTACKS: Record<AttackKind, { strikes: Target; exposes: Target; windup: number }> = {
-  men: { strikes: "men", exposes: "kote", windup: 14 },
-  kote: { strikes: "kote", exposes: "men", windup: 12 },
-  do: { strikes: "do", exposes: "men", windup: 16 },
+  men: { strikes: "men", exposes: "kote", windup: 16 },
+  kote: { strikes: "kote", exposes: "men", windup: 14 },
+  do: { strikes: "do", exposes: "men", windup: 18 },
   bigMen: { strikes: "men", exposes: "do", windup: 46 },
   quickMen: { strikes: "men", exposes: "kote", windup: 16 },
 };
@@ -144,9 +181,18 @@ export const KAMAE: Record<Kamae, KamaeRules> = {
 /** What an attack leaves open while it winds up, in this stance. */
 export const exposes = (attack: AttackKind, kamae: Kamae): Target => KAMAE[kamae].tells[attack] ?? ATTACKS[attack].exposes;
 
+const OPENING_SHOWS: Record<Opening, Target> = { raise: "do", wrist: "kote", drop: "men" };
+/** What this opening leaves exposed. Jodan's men is out of reach, and nito only ever opens the do. */
+export const openingTarget = (opening: Opening, kamae: Kamae): Target => {
+  if (kamae === "nito") return "do";
+  const target = OPENING_SHOWS[opening];
+  return KAMAE[kamae].open.includes(target) ? target : KAMAE[kamae].open[0];
+};
+
 export function exposedTargets(f: Fighter): Target[] {
   if (f.stance === "block" || f.stance === "parry") return [];
-  if (f.stance === "windup" && f.attack) return [exposes(f.attack, f.kamae)];
+  if (f.stance === "opening" && f.opening) return [openingTarget(f.opening, f.kamae)];
+  if (f.stance === "windup" && f.attack) return [f.opening ? openingTarget(f.opening, f.kamae) : exposes(f.attack, f.kamae)];
   if (f.stance === "guard" || f.stance === "seme") return [...KAMAE[f.kamae].open];
   if (f.stance === "recovery") return [...KAMAE[f.kamae].openAfterMiss];
   return [...ALL_TARGETS];
@@ -167,7 +213,7 @@ export const startX = (i: 0 | 1) => (RING_MIN + RING_MAX) / 2 + (i === 0 ? -STAR
 
 function newFighter(i: 0 | 1, options: DuelOptions): Fighter {
   const kiMax = options.kiMax?.[i] ?? KI_MAX;
-  return { kamae: options.kamae?.[i] ?? "chudan", x: startX(i), ki: kiMax, kiMax, stance: "guard", stanceTicks: 0, attack: null, points: 0, stompAge: NEVER_STOMPED, launchTicks: 0, launchDir: 0, pressure: 0, kiaiTicks: 0, parryCooldown: 0, counterTicks: 0, hiki: false };
+  return { kamae: options.kamae?.[i] ?? "chudan", x: startX(i), ki: kiMax, kiMax, stance: "guard", stanceTicks: 0, attack: null, points: 0, stompAge: NEVER_STOMPED, launchTicks: 0, launchDir: 0, pressure: 0, kiaiTicks: 0, parryCooldown: 0, counterTicks: 0, hiki: false, opening: null, openingTicks: 0, queued: null, countering: false, reparryTicks: 0, reparryUsed: false };
 }
 
 export function createDuel(options: DuelOptions = {}): DuelState {
@@ -179,6 +225,10 @@ export function createDuel(options: DuelOptions = {}): DuelState {
     lastScore: null,
     zanshin: null,
     lock: null,
+    clock: options.noClock ? null : MATCH_TICKS,
+    firstPoint: null,
+    encho: false,
+    timeUp: false,
     crossed: false,
     crossTo: null,
     events: [{ type: "bow" }],
@@ -209,38 +259,79 @@ function startRecovery(f: Fighter): void {
   f.stanceTicks = isTired(f) ? Math.round(ticks * LOW_KI_SLOWDOWN) : ticks;
 }
 
-function applyInput(f: Fighter, input: FighterInput, windups: WindupOverrides | undefined, canParry: boolean): boolean {
-  let launched = false;
+/** How long this strike takes, and it's gone. A parry's quick answer is the only one that needs no opening behind it, apart from a scripted partner's. */
+function startStrike(s: DuelState, i: 0 | 1, attack: AttackKind): void {
+  const f = s.fighters[i];
+  const fromOpening = f.stance === "opening";
+  const usual = fromOpening ? ATTACKS[attack].windup : (s.options.windups?.[i]?.[attack] ?? ATTACKS[attack].windup);
+  f.countering = f.counterTicks > 0;
+  const base = f.countering ? Math.min(usual, COUNTER_WINDUP) : usual;
+  if (f.countering) {
+    f.launchTicks = COUNTER_DRIVE_TICKS;
+    f.launchDir = i === 0 ? 1 : -1;
+  }
+  f.counterTicks = 0;
+  f.stanceTicks = isTired(f) ? Math.round(base * LOW_KI_SLOWDOWN) : base;
+  f.stance = "windup";
+  f.attack = attack;
+  f.queued = null;
+  f.ki = Math.max(0, f.ki - SWING_COST);
+}
+
+function applyInput(s: DuelState, i: 0 | 1, input: FighterInput): void {
+  const f = s.fighters[i];
+  const canParry = !s.options.basics;
   if (f.parryCooldown > 0) f.parryCooldown--;
   if (f.counterTicks > 0) f.counterTicks--;
   if (f.stance === "block" && !input.block) f.stance = "guard";
-  if (f.stance === "seme" && (!input.seme || f.ki <= 0 || input.attack || input.block || input.dash)) f.stance = "guard";
+  if (f.stance === "seme" && (!input.seme || f.ki <= 0 || input.attack || input.block || input.dash || input.opening)) f.stance = "guard";
+  if (f.stance === "opening") {
+    // A strike pressed just as the key comes up was meant to go, so that's not letting go of it.
+    if (input.block || input.seme || input.parry || (!input.opening && !f.queued && !input.attack)) {
+      f.stance = "guard";
+      f.opening = null;
+      f.queued = null;
+    } else if (input.opening && input.opening !== f.opening) {
+      f.opening = input.opening;
+      f.openingTicks = 0;
+    }
+  }
+  if (canParry && input.parry && f.stance === "deflected" && !f.reparryUsed) {
+    f.reparryUsed = true;
+    f.reparryTicks = REPARRY_WINDOW;
+  }
   if (canParry && input.parry && !input.attack && f.parryCooldown === 0 && (f.stance === "guard" || f.stance === "block")) {
     f.stance = "parry";
     f.stanceTicks = PARRY_WINDOW;
     f.parryCooldown = PARRY_COOLDOWN;
     f.launchTicks = 0;
-    return false;
+    return;
   }
-  if (f.stance === "guard" && !input.block && input.dash && f.launchTicks === 0) {
+  const free = f.stance === "guard" || f.stance === "opening";
+  if (free && !input.block && input.dash && f.launchTicks === 0) {
     f.launchTicks = LAUNCH_TICKS;
     f.launchDir = input.dash;
     f.ki = Math.max(0, f.ki - LAUNCH_COST);
-    launched = true;
+    s.events.push({ type: "launch", by: i });
   }
-  if (f.stance === "guard" && input.attack) {
-    const usual = windups?.[input.attack] ?? ATTACKS[input.attack].windup;
-    const base = f.counterTicks > 0 ? Math.min(usual, COUNTER_WINDUP) : usual;
-    f.counterTicks = 0;
-    f.stanceTicks = isTired(f) ? Math.round(base * LOW_KI_SLOWDOWN) : base;
-    f.stance = "windup";
-    f.attack = input.attack;
-    f.ki = Math.max(0, f.ki - SWING_COST);
+  if (f.stance === "guard" && input.attack && (s.options.direct?.[i] || f.counterTicks > 0)) {
+    startStrike(s, i, input.attack);
+  } else if (f.stance === "guard" && input.opening && !input.block && !input.seme && f.ki >= OPENING_START_KI) {
+    f.stance = "opening";
+    f.opening = input.opening;
+    f.openingTicks = 0;
+    f.queued = input.attack;
+  } else if (f.stance === "opening") {
+    if (input.attack) f.queued = input.attack;
+    if (f.queued && (f.openingTicks >= OPENING_MIN || f.counterTicks > 0)) startStrike(s, i, f.queued);
   } else if ((f.stance === "guard" || f.stance === "block") && input.block) {
     f.stance = "block";
   } else if (f.stance === "guard" && input.seme && f.launchTicks === 0 && f.ki >= SEME_START_KI) {
     f.stance = "seme";
-  } else if (f.stance === "guard" && f.launchTicks === 0) {
+  } else if (f.stance === "guard" && input.attack) {
+    s.events.push({ type: "noopening", by: i });
+  }
+  if ((f.stance === "guard" || f.stance === "opening") && f.launchTicks === 0) {
     f.x += input.move * WALK * (isTired(f) ? LOW_KI_WALK : 1);
   }
   if (f.stance === "block") f.launchTicks = 0;
@@ -248,7 +339,6 @@ function applyInput(f: Fighter, input: FighterInput, windups: WindupOverrides | 
     f.launchTicks--;
     f.x += f.launchDir * LAUNCH_SPEED * (isTired(f) ? LOW_KI_WALK : 1);
   }
-  return launched;
 }
 
 function keepApart(s: DuelState): void {
@@ -280,16 +370,19 @@ function pushApart(s: DuelState): void {
 function absorb(s: DuelState, defender: 0 | 1): void {
   const f = s.fighters[defender];
   f.ki -= ABSORB_COST * KAMAE[f.kamae].absorbs;
-  if (f.ki <= 0) {
-    f.ki = KI_AFTER_BREAK;
-    f.stance = "broken";
-    f.stanceTicks = BROKEN_TICKS;
-    s.events.push({ type: "broken", by: defender });
-  }
+  if (f.ki <= 0) breakGuard(s, defender);
+}
+
+function breakGuard(s: DuelState, i: 0 | 1): void {
+  const f = s.fighters[i];
+  f.ki = KI_AFTER_BREAK;
+  f.stance = "broken";
+  f.stanceTicks = BROKEN_TICKS;
+  s.events.push({ type: "broken", by: i });
 }
 
 /** Whether two people can end up hilt to hilt. Anyone already stunned just gets bumped. */
-const canLock = (f: Fighter) => f.stance === "guard" || f.stance === "block" || f.stance === "seme" || f.stance === "windup" || f.stance === "parry";
+const canLock = (f: Fighter) => f.stance === "guard" || f.stance === "block" || f.stance === "opening" || f.stance === "seme" || f.stance === "windup" || f.stance === "parry";
 
 function enterLock(s: DuelState, balance = 0): void {
   s.lock = { ticks: 0, balance, pushing: [false, false], guarding: [false, false], pulling: [null, null] };
@@ -329,12 +422,14 @@ function startsCrossing(s: DuelState, landing: (0 | 1)[], dist: number): boolean
   if (landing.length === 1) {
     const i = landing[0];
     const them = s.fighters[i === 0 ? 1 : 0];
-    if (them.stance !== "windup") return false;
+    // A quick strike is someone going for it right then, even in the moment before it's left the opening.
+    const meeting = them.stance === "opening" && them.queued === "quickMen";
+    if (them.stance !== "windup" && !meeting) return false;
     const open = exposedTargets(them).includes(ATTACKS[s.fighters[i].attack!].strikes);
     const window = them.attack === "quickMen" ? CROSS_QUICK_WINDOW : open ? CROSS_CLEAN_WINDOW : CROSS_WRONG_WINDOW;
-    if (them.stanceTicks > window) return false;
+    if (!meeting && them.stanceTicks > window) return false;
   }
-  ([0, 1] as const).forEach((i) => s.events.push({ type: "kiai", by: i, target: ATTACKS[s.fighters[i].attack!].strikes }));
+  ([0, 1] as const).forEach((i) => s.events.push({ type: "kiai", by: i, target: ATTACKS[(s.fighters[i].attack ?? s.fighters[i].queued)!].strikes }));
   if (dist <= CROSS_LOCK_WITHIN) {
     s.events.push({ type: "lock" });
     for (const f of s.fighters) f.stompAge = NEVER_STOMPED;
@@ -375,7 +470,9 @@ function resolveLandings(s: DuelState, landing: (0 | 1)[]): void {
   const strikes = (i: 0 | 1) => ATTACKS[s.fighters[i].attack!].strikes;
   const opponentOf = (i: 0 | 1): 0 | 1 => (i === 0 ? 1 : 0);
   const outOfReach = (i: 0 | 1) => dist > RANGE_MAX + KAMAE[s.fighters[i].kamae].reach;
-  const lands = (i: 0 | 1) => !outOfReach(i) && dist >= RANGE_MIN && exposedTargets(s.fighters[opponentOf(i)]).includes(strikes(i));
+  /** Stuck after being parried, with their one try at this counter timed right. */
+  const parriedBack = (i: 0 | 1) => s.fighters[i].countering && s.fighters[opponentOf(i)].reparryTicks > 0;
+  const lands = (i: 0 | 1) => !outOfReach(i) && dist >= RANGE_MIN && !parriedBack(i) && exposedTargets(s.fighters[opponentOf(i)]).includes(strikes(i));
   // Ki-ken-tai-itchi: a strike only counts when the stomp lands with it.
   const clean = landing.filter((i) => lands(i) && s.fighters[i].stompAge <= STOMP_WINDOW);
   const scoring = clean.filter((i) => !s.options.harmless?.[i]);
@@ -432,19 +529,29 @@ function resolveLandings(s: DuelState, landing: (0 | 1)[]): void {
       s.fighters[i].attack = null;
       s.fighters[i].hiki = false;
       locked = true;
-    } else if (tsuba && them.stance === "parry") {
-      // Knocked aside. The one who did it has a moment to answer, and it's cost them nothing.
+    } else if (tsuba && (them.stance === "parry" || parriedBack(i))) {
       s.events.push({ type: "parry", by: defender });
       const striker = s.fighters[i];
-      striker.stance = "deflected";
-      striker.stanceTicks = DEFLECT_TICKS;
+      // Only one counter-parry: a counter knocked aside is nobody's advantage.
+      const second = striker.countering;
       striker.attack = null;
       striker.hiki = false;
-      striker.ki = Math.max(0, striker.ki - DEFLECT_KI_LOSS);
       them.stance = "guard";
       them.stanceTicks = 0;
-      them.counterTicks = COUNTER_TICKS;
-      them.ki = Math.min(them.kiMax, them.ki + PARRY_KI);
+      if (dist <= (second ? REPARRY_LOCK_WITHIN : PARRY_LOCK_WITHIN)) {
+        striker.stance = "guard";
+        locked = true;
+      } else if (second) {
+        striker.stance = "guard";
+        striker.stanceTicks = 0;
+      } else {
+        // Knocked aside. The one who did it has a moment to answer, and it's cost them nothing.
+        striker.stance = "deflected";
+        striker.stanceTicks = DEFLECT_TICKS;
+        striker.ki = Math.max(0, striker.ki - DEFLECT_KI_LOSS);
+        them.counterTicks = COUNTER_TICKS;
+        them.ki = Math.min(them.kiMax, them.ki + PARRY_KI);
+      }
     } else if (clean.includes(i)) {
       // A harmless strike that would have landed, used by training partners.
       s.events.push({ type: "clean", by: i, target: strikes(i) });
@@ -601,6 +708,41 @@ function stepLock(s: DuelState, inputs: FighterInput[]): void {
   }
 }
 
+/** Everyone's going back to their own line, whichever side they've ended up on. */
+function backToTheLines(s: DuelState): void {
+  s.phase = "point";
+  s.phaseTicks = RETURN_SETTLE;
+  s.lock = null;
+  if (s.crossed) {
+    for (const f of s.fighters) f.x = MIRROR - f.x;
+    s.crossed = false;
+  }
+  for (const f of s.fighters) {
+    f.stance = "guard";
+    f.stanceTicks = 0;
+    f.attack = null;
+    f.launchTicks = 0;
+    f.hiki = false;
+  }
+}
+
+/** Nothing in flight is lost: a strike that's going still lands, and only then is the time up. */
+function endIfOutOfTime(s: DuelState): void {
+  if (s.clock !== 0) return;
+  if (s.fighters.some((f) => f.stance === "windup") || s.lock?.pulling.some((p) => p)) return;
+  const [a, b] = s.fighters;
+  if (a.points === 0 && b.points === 0) {
+    s.encho = true;
+    s.events.push({ type: "encho" });
+  } else {
+    s.winner = a.points > b.points ? 0 : b.points > a.points ? 1 : s.firstPoint;
+    s.events.push({ type: "time" });
+  }
+  s.clock = null;
+  s.timeUp = true;
+  backToTheLines(s);
+}
+
 function stepZanshin(s: DuelState, inputs: FighterInput[]): void {
   const z = s.zanshin!;
   const striker = s.fighters[z.by];
@@ -611,25 +753,15 @@ function stepZanshin(s: DuelState, inputs: FighterInput[]): void {
   }
   if (z.traveled >= z.needed) {
     striker.points++;
+    s.firstPoint ??= z.by;
     s.lastScore = { by: z.by, attack: z.attack, defenderStance: z.defenderStance };
     s.events.push({ type: "clean", by: z.by, target: z.target });
     s.zanshin = null;
     s.phase = "point";
     s.phaseTicks = RETURN_SETTLE;
-    // Everyone's going back to their own line, whichever side they've ended up on.
-    if (s.crossed) {
-      for (const f of s.fighters) f.x = MIRROR - f.x;
-      s.crossed = false;
-    }
-    const winner = s.fighters.findIndex((f) => f.points >= (s.options.pointsToWin ?? POINTS_TO_WIN));
+    const winner = s.fighters.findIndex((f) => f.points >= (s.encho ? 1 : (s.options.pointsToWin ?? POINTS_TO_WIN)));
     if (winner >= 0) s.winner = winner as 0 | 1;
-    for (const f of s.fighters) {
-      f.stance = "guard";
-      f.stanceTicks = 0;
-      f.attack = null;
-      f.launchTicks = 0;
-      f.hiki = false;
-    }
+    backToTheLines(s);
   } else if (z.left <= 0) {
     s.events.push({ type: "nozanshin", by: z.by });
     startRecovery(striker);
@@ -661,7 +793,7 @@ function shout(s: DuelState, by: 0 | 1): void {
   f.kiaiTicks = KIAI_COOLDOWN;
   s.events.push({ type: "shout", by });
   const opponent = s.fighters[by === 0 ? 1 : 0];
-  if (distance(s) <= SEME_RANGE && opponent.stance !== "shaken") press(s, by, KIAI_PRESS);
+  if (distance(s) <= SEME_RANGE && opponent.stance !== "shaken" && opponent.stance !== "seme") press(s, by, KIAI_PRESS);
 }
 
 /**
@@ -675,17 +807,19 @@ function applySeme(s: DuelState): void {
     const inReach = distance(s) <= SEME_RANGE && opponent.stance !== "shaken";
     if (f.stance === "seme") {
       f.ki = Math.max(0, f.ki - SEME_DRAIN);
-      if (inReach) press(s, by, s.options.semeTaken?.[i === 0 ? 1 : 0] ?? 1);
+      // A standoff: both spending ki, and neither getting anywhere until someone commits or backs off.
+      if (inReach && opponent.stance !== "seme") press(s, by, s.options.semeTaken?.[i === 0 ? 1 : 0] ?? 1);
       return;
     }
-    opponent.pressure = Math.max(0, opponent.pressure - SEME_DECAY);
+    if (opponent.stance !== "seme") opponent.pressure = Math.max(0, opponent.pressure - SEME_DECAY);
     const presence = s.options.presence?.[i] ?? 0;
-    const composed = f.stance === "guard" || f.stance === "block" || f.stance === "windup" || f.stance === "tsuba";
+    const composed = f.stance === "guard" || f.stance === "block" || f.stance === "opening" || f.stance === "windup" || f.stance === "tsuba";
     if (presence > 0 && composed && inReach && opponent.stance !== "seme") press(s, by, presence);
   });
 }
 
 function resetForNextPoint(s: DuelState): void {
+  s.timeUp = false;
   s.fighters.forEach((f) => {
     f.ki = f.kiMax;
     f.stance = "guard";
@@ -741,7 +875,9 @@ export function ticksNext(s: Pick<DuelState, "phase" | "beat" | "freeze">): bool
   return s.freeze === 0 && s.beat % TEMPO_FRAMES < TEMPO_TICKS;
 }
 
-const pressedIn = ({ attack, stomp, dash, parry }: FighterInput, before: Pressed): Pressed => ({
+const pressedIn = ({ attack, stomp, dash, parry, opening }: FighterInput, before: Pressed): Pressed => ({
+  // The opening a strike was pressed with, in case both are let go before the rules next move.
+  opening: before.attack ? before.opening : opening,
   attack: before.attack ?? attack,
   stomp: before.stomp || stomp,
   dash: before.dash || dash,
@@ -758,7 +894,8 @@ export function step(state: DuelState, a: FighterInput, b: FighterInput): DuelSt
     const holding = state.freeze > 0;
     return { ...state, events: [], ticked: false, pressed, freeze: holding ? state.freeze - 1 : 0, beat: holding ? state.beat : state.beat + 1 };
   }
-  const next = ruleTick(state, { ...a, ...pressed[0] }, { ...b, ...pressed[1] });
+  const merged = (input: FighterInput, p: Pressed): FighterInput => ({ ...input, ...p, opening: input.opening ?? (p.attack ? p.opening : null) });
+  const next = ruleTick(state, merged(a, pressed[0]), merged(b, pressed[1]));
   next.ticked = true;
   next.pressed = [NOTHING_PRESSED, NOTHING_PRESSED];
   next.beat = (state.beat + 1) % TEMPO_FRAMES;
@@ -770,37 +907,58 @@ export function step(state: DuelState, a: FighterInput, b: FighterInput): DuelSt
 export function ruleTick(state: DuelState, a: FighterInput, b: FighterInput): DuelState {
   const s = structuredClone(state);
   s.events = [];
+  const was = s.phase;
+  tickRules(s, a, b);
+  if (was === "fight" && s.clock !== null) s.clock = Math.max(0, s.clock - 1);
+  // A zanshin that was going when time ran out has just finished, one way or the other.
+  if (s.phase === "fight" || (was === "zanshin" && s.phase === "point" && s.winner === null)) endIfOutOfTime(s);
+  // However someone came to stop showing an opening, it's over, along with anything waiting on it.
+  for (const f of s.fighters) {
+    if (f.stance !== "opening" && f.stance !== "windup") f.opening = null;
+    if (f.stance !== "opening") {
+      f.openingTicks = 0;
+      f.queued = null;
+    }
+    if (f.stance !== "windup") f.countering = false;
+    if (f.stance !== "deflected") {
+      f.reparryTicks = 0;
+      f.reparryUsed = false;
+    }
+  }
+  return s;
+}
 
-  if (s.phase === "over") return s;
+function tickRules(s: DuelState, a: FighterInput, b: FighterInput): void {
+  if (s.phase === "over") return;
   if (s.phase === "bow") {
     if (--s.phaseTicks <= 0) s.phase = "fight";
-    return s;
+    return;
   }
   if (s.phase === "closing") {
     if (--s.phaseTicks <= 0) s.phase = "over";
-    return s;
+    return;
   }
   if (s.phase === "point") {
     stepPoint(s);
-    return s;
+    return;
   }
   if (s.phase === "wakare") {
     stepWakare(s);
-    return s;
+    return;
   }
   if (s.phase === "crossing") {
     stepCrossing(s);
-    return s;
+    return;
   }
   if (s.phase === "turning") {
     if (--s.phaseTicks <= 0) s.phase = "fight";
-    return s;
+    return;
   }
 
   const inputs = [a, b];
   if (s.phase === "zanshin") {
     stepZanshin(s, inputs);
-    return s;
+    return;
   }
   s.fighters.forEach((f, i) => {
     f.stompAge++;
@@ -811,30 +969,42 @@ export function ruleTick(state: DuelState, a: FighterInput, b: FighterInput): Du
   });
   if (s.lock) {
     stepLock(s, inputs);
-    if (!s.lock) return s;
+    if (!s.lock) return;
     // A strong presence doesn't stop at close quarters, and a flinch breaks the lock.
     applySeme(s);
     if (s.fighters.some((f) => f.stance === "shaken")) {
       for (const f of s.fighters) if (f.stance === "tsuba") f.stance = "guard";
       s.lock = null;
     }
-    return s;
+    return;
   }
   s.fighters.forEach((f, i) => {
-    if (applyInput(f, inputs[i], s.options.windups?.[i], !s.options.basics)) s.events.push({ type: "launch", by: i as 0 | 1 });
+    applyInput(s, i as 0 | 1, inputs[i]);
     if (f.kiaiTicks > 0) f.kiaiTicks--;
     if (f.stance === "seme" && inputs[i].stomp && f.kiaiTicks === 0 && f.ki >= KIAI_COST) shout(s, i as 0 | 1);
   });
   keepApart(s);
   lockIfTouching(s);
-  if (s.lock) return s;
+  if (s.lock) return;
 
   const landing: (0 | 1)[] = [];
   s.fighters.forEach((f, i) => {
     if (f.stance === "guard") {
       f.ki = Math.min(f.kiMax, f.ki + KI_RECOVERY);
+    } else if (f.stance === "block") {
+      if (!s.options.steadyGuard?.[i]) {
+        f.ki -= BLOCK_DRAIN;
+        if (f.ki <= 0) breakGuard(s, i as 0 | 1);
+      }
+    } else if (f.stance === "opening") {
+      f.openingTicks++;
+      f.ki = Math.max(0, f.ki - OPENING_DRAIN);
+      if (f.ki <= 0) f.stance = "guard";
     } else if (f.stance === "windup") {
       if (--f.stanceTicks <= 0) landing.push(i as 0 | 1);
+    } else if (f.stance === "deflected" && f.reparryTicks > 0) {
+      f.stanceTicks--;
+      if (--f.reparryTicks === 0) f.stanceTicks += REPARRY_MISS;
     } else if (f.stance === "recovery" || f.stance === "broken" || f.stance === "shaken" || f.stance === "deflected" || f.stance === "stumble") {
       if (--f.stanceTicks <= 0) f.stance = "guard";
     } else if (f.stance === "parry") {
@@ -844,5 +1014,4 @@ export function ruleTick(state: DuelState, a: FighterInput, b: FighterInput): Du
 
   if (landing.length) resolveLandings(s, landing);
   if (s.phase === "fight") applySeme(s);
-  return s;
 }

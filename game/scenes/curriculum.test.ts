@@ -17,7 +17,10 @@ function play(lesson: Lesson, player: Player, gear: Gear, ticks = 6000): { passe
   let reps = 0;
   let misses = 0;
   for (let t = 0; t < ticks; t++) {
-    duel = step(duel, player(duel, t), lesson.partner(t, duel));
+    const input = player(duel, t);
+    // The tests below say what to strike. Everyone strikes from an opening, and which one doesn't matter here.
+    const opensFirst = input.attack && !duel.lock && duel.fighters[0].counterTicks === 0;
+    duel = step(duel, opensFirst ? { ...input, opening: "wrist" } : input, lesson.partner(t, duel));
     if (lesson.done(duel.events, duel, memo)) {
       if (++reps >= needed) return { passed: true, failed: false, reps, misses };
       duel = skipBow(createLessonDuel(lesson));
@@ -63,8 +66,8 @@ const LEVEL_BOT: Record<number, () => Player> = {
   2: () => striker("kote", tellOf("men"), { guardUp: true }),
 };
 
-test("Sensei's first round is only footwork, men, fumikomi and follow-through", () => {
-  assert.deepEqual(SENSEI_ROUNDS[0].map((l) => l.id), ["suriashi", "fumikomi", "zanshin"]);
+test("Sensei's first round is only footwork, openings, men, fumikomi and follow-through", () => {
+  assert.deepEqual(SENSEI_ROUNDS[0].map((l) => l.id), ["suriashi", "opening", "fumikomi", "zanshin"]);
 });
 
 test("there are three rounds with Sensei, and seme isn't one of them", () => {
@@ -95,7 +98,7 @@ test("the footwork drill needs sliding in, out and back in", () => {
 });
 
 test("the first round's strikes need the stomp and then the slide", () => {
-  const [, fumikomi, zanshin] = SENSEI_ROUNDS[0];
+  const [, , fumikomi, zanshin] = SENSEI_ROUNDS[0];
   assert.ok(play(fumikomi, striker("men", anytime), NO_GEAR).passed);
   assert.equal(play(fumikomi, striker("men", anytime, { stomp: false }), NO_GEAR, 300).passed, false);
   assert.ok(play(zanshin, striker("men", anytime), NO_GEAR).passed);
@@ -265,7 +268,7 @@ test("a flinch counts as a miss", () => {
 });
 
 test("sessions map to the right lessons", () => {
-  assert.deepEqual(lessonsFor({ kind: "sensei", round: 0 }).map((l) => l.id), ["suriashi", "fumikomi", "zanshin"]);
+  assert.deepEqual(lessonsFor({ kind: "sensei", round: 0 }).map((l) => l.id), ["suriashi", "opening", "fumikomi", "zanshin"]);
   assert.equal(lessonsFor({ kind: "senpai", senpai: "bo" as SenpaiId, level: 1 }).length, 1);
 });
 
@@ -367,12 +370,15 @@ test("crossing and turning: it takes a strike from the new side", () => {
 
 test("the short tutorial covers a strike, a tell, the parry, the lock and crossing, and it's short", () => {
   const quick = lessonsFor({ kind: "quick" });
-  assert.deepEqual(quick.map((l) => l.id), ["quick-strike", "quick-tell", "quick-parry", "quick-push", "quick-hiki", "quick-cross"]);
+  assert.deepEqual(quick.map((l) => l.id), ["quick-opening", "quick-strike", "quick-tell", "quick-parry", "quick-seme", "quick-push", "quick-hiki", "quick-cross"]);
   assert.ok(quick.every((l) => (l.reps ?? 1) === 1));
 });
 
 test("the short tutorial can be passed by doing what each step says", () => {
+  const shows: (typeof IDLE.opening)[] = ["raise", "wrist", "drop"];
   const players: Record<string, Player> = {
+    "quick-opening": (_duel, tick) => ({ ...IDLE, opening: shows[Math.floor(tick / 20) % 3] }),
+    "quick-seme": () => ({ ...IDLE, seme: true }),
     "quick-strike": crossThenHit,
     "quick-tell": (duel) => {
       const after = follow(duel);
