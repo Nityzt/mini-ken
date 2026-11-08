@@ -14,7 +14,7 @@ import { offerBet } from "./bet-menu.ts";
 import { askAway } from "../grading.ts";
 import { createMenu } from "./choice.ts";
 import { createShop } from "./shop.ts";
-import { findEgg } from "../money.ts";
+import { inspectDojo } from "./sensei-notes.ts";
 import { crowdDrawings, drawNamedChat, rankTagShown } from "./crowd.ts";
 import { challengerMenu, cupOffer, dojoSenseiMenu, headMenu, helperMenu, interactionLabel } from "./club-story.ts";
 import { openTopics } from "./chatter.ts";
@@ -200,11 +200,11 @@ export function createRivalDojoScene(nameOf: () => string): Scene {
           game.go("tournament");
         } : undefined);
       } else {
-        const egg = findEgg(game.run, dojoFor(game.run.node), front);
-        if (egg) {
-          game.run = egg.run;
-          game.audio.play("secret");
-          dialogue.open(egg.lines);
+        const found = inspectDojo(game.run, dojoFor(game.run.node), front);
+        if (found) {
+          game.run = found.run;
+          if (found.foundStash) game.audio.play("secret");
+          dialogue.open(found.lines);
         }
       }
     },

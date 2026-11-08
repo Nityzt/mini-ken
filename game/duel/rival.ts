@@ -80,11 +80,11 @@ const STYLES: Record<RivalStyle, Omit<RivalConfig, "tell"> & { baseTell: RivalCo
   // Sensei has no favourite and doesn't wait long, and won't let you hide. They've seen everything you've got, because they taught it.
   sensei: { baseTell: { men: 28, kote: 28, bigMen: 44 }, habits: ["men", "kote", "bigMen", "men"], habitMin: 50, habitSpread: 40, pressesGuard: true, parry: 0.35, lockSkill: 1, meets: 0.6, bait: 0.2, bites: 0.4, openingMix: 0.7 },
   // The senseis of other dojos: what their students do, only they leave you time to feel it. Nobody hides from any of them.
-  fury: { baseTell: { men: 28, kote: 28, bigMen: 42 }, habits: ["bigMen", "men", "bigMen", "kote"], habitMin: 50, habitSpread: 30, pressesGuard: true, parry: 0.3, charges: 0.2, lockSkill: 0.9, meets: 0.7, bait: 0.2, bites: 0.5, openingMix: 0.5 },
+  fury: { baseTell: { men: 28, kote: 28, bigMen: 42 }, habits: ["bigMen", "men", "bigMen", "kote", "bigMen"], habitMin: 50, habitSpread: 30, pressesGuard: true, parry: 0.3, charges: 0.2, lockSkill: 0.9, meets: 0.7, bait: 0.2, bites: 0.5, openingMix: 0.5 },
   torrent: { baseTell: { men: 28, kote: 28, bigMen: 42 }, habits: ["men", "kote", "men", "kote"], habitMin: 50, habitSpread: 20, pressesGuard: true, parry: 0.2, lockSkill: 0.9, meets: 0.65, bait: 0.2, bites: 0.4, openingMix: 0.5 },
   // What Sora does, from someone who's been doing it for forty years and doesn't get caught at close quarters.
   shadow: { baseTell: { men: 42, kote: 42, bigMen: 56 }, habits: ["kote", "kote", "men"], habitMin: 50, habitSpread: 40, parry: 0.25, lockSkill: 0.9, meets: 0.55, bait: 0.1, bites: 0.2, openingMix: 0.7 },
-  iron: { baseTell: { men: 26, kote: 26, bigMen: 40 }, habits: ["men", "bigMen"], habitMin: 70, habitSpread: 50, pressesGuard: true, parry: 0.35, lockSkill: 1, meets: 0.55, bait: 0.2, bites: 0.4, openingMix: 0.7 },
+  iron: { baseTell: { men: 26, kote: 26, bigMen: 40 }, habits: ["men", "bigMen"], habitMin: 70, habitSpread: 50, pressesGuard: true, parry: 0.5, lockSkill: 1, meets: 0.55, bait: 0.2, bites: 0.4, openingMix: 0.7 },
   // Strikes come quicker from up there, and they favour the men.
   jodan: { baseTell: { men: 26, kote: 26, bigMen: 40 }, habits: ["men", "men", "kote"], habitMin: 50, habitSpread: 40, parry: 0.1, lockSkill: 0.6, meets: 0.55, bait: 0.15, bites: 0.3, openingMix: 0.3 },
   // Two swords take longer to bring round, so their tells last longer than anyone's at this level.

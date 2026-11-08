@@ -496,6 +496,8 @@ Moods are shown as you bow, and they're always true ("Yui looks calm. Watch for 
 
 Nemu and Kan need 2nd dan, and Mizu, Hagane and Raiko need 3rd. Beating them is worth kensen, ki and bragging rights, but no rank, and there's a challenge for beating all five. They're built so that mashing never wins and it takes seme to stand up to them.
 
+**Reading the senseis (owner, issue #4).** Their existing styles have distinct habits: Kan favors big men and charges, Nemu favors kote with a long tell, Mizu keeps a quick rhythm, Hagane waits and often parries, and Raiko mixes openings with attacks. Every rival dojo has a practice note tucked into a rack or plant that hints at a way to respond. It can be reread and shares its hiding place with any existing stash without replacing the reward. These opponents still use the normal visible openings and counterplay.
+
 ## Multiplayer (owner, 2026-11-05)
 
 The minimum rank is 1st dan. Real matches are duels through a lobby code or invite link, on an account. `docs/multiplayer.md` has the details, and `docs/superpowers/specs/2026-11-06-accounts-multiplayer-design.md` has the design.
