@@ -69,6 +69,8 @@ One hall plus a storage room. Learning happens in a loop: **Sensei teaches, a se
 
 **New items (owner, 2026-11-05):** anything you earn, by any route, stops the game. The screen darkens, the item drops into the middle and bounces, and "NEW ITEM ACQUIRED" appears with its name and one line about it. The same card announces seme and cup trophies. It can't be skipped by the key you were already mashing. It waits for conversations and fades to finish, and any scene change waits for it. With reduced motion, the item simply sits still.
 
+**Reading and readiness (owner, issue #3):** each lesson stops on its own ready card, with the relevant keys and instructions before the action starts. First-match guidance states the points needed and the strike, stomp and follow-through needed to score. Lesson cards and their in-practice reminders use framed, colored dojo notices with readable text. Kyu advances with armor earned through Sensei's drills and senpai challenges, and the final kyu step requires a senpai win; receiving the gi or shinai alone grants no rank.
+
 **The insignia (owner, 2026-11-05):** the tare from Sensei is the only armor he gives you. Right after its card you can design the zekken, the cloth on its front: a symbol and two colors (my call: nine fixed symbols rather than free drawing, so it stays safe to show other players later). It's optional, X skips it, and the Esc menu can bring it back at any time. It shows on your armor everywhere.
 
 **Armor rule (owner):** partners won't really hit a target until you wear the armor for it. Until then they stop short and it costs nothing. Once you wear the armor, their hit on it counts as a miss in a challenge.

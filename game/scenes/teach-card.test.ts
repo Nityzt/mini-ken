@@ -57,6 +57,16 @@ const fakeGame = (over: Partial<Game> = {}) => {
 
 const CARD: TeachCard = { title: "A", text: "b", keys: [] };
 
+test("the first match explains its objective and what makes a point", () => {
+  const card = momentCard("firstMatch", skipBow(createDuel()));
+  assert.match(card.text, /two points/i);
+  assert.match(card.text, /stomp/i);
+  assert.match(card.text, /slide through/i);
+  assertFits(card);
+  const onePoint = skipBow(createDuel({ pointsToWin: 1 }));
+  assert.match(momentCard("firstMatch", onePoint).text, /one point/i);
+});
+
 const ALL_SESSIONS: Session[] = [
   { kind: "sensei", round: 0 },
   { kind: "sensei", round: 1 },
