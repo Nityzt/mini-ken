@@ -1,16 +1,19 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { FULL_GEAR, NO_GEAR, type Gear } from "../art/kendoka.ts";
+import type { Action, Input } from "../core/input.ts";
+import { RANGE_MAX } from "../duel/constants.ts";
 import { distance, skipBow, step, type AttackKind, type DuelState, type FighterInput } from "../duel/rules.ts";
 import {
   challengeFor, CHALLENGE_REWARD, createLessonDuel, judge, lessonsFor, partnerName, SENPAI, SENPAI_IDS, SENSEI_ROUNDS, sessionPartner, sessionPlace, type Lesson, type SenpaiId,
 } from "./curriculum.ts";
+import { createPlayerControl } from "./duel.ts";
 
 const IDLE: FighterInput = { move: 0, block: false, attack: null };
 type Player = (duel: DuelState, tick: number) => FighterInput;
 
 /** Plays one lesson the way the scene does: strikes count up, misses count up, and either can end it. */
-function play(lesson: Lesson, player: Player, gear: Gear, ticks = 6000): { passed: boolean; failed: boolean; reps: number; misses: number } {
+function play(lesson: Lesson, player: Player, gear: Gear, ticks = 6000, { literal = false } = {}): { passed: boolean; failed: boolean; reps: number; misses: number } {
   const needed = lesson.reps ?? 1;
   let duel = skipBow(createLessonDuel(lesson));
   let memo: Record<string, boolean> = {};
@@ -19,7 +22,8 @@ function play(lesson: Lesson, player: Player, gear: Gear, ticks = 6000): { passe
   for (let t = 0; t < ticks; t++) {
     const input = player(duel, t);
     // The tests below say what to strike. Everyone strikes from an opening, and which one doesn't matter here.
-    const opensFirst = input.attack && !duel.lock && duel.fighters[0].counterTicks === 0;
+    // Unless the test is pressing the keys itself, exactly as some text says, and nothing more.
+    const opensFirst = !literal && input.attack && !duel.lock && duel.fighters[0].counterTicks === 0;
     duel = step(duel, opensFirst ? { ...input, opening: "wrist" } : input, lesson.partner(t, duel));
     if (lesson.done(duel.events, duel, memo)) {
       if (++reps >= needed) return { passed: true, failed: false, reps, misses };
@@ -400,4 +404,63 @@ test("the short tutorial is run by its own person, and goes back to the multipla
   assert.equal(sessionPlace({ kind: "quick" }), "pinecone");
   assert.equal(sessionPartner({ kind: "waza" }), "sensei");
   assert.equal(partnerName({ kind: "waza" }), "Sensei");
+});
+
+/** A keyboard that's only ever got these keys down, and says which of them went down this frame. */
+function keyboard(down: Set<Action>, before: Set<Action>): Input {
+  return {
+    isDown: (action) => down.has(action),
+    wasPressed: (action) => down.has(action) && !before.has(action),
+    typing: false,
+    setTyping: () => {},
+    typed: () => [],
+    endTick: () => {},
+    clear: () => {},
+    dispose: () => {},
+  };
+}
+
+test("Yui's first challenge passes by doing exactly what she says, key for key (issue #11)", () => {
+  const lesson = challengeFor("yui", 0);
+  // Her words, in order: slide into range, hold E, then J and Space, then slide through.
+  assert.match(lesson.prompt, /^Yui: Slide into range, hold E, then J and Space, exactly\. Then slide through!$/);
+  let control = createPlayerControl();
+  let before = new Set<Action>();
+  let lastDuel: DuelState | null = null;
+  let struck = false;
+  const followTheText: Player = (duel) => {
+    // Each rep starts over from her distance, so the words start over too.
+    if (lastDuel && duel.fighters[0].x < lastDuel.fighters[0].x - 20) {
+      control = createPlayerControl();
+      struck = false;
+    }
+    lastDuel = duel;
+    const down = new Set<Action>();
+    if (duel.phase === "zanshin") down.add("right");
+    else if (distance(duel) > RANGE_MAX) down.add("right");
+    else {
+      down.add("drop");
+      // J and Space together, once, after E has gone down.
+      if (before.has("drop") && !struck) {
+        down.add("men").add("stomp");
+        struck = true;
+      }
+    }
+    const input = control(keyboard(down, before), duel.fighters[0]);
+    before = down;
+    return input;
+  };
+  const result = play(lesson, followTheText, BEFORE[0], 6000, { literal: true });
+  assert.ok(result.passed, `reps ${result.reps}, misses ${result.misses}`);
+  assert.equal(result.misses, 0);
+});
+
+test("Yui's first challenge words would fail without the opening, which is the bug in issue #11", () => {
+  const lesson = challengeFor("yui", 0);
+  const withoutOpening: Player = (duel) => {
+    if (duel.phase === "zanshin") return { ...IDLE, move: 1 };
+    if (distance(duel) > RANGE_MAX) return { ...IDLE, move: 1 };
+    return { ...IDLE, attack: "men", stomp: true };
+  };
+  assert.equal(play(lesson, withoutOpening, BEFORE[0], 1500, { literal: true }).passed, false);
 });

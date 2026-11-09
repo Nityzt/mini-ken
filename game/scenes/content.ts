@@ -290,7 +290,7 @@ export const SENPAI_LINES = {
     chat: ["Yui: Your left foot was late. Oh, you haven't started yet? Well, it will be."],
     seeSensei: "Yui: Acceptable. Sensei will want you now.",
     prompts: [
-      `Yui: Slide into range, J and Space, exactly. ${NEEDS_FOLLOW}`,
+      `Yui: Slide into range, hold E, then J and Space, exactly. ${NEEDS_FOLLOW}`,
       `Yui: Hands high? L and Space. I can hit your do now, so hold S! ${NEEDS_FOLLOW}`,
       `Yui: Hands rising? K and Space. I can hit your men and do, so hold S! ${NEEDS_FOLLOW}`,
     ],

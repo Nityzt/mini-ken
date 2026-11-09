@@ -78,7 +78,7 @@ One hall plus a storage room. Learning happens in a loop: **Sensei teaches, a se
 **The senpai (my call on names and styles):** each runs the current drill in their own style, and only one has to be passed each round. Passing needs a set number of clean strikes before too many misses. A failed challenge costs nothing and can be retried.
 - **Aki**, chatty and restless, never stands still, so the range keeps changing.
 - **Bo**, a calm wall, keeps a guard up and only opens it in moments.
-- **Yui**, an exacting perfectionist, starts each strike from far away and allows fewer misses.
+- **Yui**, an exacting perfectionist, starts each strike from far away and allows fewer misses. Her first challenge says exactly what to press, opening included: "Slide into range, hold E, then J and Space, exactly" (issue #11).
 
 ### Line drill (owner's order, 2026-11-05)
 Sensei runs it once you're fully armored. A row of senpai in bogu stand in the hall, and each offers one opening when you come into range.
