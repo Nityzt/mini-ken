@@ -115,7 +115,7 @@ export function duelMoments(duel: Pick<DuelState, "phase" | "fighters" | "option
   return moments;
 }
 
-export function momentCard(moment: DuelMoment, duel: Pick<DuelState, "fighters" | "crossed">): TeachCard {
+export function momentCard(moment: DuelMoment, duel: Pick<DuelState, "fighters" | "crossed" | "options">): TeachCard {
   const toward = duel.crossed ? "A" : "D";
   const away = duel.crossed ? "D" : "A";
   const through: TeachKey = [toward, "hold to slide through"];
@@ -129,7 +129,7 @@ export function momentCard(moment: DuelMoment, duel: Pick<DuelState, "fighters" 
     case "firstMatch":
       return {
         title: "Your first match",
-        text: "Open up, strike and stomp together, then slide through. No stomp or no slide, no point.",
+        text: `First to ${duel.options.pointsToWin === 1 ? "one point" : "two points"} wins. For a point, open up, strike and stomp together, then slide through.`,
         keys: [["A D", "move"], ["W Q E, J K L", "open, then strike"], ["Space", "stomp with the strike"], ["S", "hold to block"], through],
       };
     case "tell": {

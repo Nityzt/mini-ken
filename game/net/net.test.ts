@@ -468,6 +468,21 @@ test("results count up", () => {
   assert.equal(withResult(p, false).losses, 1);
 });
 
+test("practice wins do not unlock ranked multiplayer colors", () => {
+  const hub = createOnlineHub({ store: memoryStore(), readRun: () => null });
+  for (let i = 0; i < 10; i++) hub.recordResult(true);
+  assert.equal(hub.record().wins, 10);
+  assert.deepEqual(hub.rankRecord(), { wins: 0, losses: 0 });
+});
+
+test("an account can keep its appearance for the session when browser storage is unavailable", () => {
+  const hub = createOnlineHub({ store: null, readRun: () => null, serverUrl: "/ws", fetcher: (async () => new Response("{}", { status: 401 })) as unknown as typeof fetch, schedule() {} });
+  (hub.account as unknown as { current(): unknown }).current = () => ({ id: "one", username: "One", tutorial: true });
+  const appearance = { character: "emi", armor: "ink", insignia: { symbol: "star", cloth: "red", mark: "cream" } } as const;
+  hub.setAppearance(appearance);
+  assert.deepEqual(hub.profile().appearance, appearance);
+});
+
 test("going straight to multiplayer can't touch a story save", () => {
   const store = memoryStore();
   const story = { ...createRunState(), dan: 2, money: 77 };
@@ -480,6 +495,16 @@ test("going straight to multiplayer can't touch a story save", () => {
   assert.equal(hub.profile().wins, 1);
   assert.equal(hub.profile().tutorial, true);
   assert.equal(hub.access().open, true);
+});
+
+test("a first multiplayer appearance starts with the saved story character and insignia", () => {
+  const story = { ...createRunState(), character: "emi" as const, look: "ownColors", insignia: { symbol: "star" as const, cloth: "red" as const, mark: "cream" as const } };
+  const hub = createOnlineHub({ store: memoryStore(), readRun: () => story });
+  assert.equal(hub.appearance().character, "emi");
+  assert.equal(hub.appearance().armor, "own");
+  assert.deepEqual(hub.appearance().insignia, story.insignia);
+  const newcomer = createOnlineHub({ store: memoryStore(), readRun: () => null });
+  assert.equal(newcomer.appearance().character, "haru");
 });
 
 test("no save and no storage: multiplayer still works, and just isn't remembered", () => {

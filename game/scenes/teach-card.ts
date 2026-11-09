@@ -1,5 +1,5 @@
 import { drawText, GLYPH_HEIGHT, LINE_HEIGHT, measureText, wrapText } from "../art/font.ts";
-import { UI } from "../art/palette.ts";
+import { PALETTE, UI } from "../art/palette.ts";
 import { onGui, STAGE_H, STAGE_W, viewH, viewW } from "../core/scale.ts";
 import type { Game } from "../core/scene.ts";
 import type { Input } from "../core/input.ts";
@@ -63,6 +63,11 @@ function drawCard(ctx: CanvasRenderingContext2D, original: TeachCard, ready: boo
     ctx.fillRect(0, 0, CARD_W, height);
     ctx.fillStyle = UI.panel;
     ctx.fillRect(1, 1, CARD_W - 2, height - 2);
+    // A woven-looking border and a colored heading make the notice feel at home in the dojo.
+    ctx.fillStyle = PALETTE.g;
+    ctx.fillRect(2, 2, CARD_W - 4, TITLE_H + 9);
+    ctx.fillStyle = PALETTE.G;
+    for (let x = 4; x < CARD_W - 4; x += 8) ctx.fillRect(x, 3, 3, 1);
 
     let y = 7;
     drawText(ctx, card.title, Math.round((CARD_W - measureText(card.title) * TITLE_SCALE) / 2), y, UI.accent, TITLE_SCALE);
@@ -70,7 +75,7 @@ function drawCard(ctx: CanvasRenderingContext2D, original: TeachCard, ready: boo
     const lines = wrapText(card.text, CARD_TEXT_W);
     const named = /^[^:]{1,20}:/.exec(lines[0])?.[0] ?? "";
     lines.forEach((line, i) => {
-      const x = Math.round((CARD_W - measureText(line)) / 2);
+      const x = PADDING;
       drawText(ctx, line, x, y, UI.text);
       if (i === 0 && named) drawText(ctx, named, x, y, UI.accent);
       y += LINE_HEIGHT;

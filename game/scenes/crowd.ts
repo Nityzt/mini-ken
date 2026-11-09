@@ -110,7 +110,7 @@ export function crowdIn(rows: string[]): CrowdMember[] {
 
 const SHOUT = "Men!";
 
-/** How close you have to be, in pixels, to read someone's rank. Their presence carries further. */
+/** How close you have to be, in pixels, to read someone's name. Their presence carries further. */
 export const TAG_RANGE = 56;
 export const rankTagShown = (you: { x: number; y: number }, them: { x: number; y: number }): boolean =>
   Math.hypot(you.x - them.x, you.y - them.y) <= TAG_RANGE;

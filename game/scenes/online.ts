@@ -3,7 +3,7 @@ import { drawText, drawTextCentered, measureText, wrapText, LINE_HEIGHT } from "
 import { UI } from "../art/palette.ts";
 import { onGui, onStage, STAGE_W, stageX, viewH, viewW } from "../core/scale.ts";
 import type { Game, Scene } from "../core/scene.ts";
-import { danLabel } from "../ranks.ts";
+import { rankForRecord } from "../net/appearance.ts";
 import { resumeScene } from "../save.ts";
 import { nextInviteStep } from "../net/invite.ts";
 import type { Search } from "../net/service.ts";
@@ -64,13 +64,14 @@ export function createOnlineScene(): Scene {
     const open = access().open;
     const tutorialItem = { id: "tutorial", label: open ? ONLINE_TUTORIAL_AGAIN : ONLINE_TUTORIAL };
     const backItem = { id: "back", label: ONLINE_BACK };
-    if (!service.live) return open ? [{ id: "duel", label: ONLINE_DUEL }, { id: "tournament", label: ONLINE_TOURNAMENT }, tutorialItem, backItem] : [tutorialItem, backItem];
+    const customize = { id: "customize", label: "Customize appearance" };
+    if (!service.live) return open ? [{ id: "duel", label: ONLINE_DUEL }, { id: "tournament", label: ONLINE_TOURNAMENT }, tutorialItem, customize, backItem] : [tutorialItem, customize, backItem];
     const signedIn = !!account?.current();
     const signItem = signedIn ? { id: "sign-out", label: ONLINE_SIGN_OUT } : { id: "sign-in", label: ONLINE_SIGN_IN };
-    if (!open) return [tutorialItem, signItem, backItem];
+    if (!open) return [tutorialItem, customize, signItem, backItem];
     const cup = { id: "tournament", label: ONLINE_PRACTICE_CUP };
-    if (!signedIn) return [signItem, cup, tutorialItem, backItem];
-    return [{ id: "create", label: ONLINE_CREATE_LOBBY }, { id: "join", label: ONLINE_JOIN_LOBBY }, { id: "history", label: ONLINE_HISTORY }, cup, tutorialItem, signItem, backItem];
+    if (!signedIn) return [signItem, cup, tutorialItem, customize, backItem];
+    return [{ id: "create", label: ONLINE_CREATE_LOBBY }, { id: "join", label: ONLINE_JOIN_LOBBY }, { id: "history", label: ONLINE_HISTORY }, cup, tutorialItem, customize, signItem, backItem];
   };
   const openMenu = (game: Game) => {
     const pick = (id: string) => {
@@ -78,6 +79,7 @@ export function createOnlineScene(): Scene {
       if (id === "duel") offerPrimer(game, () => (search = game.online.service.findDuel()));
       else if (id === "tournament") game.go("online-bracket");
       else if (id === "tutorial") tutorial(game);
+      else if (id === "customize") game.go("online-appearance");
       else if (id === "create") offerPrimer(game, () => toLobby(game, { kind: "create" }));
       else if (id === "join") offerPrimer(game, () => toLobby(game, { kind: "type-code" }));
       else if (id === "history") game.go("online-history");
@@ -146,6 +148,9 @@ export function createOnlineScene(): Scene {
       openMenu(game);
     },
     update(game) {
+      if (game.online.account?.status() === "unknown") return;
+      if (game.online.account?.current() && !game.online.storySettled()) return;
+      if (!game.online.profile().appearance) { game.go("online-appearance"); return; }
       game.debug.online = { searching: !!search, open: game.online.access().open, failure, signedIn: !!game.online.account?.current() };
       // The form's a real one, over the game. Nothing else happens until it's closed.
       if (game.online.accountUi()) return;
@@ -196,7 +201,7 @@ export function createOnlineScene(): Scene {
           ctx.fillStyle = UI.panel;
           ctx.fillRect(-stageX(), TITLE_Y - 8, viewW, noticeTop + lines.length * LINE_HEIGHT - TITLE_Y + 12);
           drawText(ctx, ONLINE_TITLE, (STAGE_W - measureText(ONLINE_TITLE) * 2) / 2, TITLE_Y - 4, UI.text, 2);
-          if (open) drawTextCentered(ctx, `${me.name}  ${danLabel(me.dan)}  ${ONLINE_RECORD(record.wins, record.losses)}`, STAGE_W / 2, TITLE_Y + 15, UI.accent);
+          if (open) drawTextCentered(ctx, `${me.name}  ${rankForRecord(game.online.rankRecord())}  ${ONLINE_RECORD(record.wins, record.losses)}`, STAGE_W / 2, TITLE_Y + 15, UI.accent);
           lines.forEach((line, i) => drawTextCentered(ctx, line, STAGE_W / 2, noticeTop + i * LINE_HEIGHT, failure ? UI.bad : UI.dim));
         });
         if (search) {

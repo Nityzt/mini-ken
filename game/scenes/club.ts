@@ -12,9 +12,9 @@ import { viewH, viewW } from "../core/scale.ts";
 import type { Game, Scene } from "../core/scene.ts";
 import { playerColors } from "../characters.ts";
 import { currentObjective } from "../objective.ts";
-import { DOJOS } from "../world/dojos.ts";
+import { DOJOS, opponentById } from "../world/dojos.ts";
 import { askToGrade, showLetter, type Asker } from "../grading.ts";
-import { danLabel, hasLetter, personDan, presenceOf, type PersonId } from "../ranks.ts";
+import { hasLetter, personDan, presenceOf, type PersonId } from "../ranks.ts";
 import { answerOffer, answerWhy, cupOffer, doorResponse, interactionLabel, kirikaeshiOffer, lineOffer, senpaiMenu, senseiMenu, talkToMomo, talkToSenpai, talkToSensei } from "./club-story.ts";
 import { rest } from "../health.ts";
 import { talkToChallenger } from "./challengers.ts";
@@ -35,6 +35,7 @@ import { homeArrival, homeVisitor, learnGaze, talkToVisitor, type HomeVisitor, t
 import { CLUB_HALL_ROWS, CLUB_MAP, CLUB_SOLID, clubRows, findTiles } from "./levels.ts";
 import { createEscort, tileOf, type Escort, type Tile } from "./club-intro.ts";
 import { cameraFor, createWalker, drawClothPuffs, drawRoom, drawWalker, tileInFront, touchesTile, updateWalker, type Walker } from "./topdown.ts";
+import { doorWelcome } from "./welcome.ts";
 import { walkingGear, type RunState } from "../run-state.ts";
 
 const place = (char: string) => findTiles(CLUB_MAP, char)[0];
@@ -44,8 +45,8 @@ const screenTile = place("C");
 const storageDoor = place("Q");
 
 /** Who can be walked up to and talked to. */
-const PEOPLE = "MXABYV";
-const SPEAKERS: Record<string, string> = { "Senpai Momo": "M", Momo: "M", "Sensei Kuma": "X", Sensei: "X", Aki: "A", Bo: "B", Yui: "Y", Ren: "V", Sora: "V" };
+const PEOPLE = "MXABYVZ";
+const SPEAKERS: Record<string, string> = { "Senpai Momo": "M", Momo: "M", "Sensei Kuma": "X", Sensei: "X", Aki: "A", Bo: "B", Yui: "Y", Ren: "V", Sora: "V", Nao: "Z" };
 type Clothes = { gi: boolean; gear: Gear };
 type Dressing = { tick: number; before: Clothes; after: Clothes; held: string | null; sounded: boolean; then: () => void };
 const HELD_ICON: Partial<Record<keyof Gear, string>> = { do: "iconDo", men: "iconMen", kote: "iconKote", shinai: "iconShinai" };
@@ -287,7 +288,8 @@ export function createClubScene(nameOf: () => string): Scene {
     } : undefined);
   };
   const talkTo = (game: Game, char: string) => {
-    if (char === "M") talkMomo(game);
+    if (char === "Z") dialogue.open(["Nao: Momo is on the left side of the hall. Walk up and press E to talk to her."]);
+    else if (char === "M") talkMomo(game);
     else if (char === "X") talkSensei(game);
     else if (char === "A") talkSenpai(game, "aki");
     else if (char === "B") talkSenpai(game, "bo");
@@ -349,7 +351,13 @@ export function createClubScene(nameOf: () => string): Scene {
       } else if ((!game.run.metSenpai || game.run.trained) && !game.fromFight) {
         walker = newWalker();
         entrance = createEntrance(walker, place("D"), place("@"), { rows: CLUB_MAP, solid: "", tile: TILE });
-        afterEntrance = greet;
+        afterEntrance = () => {
+          const welcome = doorWelcome(game.run);
+          if (welcome) {
+            game.run = welcome.run;
+            dialogue.open(welcome.lines, greet, greet);
+          } else greet();
+        };
       } else greet();
       game.debug.visitor = visit?.walker.box ?? null;
       game.debug.visitorStanding = visitorHere(game) !== null;
@@ -516,7 +524,7 @@ export function createClubScene(nameOf: () => string): Scene {
       const you: Figure = figureAt(ctx, walker.box.x + walker.box.w / 2 - cam.x, walker.box.y - 12 - cam.y, walker.box.y + 8 - cam.y);
       const figures: Record<string, Figure | undefined> = {};
       const walkingFigure = (w: Walker) => figureAt(ctx, w.box.x + w.box.w / 2 - cam.x, w.box.y - 12 - cam.y, w.box.y + 8 - cam.y);
-      const person = (char: string, id: PersonId, standing: "down" | "side", gear: typeof FULL_GEAR, colors?: Record<string, string>) => {
+      const person = (char: string, id: Exclude<PersonId, "examiner">, standing: "down" | "side", gear: typeof FULL_GEAR, colors?: Record<string, string>) => {
         const spot = findTiles(rows, char)[0];
         const x = spot.col * TILE - cam.x;
         const y = spot.row * TILE - 4 - cam.y;
@@ -527,7 +535,7 @@ export function createClubScene(nameOf: () => string): Scene {
           : { facing: standing, flip: false };
         const dan = personDan(id);
         const near = rankTagShown({ x: walker.box.x + walker.box.w / 2 - cam.x, y: walker.box.y - cam.y }, { x: x + 8, y: y + 16 });
-        if (dan > 0 && near) tags.push(() => drawRankTag(ctx, danLabel(dan), x + 8, y - 8, presenceOf(dan) > 0));
+        if (near) tags.push(() => drawRankTag(ctx, opponentById(id).rival, x + 8, y - 8, presenceOf(dan) > 0));
         return {
           y: spot.row * TILE,
           draw: () => {
@@ -536,7 +544,13 @@ export function createClubScene(nameOf: () => string): Scene {
           },
         };
       };
+      const greeterSpot = findTiles(rows, "Z")[0];
+      const greeterX = greeterSpot.col * TILE - cam.x;
+      const greeterY = greeterSpot.row * TILE - 4 - cam.y;
+      figures.Z = figureAt(ctx, greeterX + 8, greeterY, greeterY + 20);
+      if (rankTagShown({ x: walker.box.x + walker.box.w / 2 - cam.x, y: walker.box.y - cam.y }, { x: greeterX + 8, y: greeterY + 16 })) tags.push(() => drawRankTag(ctx, "Nao", greeterX + 8, greeterY - 8, false));
       const people = [
+        { y: greeterSpot.row * TILE, draw: () => drawKendoka(ctx, greeterX, greeterY, "down", 0, { ...FULL_GEAR, men: false }, { colors: TEAM_COLORS.pinecone! }) },
         ...(escort
           ? [{ y: escort.momo.box.y - 8, draw: () => drawWalker(ctx, escort!.momo, cam, { ...FULL_GEAR, men: false }, MOMO_COLORS) }]
           : [person("M", "momo", "down", { ...FULL_GEAR, men: false }, MOMO_COLORS)]),
