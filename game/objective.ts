@@ -5,7 +5,7 @@ import { gradingFee } from "./money.ts";
 import { nextGoal, shortNeeds } from "./progress.ts";
 import { hasLetter, danLabel } from "./ranks.ts";
 import type { RunState } from "./run-state.ts";
-import { pendingChallenge } from "./scenes/club-story.ts";
+import { freeSenpaiNames, pendingChallenge } from "./scenes/club-story.ts";
 import { OBJECTIVES } from "./scenes/content.ts";
 import { shinaiObjective } from "./scenes/shinai-story.ts";
 import { homeVisitor } from "./scenes/visits.ts";
@@ -18,7 +18,7 @@ export function currentObjective(run: RunState): string {
   if (!run.gi) return OBJECTIVES.getGi;
   if (!run.gear.shinai) return OBJECTIVES.greetSensei;
   if (run.senseiRounds === 0) return OBJECTIVES.firstDrill;
-  if (pendingChallenge(run) !== null) return OBJECTIVES.senpaiChallenge;
+  if (pendingChallenge(run) !== null) return OBJECTIVES.senpaiChallenge(freeSenpaiNames(run));
   if (!run.trained) return OBJECTIVES.nextLesson;
   if (homeVisitor(run) === "ren") return OBJECTIVES.renPoint;
   const held = heldObjective(run);

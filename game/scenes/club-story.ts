@@ -11,8 +11,8 @@ import {
   CUP_ENTER, CUP_WON_BEFORE, cupNotice, DOOR_LOCKED, DOOR_NEEDS_SPAR, DRILL_PRAISE, GEN_DONE, GEN_DONE_AFTER, GI_REMINDER, KOTE_DONE, LINE_AGAIN, LINE_FIRST, LINE_NO_KEYS, LINE_READY, LINE_STREETS_OPEN,
   lineExtraRun, lineFailed, lineRunDone, MOMO_AFTER, MOMO_GOT_GI, MOMO_GUARD, MOMO_GUARD_SEME, MOMO_PRACTICE, MOMO_WELCOME, SENPAI_LINES, SENSEI_AGAIN, SENSEI_ALL_OPEN,
   helpPaid, HELP_FAILED, MENU_CHALLENGE, MENU_CHALLENGE_THEM, MENU_GRADE, MENU_HELP, MENU_LEAVE, MENU_LETTER, MENU_LINE, MENU_SPAR, MENU_TALK, MENU_WAZA, MENU_WAZA_AGAIN, QUICK_DONE, WAZA_AGAIN_DONE, WAZA_DONE, SENSEI_NEXT, SENSEI_NO_GI, SENSEI_ROUND_DONE, SENSEI_SHINAI, SENSEI_SHINAI_AFTER, SENSEI_WAITING, SHINAI_WAITING, SPAR_DOOR_OPEN, SPAR_KI,
-  KIRIKAESHI_AGAIN, KIRIKAESHI_FIRST, KIRIKAESHI_LOST, KIRIKAESHI_NO_FOLLOW, KIRIKAESHI_READY, KIRIKAESHI_WINDED, kirikaeshiDone, kirikaeshiGrew, MENU_KIRIKAESHI, SENSEI_NOT_YET, SENSEI_OFFER, SENSEI_WHY, WHY_REPLY } from "./content.ts";
-import { CHALLENGE_REWARD, type SenpaiId, type Session } from "./curriculum.ts";
+  eitherOf, KIRIKAESHI_AGAIN, KIRIKAESHI_FIRST, KIRIKAESHI_LOST, KIRIKAESHI_NO_FOLLOW, KIRIKAESHI_READY, KIRIKAESHI_WINDED, kirikaeshiDone, kirikaeshiGrew, MENU_KIRIKAESHI, SENSEI_NOT_YET, SENSEI_OFFER, SENSEI_WHY, WHY_REPLY } from "./content.ts";
+import { CHALLENGE_REWARD, SENPAI, SENPAI_IDS, type SenpaiId, type Session } from "./curriculum.ts";
 
 /** What each person says depends only on how far through the armor loop the player is. */
 
@@ -22,6 +22,19 @@ export function pendingChallenge(run: RunState): number | null {
   if (level < 0 || level >= CHALLENGE_REWARD.length) return null;
   return run.gear[CHALLENGE_REWARD[level]] ? null : level;
 }
+
+/**
+ * The senpai who haven't passed you for any armor yet: each piece has to come from someone different.
+ * A save with all three somehow on record still leaves everyone free, so nobody is ever stranded.
+ */
+export function freeSenpai(run: RunState): SenpaiId[] {
+  const used = Object.values(run.armorFrom);
+  const free = SENPAI_IDS.filter((id) => !used.includes(id));
+  return free.length ? free : SENPAI_IDS;
+}
+
+/** The senpai still left to pass, by name, for Sensei and the objective line. */
+export const freeSenpaiNames = (run: RunState): string => eitherOf(freeSenpai(run).map((id) => SENPAI[id].name));
 
 /** `escort` means Momo walks you to the storage room afterwards, and it's the walk that unlocks it. */
 export function talkToMomo(run: RunState): { lines: string[]; run: RunState; fight: boolean; chats?: boolean; escort?: boolean } {
@@ -110,7 +123,7 @@ export function talkToSensei(run: RunState): { lines: string[]; after?: string[]
   }
   if (run.senseiRounds === 0) return { lines: SENSEI_AGAIN, run, session: { kind: "sensei", round: 0 } };
   const pending = pendingChallenge(run);
-  if (pending !== null) return { lines: [SENSEI_WAITING[pending]], run, session: null };
+  if (pending !== null) return { lines: [SENSEI_WAITING[pending](freeSenpaiNames(run))], run, session: null };
   return { lines: [SENSEI_NEXT[run.senseiRounds]], run, session: { kind: "sensei", round: run.senseiRounds } };
 }
 
@@ -126,7 +139,12 @@ export function answerOffer(run: RunState, answer: string): { lines: string[]; a
 export function talkToSenpai(run: RunState, senpai: SenpaiId): { lines: string[]; session: Session | null; fight?: SenpaiId } {
   const lines = SENPAI_LINES[senpai];
   const level = pendingChallenge(run);
-  if (level !== null) return { lines: [lines.intro], session: { kind: "senpai", senpai, level } };
+  if (level !== null) {
+    // They've already given you a piece, so this one has to come from someone else. They're still happy to talk.
+    const given = CHALLENGE_REWARD.find((piece) => run.armorFrom[piece] === senpai);
+    if (given && !freeSenpai(run).includes(senpai)) return { lines: [lines.given(given, freeSenpaiNames(run))], session: null };
+    return { lines: [lines.intro], session: { kind: "senpai", senpai, level } };
+  }
   if (run.trained) return { lines: [lines.spar], session: null, fight: senpai };
   return { lines: run.gear.shinai && !run.trained && run.senseiRounds > 0 ? [lines.seeSensei] : lines.chat, session: null };
 }
@@ -143,17 +161,17 @@ export function finishSession(before: RunState, session: Session): { run: RunSta
     const earned = CHALLENGE_REWARD[session.level];
     const gear = { ...run.gear, [earned]: true };
     return {
-      run: { ...run, gear, trained: earned === "kote" },
+      run: { ...run, gear, trained: earned === "kote", armorFrom: { ...run.armorFrom, [earned]: session.senpai } },
       lines: [SENPAI_LINES[session.senpai].pass],
       ...(earned === "kote" ? { home: [KOTE_DONE] } : {}),
     };
   }
   const next = { ...run, senseiRounds: Math.max(run.senseiRounds, session.round + 1) };
-  if (session.round > 0) return { run: next, lines: [SENSEI_ROUND_DONE[session.round]] };
+  if (session.round > 0) return { run: next, lines: [SENSEI_ROUND_DONE[session.round](freeSenpaiNames(next))] };
   return {
     run: { ...next, gear: { ...next.gear, tare: true } },
     lines: [DRILL_PRAISE.tare!],
-    after: [SENSEI_ROUND_DONE[0]],
+    after: [SENSEI_ROUND_DONE[0](freeSenpaiNames(next))],
   };
 }
 
