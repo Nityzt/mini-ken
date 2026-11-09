@@ -1,3 +1,4 @@
+import { teachingKeys } from "../core/key-labels.ts";
 import { drawText, drawTextCentered, measureText } from "../art/font.ts";
 import { FULL_GEAR } from "../art/kendoka.ts";
 import { PALETTE, UI } from "../art/palette.ts";
@@ -203,7 +204,7 @@ export function createOnlineDuelScene(): Scene {
       const label = (who: { name: string; dan: number }) => `${who.name} ${danLabel(who.dan)}`;
       const names: [string, string] = side === 0 ? [label(self), label(opponent)] : [label(opponent), label(self)];
       const help = duel.lock ? lockHelp(faceDir(duel, side) > 0) : helpLine(view.walkTick, true);
-      drawDuelHud(ctx, view, names, help, side);
+      drawDuelHud(ctx, view, names, teachingKeys(game.input, help), side, undefined, game.input);
 
       // There's nothing else to say which one you are.
       if (duel.phase === "bow" || duel.phase === "turning") {

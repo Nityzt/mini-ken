@@ -227,3 +227,24 @@ test("a form field gets its own keys, even with the game reading text", () => {
   assert.deepEqual(input.typed(), []);
   input.dispose();
 });
+
+test("custom bindings replace the old action and follow the new key", () => {
+  const target = new EventTarget();
+  const input = createInput(target);
+  const bindings = input.bindings();
+  input.setBindings({ ...bindings, men: ["u"] });
+  target.dispatchEvent(key("keydown", "j"));
+  assert.equal(input.isDown("men"), false);
+  target.dispatchEvent(key("keydown", "u"));
+  assert.equal(input.isDown("men"), true);
+  input.dispose();
+});
+
+test('an unmapped Latin letter does not fall back to a different physical key', () => {
+  const target = new EventTarget();
+  const input = createInput(target);
+  input.setBindings({ ...input.bindings(), wrist: ['u'] });
+  target.dispatchEvent(key('keydown', 'q', { code: 'KeyA' }));
+  assert.equal(input.isDown('left'), false);
+  assert.equal(input.isDown('wrist'), false);
+});

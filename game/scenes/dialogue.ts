@@ -3,6 +3,7 @@ import { UI } from "../art/palette.ts";
 import type { GameAudio } from "../core/audio.ts";
 import { babble, type Syllable } from "../core/babble.ts";
 import type { Input } from "../core/input.ts";
+import { instructionText, keyLabel } from "../core/key-labels.ts";
 import { onGui, STAGE_H, STAGE_W, stageX, viewH, viewW } from "../core/scale.ts";
 import { placeBubble, speakerOf, type Bubble, type Figure } from "./bubble.ts";
 import { DIALOGUE_LINES, DIALOGUE_WIDTH, fillName } from "./content.ts";
@@ -46,13 +47,15 @@ function drawTail(ctx: CanvasRenderingContext2D, bubble: Bubble): void {
 /** One page of text at a time. Confirm finishes the typing, then moves on. X closes it, and backs out of whatever it led to. Anyone speaking can use your name. */
 export function createDialogue(nameOf: () => string = () => "you"): Dialogue {
   let pages: string[][] = [];
+  let sourceLines: string[] = [];
   let page = 0;
   let shown = 0;
   let tick = 0;
   let onDone: (() => void) | undefined;
   let onCancel: (() => void) | undefined;
 
-  const hintText = () => (onDone && !onCancel ? "X back out" : "X skip");
+  let keys = {} as Input;
+  const hintText = () => `${keyLabel(keys, "cancel", "x")} ${onDone && !onCancel ? "back out" : "skip"}`;
   const pageLength = () => pages[page].reduce((sum, line) => sum + line.length, 0);
   let speech: Syllable[] = [];
   let spoken = 0;
@@ -73,7 +76,8 @@ export function createDialogue(nameOf: () => string = () => "you"): Dialogue {
       return hintText();
     },
     open(lines, done, cancel) {
-      pages = lines.map((line) => wrapText(fillName(line, nameOf()), DIALOGUE_WIDTH));
+      sourceLines = lines.map((line) => fillName(line, nameOf()));
+      pages = sourceLines.map((line) => wrapText(instructionText(keys, line), DIALOGUE_WIDTH));
       page = 0;
       startPage();
       onDone = done;
@@ -81,6 +85,8 @@ export function createDialogue(nameOf: () => string = () => "you"): Dialogue {
     },
     update(input, audio) {
       if (!pages.length) return;
+      keys = input;
+      pages = sourceLines.map((line) => wrapText(instructionText(keys, line), DIALOGUE_WIDTH));
       tick++;
       if (shown < pageLength()) {
         shown++;
@@ -113,7 +119,7 @@ export function createDialogue(nameOf: () => string = () => "you"): Dialogue {
         const figure = stage?.at(speakerOf(pages[page][0]));
         if (stage && figure) {
           // Next to whoever's talking, and just big enough for what they're saying.
-          const hint = `E next   ${hintText()}`;
+          const hint = `${keyLabel(keys, "confirm", "e")} next   ${hintText()}`;
           const w = Math.max(measureText(hint), ...pages[page].map(measureText)) + PADDING * 2;
           const h = (pages[page].length + 1) * LINE_HEIGHT + PADDING + 3;
           const bubble = placeBubble({ w, h }, figure, [figure, ...stage.avoid], { w: viewW, h: viewH });
@@ -150,7 +156,7 @@ export function createDialogue(nameOf: () => string = () => "you"): Dialogue {
         ctx.fillRect(7, BOX_TOP, STAGE_W - 14, BOX_HEIGHT);
         ctx.fillStyle = UI.panel;
         ctx.fillRect(8, BOX_TOP + 1, STAGE_W - 16, BOX_HEIGHT - 2);
-        const hint = `E next   ${hintText()}`;
+        const hint = `${keyLabel(keys, "confirm", "e")} next   ${hintText()}`;
         const hintX = STAGE_W - 12 - measureText(hint);
         ctx.fillStyle = UI.panel;
         ctx.fillRect(hintX - 2, BOX_TOP - 10, measureText(hint) + 6, 10);

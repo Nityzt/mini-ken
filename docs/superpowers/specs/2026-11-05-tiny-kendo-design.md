@@ -520,3 +520,6 @@ The minimum rank is 1st dan. Real matches are duels through a lobby code or invi
 - **Betting on other people's matches.** This comes with hosted multiplayer, since it needs a server to hold the money. Today you can only bet on yourself, and stakes already settle per side.
 - **A timekeeper at matches.**
 
+
+
+**Custom controls (owner, 2026-11-08).** The pause menu opens a controls editor with the default bindings prefilled. Every action can have one or more keyboard keys, and actions can share a key. Guests keep controls in browser storage; signed-in players keep a separate account setting that follows them to another browser. Restoring defaults changes only the controls.

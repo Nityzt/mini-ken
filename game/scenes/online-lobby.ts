@@ -1,3 +1,4 @@
+import { instructionText } from "../core/key-labels.ts";
 import { drawDuelBackdrop } from "../art/backdrops.ts";
 import { drawText, drawTextCentered, measureText, wrapText, LINE_HEIGHT } from "../art/font.ts";
 import { UI } from "../art/palette.ts";
@@ -128,7 +129,7 @@ export function createOnlineLobbyScene(): Scene {
               const outcome = lobby?.outcome();
               if (outcome) line(outcomeLine(outcome, state.opponent.name), 18, UI.text);
               if (state.iWantRematch) line(LOBBY_REMATCH_ASKED, 34);
-              else line(LOBBY_REMATCH, 34, UI.accent);
+              else line(instructionText(game.input, LOBBY_REMATCH), 34, UI.accent);
               if (state.theyWantRematch && !state.iWantRematch) line(LOBBY_THEY_WANT(state.opponent.name), 44, UI.accent);
               line(LOBBY_LEAVE, 58);
               break;
@@ -136,7 +137,7 @@ export function createOnlineLobbyScene(): Scene {
             case "closed": {
               const text = closedLine(state.reason, state.detail);
               wrapText(text, STAGE_W - 24).forEach((wrapped, i) => line(wrapped, 18 + i * LINE_HEIGHT, UI.bad));
-              line(LOBBY_CONTINUE, 50);
+              line(instructionText(game.input, LOBBY_CONTINUE), 50);
               break;
             }
             default:

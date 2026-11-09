@@ -14,6 +14,7 @@ const filled = async () => {
   const emi = await signUp(world.db, "Emi", "correct horse");
   const ken = await signUp(world.db, "Ken", "battery staple");
   assert.ok("account" in emi && "account" in ken);
+  await world.db.execute("INSERT INTO account_settings (account_id, bindings) VALUES (?, ?)", [emi.account.id, "{}"]);
   await createSession(world.db, emi.account.id, 1);
   await writeStory(world.db, emi.account.id, 0, "a story", 2);
   await writeStory(world.db, ken.account.id, 0, null, 2);

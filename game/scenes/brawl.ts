@@ -230,7 +230,7 @@ export function createBrawlScene(): Scene {
       // Your first street fight shows which key answers a raised fist or stick.
       if (game.run.cleared.length === 0) {
         for (const b of state.bullies) {
-          if (b.state === "tell") drawKeyPrompt(ctx, b.x - cx, GROUND, targetPrompt(OPEN_DURING_TELL[b.kind]), b.ticks / TELL_TICKS[b.kind]);
+          if (b.state === "tell") drawKeyPrompt(ctx, b.x - cx, GROUND, targetPrompt(OPEN_DURING_TELL[b.kind], game.input), b.ticks / TELL_TICKS[b.kind]);
         }
       }
       for (const s of sparks) {

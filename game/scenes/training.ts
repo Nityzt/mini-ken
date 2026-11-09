@@ -1,3 +1,4 @@
+import { instructionText, keyLabel, teachingKeys } from "../core/key-labels.ts";
 import { playerColors, playerName } from "../characters.ts";
 import { drawTextCentered, LINE_HEIGHT, wrapText } from "../art/font.ts";
 import { FULL_GEAR } from "../art/kendoka.ts";
@@ -166,19 +167,19 @@ export function createTrainingScene(nameOf: () => string): Scene {
       });
       const current = lesson();
       const { duel } = view;
-      drawDuelHud(ctx, view, [playerName(game.run), partnerName(session)], keysLine(current.keys, view.walkTick));
+      drawDuelHud(ctx, view, [playerName(game.run), partnerName(session)], keysLine(current.keys.map(([key, does]) => [teachingKeys(game.input, key), does]), view.walkTick), 0, undefined, game.input);
       // When to tap: nobody learns a parry's timing from a sentence.
       const them = duel.fighters[1];
       if (current.cue && duel.phase === "fight" && them.stance === "windup") {
         const windup = duel.options.windups?.[1]?.[them.attack!] ?? 1;
-        onStage(ctx, () => drawKeyPrompt(ctx, screenX(duel, them.x), GROUND, parryShine(duel, 1) > 0 ? PARRY_NOW : null, them.stanceTicks / windup));
+        onStage(ctx, () => drawKeyPrompt(ctx, screenX(duel, them.x), GROUND, parryShine(duel, 1) > 0 ? PARRY_NOW.replace("S", keyLabel(game.input, "down", "s")) : null, them.stanceTicks / windup));
       }
       // Whoever's teaching says it from where they're standing.
       const figureOf = (i: 0 | 1) => figureAt(ctx, stageX() + screenX(duel, duel.fighters[i].x), stageY() + GROUND - FIGHTER_TOP, stageY() + GROUND);
       const you = figureOf(0);
       const partner = figureOf(1);
       onGui(ctx, () => {
-        const text = message ?? current.prompt;
+        const text = instructionText(game.input, message ?? current.prompt);
         const lines = wrapText(text, Math.min(viewW - 16, WIDE_TEXT));
         if (current.misses !== undefined) {
           lines.push(`Clean ${reps}/${current.reps ?? 1}   Misses ${misses}/${current.misses}`);

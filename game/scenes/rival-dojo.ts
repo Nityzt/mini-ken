@@ -1,3 +1,4 @@
+import { keyLabel } from "../core/key-labels.ts";
 import { drawKendoka, FULL_GEAR, type Gear, type HeldShinai } from "../art/kendoka.ts";
 import { TEAM_COLORS } from "../art/looks.ts";
 import { PALETTE } from "../art/palette.ts";
@@ -300,7 +301,7 @@ export function createRivalDojoScene(nameOf: () => string): Scene {
       if (!dialogue.active && !menu.active) {
         drawObjective(ctx, currentObjective(game.run));
         const label = interactionLabel(personAhead(walker, room, dojo.solid, PEOPLE)?.char ?? tileInFront(walker, room), "rival");
-        if (label) drawInteractPrompt(ctx, label, walker.box.x + walker.box.w / 2 - cam.x, walker.box.y - cam.y);
+        if (label) drawInteractPrompt(ctx, label, walker.box.x + walker.box.w / 2 - cam.x, walker.box.y - cam.y, keyLabel(game.input, "confirm", "e"));
       }
       // Everybody here goes by a name their own line can be matched to.
       const speakers: Record<string, string> = { [dojo.rival]: "R", [`Sensei ${dojo.sensei.name}`]: "X", Sensei: "X", [MEMBERS[dojo.helperIds.G].rival]: "G", [MEMBERS[dojo.helperIds.E].rival]: "E" };

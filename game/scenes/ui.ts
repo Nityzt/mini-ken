@@ -144,17 +144,17 @@ const PROMPT_UNDER_FEET = 10;
 const BARS_BOTTOM = STRIP_TOP + STRIP_HEIGHT + 2;
 
 /** "E Talk" floating over your head when there's something in front of you. */
-export function drawInteractPrompt(ctx: CanvasRenderingContext2D, label: string, centerX: number, feetY: number): void {
+export function drawInteractPrompt(ctx: CanvasRenderingContext2D, label: string, centerX: number, feetY: number, key = "E"): void {
   const overHead = guiPoint(ctx, centerX, feetY + PROMPT_OVER_HEAD);
   const underFeet = guiPoint(ctx, centerX, feetY + PROMPT_UNDER_FEET);
   onGui(ctx, () => {
-    const width = measureText("E") + 5 + 3 + measureText(label) + 4;
+    const width = measureText(key) + 5 + 3 + measureText(label) + 4;
     const x = Math.round(Math.max(2, Math.min(viewW - width - 2, overHead.x - width / 2)));
     const above = overHead.y - PROMPT_HEIGHT;
     const y = Math.round(above < BARS_BOTTOM ? Math.min(viewH - PROMPT_HEIGHT, underFeet.y) : above);
     ctx.fillStyle = UI.panel;
     ctx.fillRect(x - 1, y - 1, width + 2, PROMPT_HEIGHT);
-    const cap = drawKeycap(ctx, "E", x + 1, y);
+    const cap = drawKeycap(ctx, key, x + 1, y);
     drawText(ctx, label, x + 1 + cap + 3, y + 1, UI.text);
   });
 }

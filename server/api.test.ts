@@ -2,6 +2,7 @@ import test, { type TestContext } from "node:test";
 import assert from "node:assert/strict";
 import { createServer, type IncomingMessage } from "node:http";
 import type { AddressInfo } from "node:net";
+import { DEFAULT_BINDINGS } from "../game/core/input.ts";
 import { createRunState } from "../game/run-state.ts";
 import { clientAddress, createApi, originAllowed, sessionToken } from "./api.ts";
 import { recordMatch } from "./matches.ts";
@@ -292,4 +293,20 @@ test("behind the host, the address comes from what Cloudflare sets, because a vi
 test("not behind a proxy, every such header is ignored, so nobody can fake one", () => {
   assert.deepEqual(clientAddress({ "cf-connecting-ip": "1.1.1.1", "x-forwarded-for": "6.6.6.6" }, "10.0.0.1", false), { address: "10.0.0.1", source: "socket" });
   assert.deepEqual(clientAddress({}, undefined, false), { address: "unknown", source: "socket" });
+});
+
+test('keybindings are authenticated, isolated by account, and reject malformed or misdirected writes', async (t) => {
+  const { send } = await apiServer(t);
+  const first = await send('/api/signup', { json: ME });
+  const second = await send('/api/signup', { json: { username: 'Ken', password: 'battery staple' } });
+  const a = cookieOf(first), b = cookieOf(second);
+  const accountId = (await first.json()).account.id;
+  assert.equal((await send('/api/keybindings')).status, 401);
+  assert.equal((await (await send('/api/keybindings', { cookie: a })).json()).bindings, null);
+  const bindings = { ...DEFAULT_BINDINGS, men: ['u'] };
+  assert.equal((await send('/api/keybindings', { method: 'PUT', cookie: a, json: { accountId, bindings } })).status, 200);
+  assert.deepEqual((await (await send('/api/keybindings', { cookie: a })).json()).bindings, bindings);
+  assert.equal((await (await send('/api/keybindings', { cookie: b })).json()).bindings, null);
+  assert.equal((await send('/api/keybindings', { method: 'PUT', cookie: b, json: { accountId, bindings } })).status, 409);
+  assert.equal((await send('/api/keybindings', { method: 'PUT', cookie: a, json: { accountId, bindings: { ...bindings, men: [] } } })).status, 400);
 });

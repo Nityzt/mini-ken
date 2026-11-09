@@ -1,3 +1,4 @@
+import { instructionText, keyLabel } from "../core/key-labels.ts";
 import { drawDuelBackdrop } from "../art/backdrops.ts";
 import { drawFighter } from "../art/duel-sprites.ts";
 import { drawText, drawTextCentered, measureText } from "../art/font.ts";
@@ -123,14 +124,18 @@ export function createTitleScene(): Scene {
             drawTextCentered(ctx, option, STAGE_W / 2, y, selected ? UI.accent : UI.text);
             if (selected) drawText(ctx, ">", (STAGE_W - measureText(option)) / 2 - 10, y, UI.accent);
           });
-          HELP_LINES.forEach((line, i) => drawTextCentered(ctx, line, STAGE_W / 2, BOX_TOP + 9 + options.length * 10 + i * 9, UI.dim));
+          const helpLines = [
+            `${keyLabel(game.input, "left", "a")} ${keyLabel(game.input, "right", "d")} move   ${keyLabel(game.input, "confirm", "e")} talks`,
+            `${keyLabel(game.input, "pause", "escape")} menu   ${keyLabel(game.input, "fullscreen", "f")} fullscreen`,
+          ];
+          helpLines.forEach((line, i) => drawTextCentered(ctx, line, STAGE_W / 2, BOX_TOP + 9 + options.length * 10 + i * 9, UI.dim));
         });
 
         ctx.fillStyle = UI.panel;
         ctx.fillRect(0, viewH - 11, viewW, 11);
         const name = game.online.account?.current()?.username;
-        const footer = confirming ? TITLE_ERASE : state === "checking" ? TITLE_CONNECTING : state === "guest" ? TITLE_GUEST_NOTE : name ? TITLE_SIGNED_IN(name) : "E or Space to choose";
-        drawTextCentered(ctx, footer, viewW / 2, viewH - 10, confirming ? UI.accent : UI.text);
+        const footer = confirming ? TITLE_ERASE : state === "checking" ? TITLE_CONNECTING : state === "guest" ? TITLE_GUEST_NOTE : name ? TITLE_SIGNED_IN(name) : `${keyLabel(game.input, "confirm", "e")} to choose`;
+        drawTextCentered(ctx, instructionText(game.input, footer.replace("E or Space", keyLabel(game.input, "confirm", "e"))), viewW / 2, viewH - 10, confirming ? UI.accent : UI.text);
       });
     },
   };

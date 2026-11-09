@@ -114,11 +114,11 @@ export function createLineScene(): Scene {
   };
 
   /** What the active senpai is offering, how long is left, and on the early runs, which key answers it. */
-  const drawPrompt = (ctx: CanvasRenderingContext2D, cx: number) => {
+  const drawPrompt = (ctx: CanvasRenderingContext2D, cx: number, game: Game) => {
     if (state.active === null) return;
     const senpai = state.brawl.bullies[state.active];
     if (!senpai.opening) return;
-    drawKeyPrompt(ctx, senpai.x - cx, GROUND, state.spec.labels ? targetPrompt(senpai.opening) : null, state.windowLeft / state.spec.window);
+    drawKeyPrompt(ctx, senpai.x - cx, GROUND, state.spec.labels ? targetPrompt(senpai.opening, game.input) : null, state.windowLeft / state.spec.window);
   };
 
   return {
@@ -200,7 +200,7 @@ export function createLineScene(): Scene {
       const legs = legsFor(tick, moving);
       drawFighter(ctx, p.x - cx, GROUND, pose, "player", legs === "step" ? 1 : legs === "close" ? 2 : 0, game.run.gear, { flip: p.facing < 0, colors: playerColors(game.run) });
 
-      drawPrompt(ctx, cx);
+      drawPrompt(ctx, cx, game);
       for (const s of sparks) {
         const r = 10 - s.ticks;
         ctx.fillStyle = PALETTE.W;

@@ -1,3 +1,5 @@
+import type { Input } from "../core/input.ts";
+import { keyLabel } from "../core/key-labels.ts";
 import type { OpponentId } from "../world/dojos.ts";
 import { COUNTER_TICKS } from "./constants.ts";
 import { exposedTargets, exposes, type AttackKind, type DuelState, type Kamae, type Target } from "./rules.ts";
@@ -11,7 +13,7 @@ export const kiBarFill = (ki: number, kiMax: number): number => Math.round((kiBa
 
 const KEY_FOR: Record<Target, string> = { men: "J", kote: "K", do: "L" };
 /** The key that hits this target, and its name. */
-export const targetPrompt = (target: Target): string => `${KEY_FOR[target]} ${target}`;
+export const targetPrompt = (target: Target, input?: Input): string => `${input ? keyLabel(input, target) : KEY_FOR[target]} ${target}`;
 /** What to press against an attack that's winding up: whatever it leaves open. */
 export const counterPrompt = (attack: AttackKind, kamae: Kamae = "chudan"): string => targetPrompt(exposes(attack, kamae));
 
