@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { answerOffer, cupOffer, doorResponse, finishSession, interactionLabel, kirikaeshiOutcome, lineOutcome, lineOffer, pendingChallenge, senseiMenu, sparOutcome, talkToMomo, talkToSenpai, talkToSensei } from "./club-story.ts";
+import { answerOffer, cupOffer, doorResponse, finishSession, freeSenpai, freeSenpaiNames, interactionLabel, kirikaeshiOutcome, lineOutcome, lineOffer, pendingChallenge, senseiMenu, sparOutcome, talkToMomo, talkToSenpai, talkToSensei } from "./club-story.ts";
 import { recordLinePass, recordWin } from "../run-state.ts";
 import { isOpen, LINE_PASSES_TO_UNLOCK } from "../progress.ts";
 import { DIALOGUE_LINES, DIALOGUE_WIDTH, DRILL_PRAISE, GEAR_LINES, GEN_DONE, GEN_DONE_AFTER, KOTE_DONE, SENPAI_LINES, SENSEI_ROUND_DONE } from "./content.ts";
@@ -170,7 +170,7 @@ test("earning the kote tells you what the door needs next, once you've seen the 
 test("the tare is handed over before Sensei sends you on to a senpai", () => {
   const reply = finishSession(shinai(), { kind: "sensei", round: 0 });
   assert.deepEqual(reply.lines, [DRILL_PRAISE.tare]);
-  assert.deepEqual(reply.after, [SENSEI_ROUND_DONE[0]]);
+  assert.deepEqual(reply.after, [SENSEI_ROUND_DONE[0]("Aki, Bo or Yui")]);
 });
 
 test("the do and men have nothing to say after they're handed over", () => {
@@ -338,7 +338,7 @@ test("the first three kirikaeshi passes grow your ki, and later ones only count 
   let run = createRunState();
   const kiAt: number[] = [];
   for (let i = 0; i < 4; i++) {
-    run = kirikaeshiOutcome(run, { outcome: "passed", misses: 0 }).run;
+    run = kirikaeshiOutcome(run, { outcome: "passed", misses: 0, onBeat: i * 6 }).run;
     kiAt.push(run.bonusKi);
   }
   assert.deepEqual(kiAt, [5, 10, 15, 15]);
@@ -348,8 +348,8 @@ test("the first three kirikaeshi passes grow your ki, and later ones only count 
 
 test("a failed kirikaeshi costs nothing and earns nothing", () => {
   const run = createRunState();
-  for (const outcome of ["winded", "lost", "noFollow"] as const) {
-    const reply = kirikaeshiOutcome(run, { outcome, misses: 2 });
+  for (const outcome of ["winded", "lost"] as const) {
+    const reply = kirikaeshiOutcome(run, { outcome, misses: 2, onBeat: 18 });
     assert.equal(reply.run, run);
     assert.equal(reply.lines.length, 1);
   }
@@ -357,6 +357,97 @@ test("a failed kirikaeshi costs nothing and earns nothing", () => {
 
 test("each way of failing kirikaeshi gets its own advice", () => {
   const run = createRunState();
-  const lines = (["winded", "lost", "noFollow"] as const).map((outcome) => kirikaeshiOutcome(run, { outcome, misses: 2 }).lines[0]);
-  assert.equal(new Set(lines).size, 3);
+  const lines = (["winded", "lost"] as const).map((outcome) => kirikaeshiOutcome(run, { outcome, misses: 2, onBeat: 0 }).lines[0]);
+  assert.equal(new Set(lines).size, 2);
+});
+
+test("a slow kirikaeshi pass earns exactly what one on Bo's beat does, and Sensei says how the rhythm went", () => {
+  const run = createRunState();
+  const slow = kirikaeshiOutcome(run, { outcome: "passed", misses: 1, onBeat: 0 });
+  const quick = kirikaeshiOutcome(run, { outcome: "passed", misses: 1, onBeat: 18 });
+  assert.deepEqual(slow.run, quick.run);
+  assert.doesNotMatch(slow.lines[0], /beat/);
+  assert.match(kirikaeshiOutcome(run, { outcome: "passed", misses: 1, onBeat: 7 }).lines[0], /7 of 18 on Bo's beat/);
+  assert.match(quick.lines[0], /Every men on Bo's beat/);
+});
+
+/** Sensei's taught the round for this piece, and nobody has passed you for it yet. */
+const waitingFor = (level: number, armorFrom: RunState["armorFrom"]): RunState => {
+  const pieces = ["do", "men", "kote"] as const;
+  const gear = { ...shinai().gear, tare: true };
+  for (const piece of pieces.slice(0, level)) gear[piece] = true;
+  return { ...shinai(), senseiRounds: level + 1, gear, armorFrom };
+};
+
+test("each piece of armor is recorded against the senpai who gave it", () => {
+  let run = finishSession(waitingFor(0, {}), { kind: "senpai", senpai: "bo", level: 0 }).run;
+  assert.deepEqual(run.armorFrom, { do: "bo" });
+  run = finishSession({ ...run, senseiRounds: 2 }, { kind: "senpai", senpai: "yui", level: 1 }).run;
+  assert.deepEqual(run.armorFrom, { do: "bo", men: "yui" });
+});
+
+test("a senpai who's already given you a piece won't test you for another, but still talks", () => {
+  const run = waitingFor(1, { do: "aki" });
+  const aki = talkToSenpai(run, "aki");
+  assert.equal(aki.session, null);
+  assert.equal(aki.fight, undefined);
+  assert.deepEqual(aki.lines, [SENPAI_LINES.aki.given("do", "Bo or Yui")]);
+  assert.deepEqual(talkToSenpai(run, "bo").session, { kind: "senpai", senpai: "bo", level: 1 });
+  assert.deepEqual(talkToSenpai(run, "yui").session, { kind: "senpai", senpai: "yui", level: 1 });
+});
+
+test("the last piece can only come from the senpai nobody's used yet", () => {
+  const run = waitingFor(2, { do: "yui", men: "aki" });
+  assert.equal(talkToSenpai(run, "yui").session, null);
+  assert.equal(talkToSenpai(run, "aki").session, null);
+  assert.match(talkToSenpai(run, "aki").lines[0], /Bo/);
+  assert.deepEqual(talkToSenpai(run, "bo").session, { kind: "senpai", senpai: "bo", level: 2 });
+});
+
+test("all three senpai in any order earn the full armor", () => {
+  for (const order of [["aki", "bo", "yui"], ["yui", "aki", "bo"], ["bo", "yui", "aki"]] as const) {
+    let run = afterRound(shinai(), 0);
+    order.forEach((senpai, level) => {
+      for (const used of order.slice(0, level)) assert.equal(talkToSenpai(run, used).session, null, `${used} again at level ${level}`);
+      const session = talkToSenpai(run, senpai).session;
+      assert.deepEqual(session, { kind: "senpai", senpai, level });
+      run = finishSession(run, session!).run;
+      if (level < 2) run = afterRound(run, level + 1);
+    });
+    assert.equal(run.trained, true);
+    assert.deepEqual(new Set(Object.values(run.armorFrom)), new Set(order));
+  }
+});
+
+test("Sensei and the objective name only the senpai still left to pass", () => {
+  assert.match(talkToSensei(waitingFor(0, {})).lines[0], /Aki, Bo or Yui/);
+  const second = talkToSensei(waitingFor(1, { do: "bo" })).lines[0];
+  assert.match(second, /Aki or Yui/);
+  assert.doesNotMatch(second, /Bo/);
+  assert.match(talkToSensei(waitingFor(2, { do: "bo", men: "aki" })).lines[0], /: Yui\./);
+  // Finishing Sensei's round names who's left for the piece it leads to.
+  const done = finishSession({ ...waitingFor(1, { do: "aki" }), gear: { ...waitingFor(1, {}).gear }, senseiRounds: 1 }, { kind: "sensei", round: 1 });
+  assert.match(done.lines[0], /Bo or Yui/);
+  assert.equal(freeSenpaiNames(waitingFor(1, { do: "aki" })), "Bo or Yui");
+});
+
+test("sparring after the armor is open with every senpai, whoever gave you what", () => {
+  const run: RunState = { ...armored(), armorFrom: { do: "aki", men: "bo", kote: "yui" } };
+  for (const id of ["aki", "bo", "yui"] as const) assert.equal(talkToSenpai(run, id).fight, id);
+});
+
+test("older saves with nobody on record leave every senpai free", () => {
+  // Saves from before this rule have their armor but no record of who gave it.
+  const run = waitingFor(2, {});
+  assert.deepEqual(freeSenpai(run), ["aki", "bo", "yui"]);
+  for (const id of ["aki", "bo", "yui"] as const) assert.deepEqual(talkToSenpai(run, id).session, { kind: "senpai", senpai: id, level: 2 });
+});
+
+test("a record that reuses a senpai, or names all three, never strands the player", () => {
+  // One senpai on record twice: the other two are still free for the last piece.
+  assert.deepEqual(freeSenpai(waitingFor(2, { do: "aki", men: "aki" })), ["bo", "yui"]);
+  // Somehow all three on record with a piece still to earn: anyone will do, rather than nobody.
+  const stuck = { ...waitingFor(2, {}), armorFrom: { do: "aki", men: "bo", kote: "yui" } } as RunState;
+  assert.deepEqual(freeSenpai(stuck), ["aki", "bo", "yui"]);
+  assert.deepEqual(talkToSenpai(stuck, "aki").session, { kind: "senpai", senpai: "aki", level: 2 });
 });
