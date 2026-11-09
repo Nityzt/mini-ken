@@ -12,6 +12,7 @@ import { atLeastDan, CUP_DAN, levelKi } from "./ranks.ts";
 import { shopKi } from "./shop.ts";
 import { opponentFor, opponentIdFor, SPAR_PARTNERS, type OpponentId } from "./world/dojos.ts";
 import type { NodeId } from "./world/map.ts";
+import type { SenpaiId } from "./scenes/curriculum.ts";
 import type { CupId } from "./world/tournament.ts";
 
 const GANG_REWARD = 10;
@@ -70,6 +71,8 @@ export type RunState = {
   gear: Gear;
   /** Rounds finished with Sensei. Each one sends you to a senpai for the next armor piece. */
   senseiRounds: number;
+  /** Which senpai passed you for each piece of armor, because each piece has to come from someone different. Saves from before this was kept have none recorded. */
+  armorFrom: Partial<Record<ArmorPiece, SenpaiId>>;
   /** Fully armored. The front door also needs a win over a senpai. */
   trained: boolean;
   /** How many times the line drill has been passed. */
@@ -139,6 +142,9 @@ export type RunState = {
   talked: Record<string, number>;
 };
 
+/** The armor the senpai give you. Sensei gives the tare. */
+export type ArmorPiece = "do" | "men" | "kote";
+
 export const createRunState = (): RunState => ({
   dungeon: createDungeonTrial(),
   character: DEFAULT_CHARACTER,
@@ -148,6 +154,7 @@ export const createRunState = (): RunState => ({
   gi: false,
   gear: { ...NO_GEAR },
   senseiRounds: 0,
+  armorFrom: {},
   trained: false,
   linePasses: 0,
   kirikaeshiPasses: 0,

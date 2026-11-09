@@ -200,15 +200,18 @@ export const LINE_WRONG = "Wrong opening!";
 export const LINE_SLOW = "Too slow!";
 export const LINE_PASSED_BY = "Walked past!";
 export const LINE_HELP = "J men  K kote  L do  Space stomp";
+/** "Aki, Bo or Yui", "Bo or Yui", or just "Yui". */
+export const eitherOf = (names: string[]): string => (names.length > 1 ? `${names.slice(0, -1).join(", ")} or ${names.at(-1)}` : names[0] ?? "");
+/** Each piece of armor comes from a different senpai, so Sensei names whoever's still left to pass. */
 export const SENSEI_ROUND_DONE = [
-  "Sensei Kuma: Now practise with a senpai: Aki, Bo or Yui. Pass one of their challenges and you'll earn a do.",
-  "Sensei Kuma: Take that to a senpai. Pass one of their challenges and you'll earn a men.",
-  "Sensei Kuma: Back to a senpai one last time. Pass one of their challenges and the kote is yours.",
+  (left: string) => `Sensei Kuma: Now practise with a senpai: ${left}. Pass one of their challenges and you'll earn a do.`,
+  (left: string) => `Sensei Kuma: Take that to a senpai you haven't passed yet: ${left}. Pass their challenge and you'll earn a men.`,
+  (left: string) => `Sensei Kuma: One last senpai: ${left}. Pass their challenge and the kote is yours.`,
 ];
 export const SENSEI_WAITING = [
-  "Sensei Kuma: Go on, pick a senpai: Aki, Bo or Yui. Pass a challenge and you'll earn your do.",
-  "Sensei Kuma: Go on, pick a senpai. Pass a challenge and you'll earn your men.",
-  "Sensei Kuma: Go on, pick a senpai. Pass a challenge and you'll earn your kote.",
+  (left: string) => `Sensei Kuma: Go on, pick a senpai: ${left}. Pass a challenge and you'll earn your do.`,
+  (left: string) => `Sensei Kuma: Go on, a senpai you haven't passed yet: ${left}. Pass a challenge and you'll earn your men.`,
+  (left: string) => `Sensei Kuma: Go on, one last senpai: ${left}. Pass a challenge and you'll earn your kote.`,
 ];
 export const SENSEI_NEXT = [
   "",
@@ -269,6 +272,7 @@ export const SENPAI_LINES = {
     sparAgain: "Aki: Any time! I'll be here. Or there. Somewhere.",
     pass: "Aki: Whew, you kept up! Here, this one's yours.",
     fail: "Aki: Too many misses! Come back and try again, any time. I'll be here. Or there. Somewhere.",
+    given: (piece: string, others: string) => `Aki: I already gave you your ${piece}! Go and find ${others} for this one. Go, go!`,
   },
   bo: {
     intro: "Bo: Mm. I'm a wall. Walls open up eventually. You just have to notice.",
@@ -284,6 +288,7 @@ export const SENPAI_LINES = {
     sparAgain: "Bo: Mm. Rest first.",
     pass: "Bo: Mm. You noticed. This is yours.",
     fail: "Bo: Mm. You hit the wall a lot. Rest, then come back.",
+    given: (piece: string, others: string) => `Bo: Mm. You passed me for the ${piece}. ${others} next.`,
   },
   yui: {
     intro: "Yui: I count every stomp. Every strike starts from far away, and I only allow one mistake.",
@@ -299,6 +304,7 @@ export const SENPAI_LINES = {
     sparAgain: "Yui: We'll begin again when you're ready.",
     pass: "Yui: Clean. I have nothing to correct. This is yours.",
     fail: "Yui: That's two mistakes. We'll begin again when you're ready.",
+    given: (piece: string, others: string) => `Yui: I've tested you once already, for the ${piece}. ${others} must test you this time.`,
   },
 };
 export const LESSON_GOOD = "Good!";
@@ -328,7 +334,7 @@ export const OBJECTIVES = {
   shinaiBamboo: "Take the bamboo to Fumi at the Bogu Shop",
   shinaiReturn: "Return Sensei's old shinai",
   firstDrill: "Finish Sensei's first drill",
-  senpaiChallenge: "Pass any one senpai's challenge",
+  senpaiChallenge: (left: string) => `Pass a senpai's challenge: ${left}`,
   nextLesson: "See Sensei for your next lesson",
   renPoint: "Ren wants one point from you",
   grading: (rank: string) => `Ask at home to grade for ${rank}`,
@@ -647,13 +653,13 @@ export function allContentLines(): string[] {
     LINE_SLOW,
     LINE_PASSED_BY,
     LINE_HELP,
-    ...SENSEI_ROUND_DONE,
-    ...SENSEI_WAITING,
+    // The longest anyone's list of who's left can be.
+    ...[...SENSEI_ROUND_DONE, ...SENSEI_WAITING].map((line) => line(eitherOf(["Aki", "Bo", "Yui"]))),
     ...SENSEI_NEXT.filter(Boolean),
     STORAGE_LOCKED,
     ...Object.values(DRILL_PRAISE),
     ...Object.values(LESSON_PROMPTS),
-    ...Object.values(SENPAI_LINES).flatMap((s) => [s.intro, ...s.chat, s.seeSensei, ...s.prompts, s.spar, s.sparWin, s.sparAgain, s.pass, s.fail]),
+    ...Object.values(SENPAI_LINES).flatMap((s) => [s.intro, ...s.chat, s.seeSensei, ...s.prompts, s.spar, s.sparWin, s.sparAgain, s.pass, s.fail, s.given("kote", eitherOf(["Aki", "Bo"]))]),
     ...MOMO_PRACTICE,
     ...MOMO_GUARD,
     ...MOMO_GUARD_SEME,
@@ -681,6 +687,9 @@ export function allContentLines(): string[] {
     ...GEN_AFTER,
     STOPPED_SHORT,
     GOT_YOU,
+    MEN_TOAST_TITLE,
+    MEN_TOAST_OPEN,
+    MEN_TOAST_WEAR,
     LESSON_GOOD,
     LESSON_WRONG,
     ZANSHIN_PROMPT,
@@ -730,7 +739,7 @@ export function allContentLines(): string[] {
     PROGRESS_OPEN,
     PROGRESS_NONE,
     PROGRESS_CHAMPION,
-    HINT_MOVE, HINT_PAGE, HINT_PICK, HINT_BACK, HINT_USE, HINT_WEAR, HINT_TAKE_OFF, ITEM_WORN, ITEM_NOT_WORN, ITEM_FIGHTS_ONLY, NAME_TITLE, HINT_KEEP_NAME, HINT_NAME_BACK, ITEM_READY, RANK_LEVEL, RANK_XP_LEFT, ...RANK_STATS, MAP_NEXT, MAP_OPEN, MAP_LOCKED, MAP_NOTHING_NEEDED, TECHNIQUES_TITLE,
+    HINT_MOVE, HINT_PAGE, HINT_PICK, HINT_BACK, HINT_USE, HINT_WEAR, HINT_TAKE_OFF, ITEM_WORN, ITEM_NOT_WORN, ITEM_FIGHTS_ONLY, HINT_EQUIP, HINT_SWAP, ITEM_LOCKED, SLOT_EMPTY, SLOT_EMPTY_LINE, NAME_TITLE, HINT_KEEP_NAME, HINT_NAME_BACK, ITEM_READY, RANK_LEVEL, RANK_XP_LEFT, ...RANK_STATS, MAP_NEXT, MAP_OPEN, MAP_LOCKED, MAP_NOTHING_NEEDED, TECHNIQUES_TITLE,
     FORFEIT_MATCH,
     FORFEIT_GANG,
     FORFEIT_TRAINING,
@@ -857,6 +866,10 @@ export const TICKET_LINE = "Your dojo vouches for you. Use it to ride out to the
 export const TICKET_NOT_NOW = "Finish what you're doing first";
 export const CARD_TRAVEL = "Travel now";
 export const CARD_KEEP = "Keep it";
+/** The note at the side once you're home with your new men. The keys are drawn as keycaps between these. */
+export const MEN_TOAST_TITLE = "Your men is in your inventory";
+export const MEN_TOAST_OPEN = "Inventory";
+export const MEN_TOAST_WEAR = "wear it";
 export const CHOICE_HINT = "E choose   X back";
 export const MENU_LINE = "Line drill";
 export const MENU_GRADE = "Ask about grading";
@@ -877,6 +890,11 @@ export const HINT_TAKE_OFF = "Take off";
 export const ITEM_WORN = "Worn";
 export const ITEM_NOT_WORN = "Not worn";
 export const ITEM_FIGHTS_ONLY = "Fights only";
+export const HINT_EQUIP = "Equip";
+export const HINT_SWAP = "Swap";
+export const ITEM_LOCKED = "Slot locked";
+export const SLOT_EMPTY = "Empty slot";
+export const SLOT_EMPTY_LINE = "Nothing for this slot yet. Bought pieces show up in the pack below.";
 /** Where your name goes in anything someone says. */
 export const NAME_TOKEN = "<name>";
 export const fillName = (line: string, name: string): string => line.replaceAll(NAME_TOKEN, name);
@@ -885,7 +903,7 @@ export const nameNote = (fallback: string) => `Type your own, or just go by ${fa
 export const nameMenuLabel = (name: string) => `Name: ${name}`;
 export const HINT_KEEP_NAME = "Keep";
 export const HINT_NAME_BACK = "Back";
-export const ITEM_READY = "Ready to use";
+export const ITEM_READY = "Ready";
 export const RANK_LEVEL = "Level";
 export const RANK_XP_LEFT = "xp to next level";
 export const RANK_STATS = ["Beaten", "Cups", "Dojos"];

@@ -59,7 +59,7 @@ function drawPage(ctx: CanvasRenderingContext2D, menu: PauseMenu, items: MenuIte
     return;
   }
   if (menu.page === "inventory") {
-    drawInventory(ctx, menu, run);
+    drawInventory(ctx, menu, run, input);
     return;
   }
   if (menu.page === "challenges") {
