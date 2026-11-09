@@ -15,12 +15,15 @@ import { figureAt } from "./bubble.ts";
 import { createDialogue } from "./dialogue.ts";
 import { applyEvents, createDuelView, createPlayerControl, drawDuelHud, drawDuelStage, drawKeyPrompt, playDuelSounds, playSemeHum, playShineTing, tickView, WIDE_TEXT, type DuelView } from "./duel.ts";
 import { createTeachCards, keysLine } from "./teach-card.ts";
+import { CEREMONY_TICKS, ceremonyFrame, createCeremony, drawCeremonyProps, stepCeremony, type Ceremony } from "./men-ceremony.ts";
 
 const GROUND = 128;
 /** How far above the floor the top of a fighter's head is. */
 const FIGHTER_TOP = 42;
 
 const PAUSE_TICKS = 70;
+/** How far from you the senpai stops to put your men on. */
+const CEREMONY_REACH = 30;
 
 /** One session with one partner: Sensei's drills, a senpai's challenge, or Old Gen's seme. */
 export function createTrainingScene(nameOf: () => string): Scene {
@@ -38,11 +41,37 @@ export function createTrainingScene(nameOf: () => string): Scene {
   let misses = 0;
   let ended = false;
   let memo: Record<string, boolean> = {};
+  /** The senpai handing over your men, and what comes after it. */
+  let ceremony: { state: Ceremony; then: () => void } | null = null;
+  let ceremonyView: DuelView | null = null;
 
   const lesson = () => lessons[lessonIndex];
+
+  /** The senpai walking over with your men, at this tick of it. Nobody fights, so it's the stage without the HUD. */
+  const drawCeremony = (ctx: CanvasRenderingContext2D, game: Game, shown: DuelView, tick: number) => {
+    const frame = ceremonyFrame(tick, game.reducedMotion);
+    const { duel } = shown;
+    const [you, them] = duel.fighters;
+    // They stop a little short of you, close enough to reach your head.
+    const senpaiX = them.x + (you.x + CEREMONY_REACH - them.x) * frame.approach;
+    const moved: DuelView = { ...shown, duel: { ...duel, fighters: [you, { ...them, x: senpaiX }] }, moving: [false, frame.beat === "approach"] };
+    drawDuelStage(ctx, moved, sessionPlace(session), {
+      opponent: "senior",
+      facing: sessionPartner(session),
+      opponentColors: partnerColors(session),
+      gear: { ...gearFor(game), men: frame.worn },
+      playerColors: playerColors(game.run),
+      referees: false,
+      reducedMotion: game.reducedMotion,
+    });
+    const stage = { senpaiX: screenX(duel, senpaiX), playerX: screenX(duel, you.x), ground: GROUND, headTop: GROUND - FIGHTER_TOP };
+    onStage(ctx, () => drawCeremonyProps(ctx, frame, stage, { player: playerColors(game.run), senpai: partnerColors(session) }, tick));
+  };
   /** The short tutorial belongs to nobody's story, so it mustn't read or change one. */
   const quick = () => session.kind === "quick";
-  const gearFor = (game: Game) => (quick() ? FULL_GEAR : game.run.gear);
+  /** The men's yours, but it isn't on your head until the senpai's put it there. */
+  let menWaiting = false;
+  const gearFor = (game: Game) => (quick() ? FULL_GEAR : menWaiting ? { ...game.run.gear, men: false } : game.run.gear);
   const canSeme = (game: Game) => quick() || game.run.seme || session.kind === "master";
 
   const startRep = (game: Game) => {
@@ -85,7 +114,16 @@ export function createTrainingScene(nameOf: () => string): Scene {
       leave(game);
     };
     const onward = () => game.showCards(reply.after ? () => dialogue.open(reply.after!, done, done) : done);
-    dialogue.open(reply.lines, onward, onward);
+    // The men is put on your head before its card comes up. Skipping the words doesn't skip that.
+    menWaiting = !!reply.ceremony;
+    const next = reply.ceremony ? () => startCeremony(onward) : onward;
+    dialogue.open(reply.lines, next, next);
+  };
+
+  const startCeremony = (then: () => void) => {
+    // Everyone back to where they'd stand to begin, whatever the drill left them doing.
+    ceremonyView = createDuelView(skipBow(createLessonDuel(lesson())));
+    ceremony = { state: createCeremony(), then };
   };
 
   const failChallenge = (game: Game) => {
@@ -106,6 +144,9 @@ export function createTrainingScene(nameOf: () => string): Scene {
       game.session = null;
       lessons = lessonsFor(session);
       ended = false;
+      ceremony = null;
+      ceremonyView = null;
+      menWaiting = false;
       cards.clear(game);
       startLesson(game, 0);
     },
@@ -113,6 +154,22 @@ export function createTrainingScene(nameOf: () => string): Scene {
       game.debug.talking = dialogue.active;
       if (dialogue.active) {
         dialogue.update(game.input, game.audio);
+        return;
+      }
+      if (ceremony && ceremonyView) {
+        const before = ceremonyFrame(ceremony.state.tick, game.reducedMotion);
+        const state = stepCeremony(ceremony.state, game.input.wasPressed("confirm"));
+        const now = ceremonyFrame(state.tick, game.reducedMotion);
+        if (now.beat === "glow" && before.beat !== "glow") game.audio.play("secret");
+        if (now.worn && !before.worn) game.audio.play("pickup");
+        ceremonyView.walkTick++;
+        ceremony.state = state;
+        game.debug.ceremony = { tick: state.tick, beat: now.beat, done: state.done };
+        if (state.done) {
+          const { then } = ceremony;
+          ceremony = null;
+          then();
+        }
         return;
       }
       if (ended) return;
@@ -156,6 +213,16 @@ export function createTrainingScene(nameOf: () => string): Scene {
       }
     },
     render(ctx, game) {
+      // Once it's started, the ceremony stays on screen behind the card, with your men on.
+      if (ceremonyView) {
+        drawCeremony(ctx, game, ceremonyView, ceremony?.state.tick ?? CEREMONY_TICKS);
+        onGui(ctx, () => {
+          const you = figureAt(ctx, stageX() + screenX(ceremonyView!.duel, ceremonyView!.duel.fighters[0].x), stageY() + GROUND - FIGHTER_TOP, stageY() + GROUND);
+          dialogue.render(ctx, { at: () => you, avoid: [you] });
+        });
+        cards.render(ctx);
+        return;
+      }
       drawDuelStage(ctx, view, sessionPlace(session), {
         opponent: "senior",
         facing: sessionPartner(session),

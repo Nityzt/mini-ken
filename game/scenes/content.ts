@@ -687,6 +687,9 @@ export function allContentLines(): string[] {
     ...GEN_AFTER,
     STOPPED_SHORT,
     GOT_YOU,
+    MEN_TOAST_TITLE,
+    MEN_TOAST_OPEN,
+    MEN_TOAST_WEAR,
     LESSON_GOOD,
     LESSON_WRONG,
     ZANSHIN_PROMPT,
@@ -863,6 +866,10 @@ export const TICKET_LINE = "Your dojo vouches for you. Use it to ride out to the
 export const TICKET_NOT_NOW = "Finish what you're doing first";
 export const CARD_TRAVEL = "Travel now";
 export const CARD_KEEP = "Keep it";
+/** The note at the side once you're home with your new men. The keys are drawn as keycaps between these. */
+export const MEN_TOAST_TITLE = "Your men is in your inventory";
+export const MEN_TOAST_OPEN = "Inventory";
+export const MEN_TOAST_WEAR = "wear it";
 export const CHOICE_HINT = "E choose   X back";
 export const MENU_LINE = "Line drill";
 export const MENU_GRADE = "Ask about grading";
