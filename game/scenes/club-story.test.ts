@@ -338,7 +338,7 @@ test("the first three kirikaeshi passes grow your ki, and later ones only count 
   let run = createRunState();
   const kiAt: number[] = [];
   for (let i = 0; i < 4; i++) {
-    run = kirikaeshiOutcome(run, { outcome: "passed", misses: 0 }).run;
+    run = kirikaeshiOutcome(run, { outcome: "passed", misses: 0, onBeat: i * 6 }).run;
     kiAt.push(run.bonusKi);
   }
   assert.deepEqual(kiAt, [5, 10, 15, 15]);
@@ -348,8 +348,8 @@ test("the first three kirikaeshi passes grow your ki, and later ones only count 
 
 test("a failed kirikaeshi costs nothing and earns nothing", () => {
   const run = createRunState();
-  for (const outcome of ["winded", "lost", "noFollow"] as const) {
-    const reply = kirikaeshiOutcome(run, { outcome, misses: 2 });
+  for (const outcome of ["winded", "lost"] as const) {
+    const reply = kirikaeshiOutcome(run, { outcome, misses: 2, onBeat: 18 });
     assert.equal(reply.run, run);
     assert.equal(reply.lines.length, 1);
   }
@@ -357,6 +357,16 @@ test("a failed kirikaeshi costs nothing and earns nothing", () => {
 
 test("each way of failing kirikaeshi gets its own advice", () => {
   const run = createRunState();
-  const lines = (["winded", "lost", "noFollow"] as const).map((outcome) => kirikaeshiOutcome(run, { outcome, misses: 2 }).lines[0]);
-  assert.equal(new Set(lines).size, 3);
+  const lines = (["winded", "lost"] as const).map((outcome) => kirikaeshiOutcome(run, { outcome, misses: 2, onBeat: 0 }).lines[0]);
+  assert.equal(new Set(lines).size, 2);
+});
+
+test("a slow kirikaeshi pass earns exactly what one on Bo's beat does, and Sensei says how the rhythm went", () => {
+  const run = createRunState();
+  const slow = kirikaeshiOutcome(run, { outcome: "passed", misses: 1, onBeat: 0 });
+  const quick = kirikaeshiOutcome(run, { outcome: "passed", misses: 1, onBeat: 18 });
+  assert.deepEqual(slow.run, quick.run);
+  assert.doesNotMatch(slow.lines[0], /beat/);
+  assert.match(kirikaeshiOutcome(run, { outcome: "passed", misses: 1, onBeat: 7 }).lines[0], /7 of 18 on Bo's beat/);
+  assert.match(quick.lines[0], /Every men on Bo's beat/);
 });

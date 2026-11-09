@@ -7,11 +7,12 @@ import { drawText, drawTextCentered, measureText } from "../art/font.ts";
 import { BO_COLORS, UI } from "../art/palette.ts";
 import { onGui, stageY, viewH, viewW } from "../core/scale.ts";
 import type { Game, Scene } from "../core/scene.ts";
-import { BIG_WINDOW, FOLLOW_NEEDED, createKirikaeshi, KIRIKAESHI_SEQUENCE, kirikaeshiTierFor, MISSES_ALLOWED, stepKirikaeshi, type KirikaeshiState } from "../duel/kirikaeshi.ts";
+import { FOLLOW_NEEDED, createKirikaeshi, KIRIKAESHI_SEQUENCE, kirikaeshiTierFor, MISSES_ALLOWED, stepKirikaeshi, type KirikaeshiState } from "../duel/kirikaeshi.ts";
 import { KI_LOW } from "../duel/constants.ts";
+import { kiBarWidth } from "../duel/hud.ts";
 import { playerKiMax } from "../run-state.ts";
 import { kirikaeshiOutcome } from "./club-story.ts";
-import { FORFEIT_LINE, KIRIKAESHI_BIG_KEYS, KIRIKAESHI_EARLY, KIRIKAESHI_HELP, KIRIKAESHI_LATE, KIRIKAESHI_LEFT, KIRIKAESHI_LOW, KIRIKAESHI_NOW, KIRIKAESHI_TITLE, KIRIKAESHI_WRONG, NO_STOMP, SAYU_CALL } from "./content.ts";
+import { FORFEIT_LINE, KIRIKAESHI_BIG_KEYS, KIRIKAESHI_HELP, KIRIKAESHI_LEFT, KIRIKAESHI_LOW, KIRIKAESHI_SIDE, KIRIKAESHI_TITLE, KIRIKAESHI_WRONG, kirikaeshiRhythm, NO_STOMP, SAYU_CALL } from "./content.ts";
 import { drawKeyPrompt, drawKiBar, drawZanshinMeter, KIAI } from "./duel.ts";
 import { createTeachCards } from "./teach-card.ts";
 import { KIRIKAESHI_CARD, teachOnce } from "./teaching.ts";
@@ -23,10 +24,25 @@ const START_AT = 0.32;
 const FINISH_TICKS = 70;
 const STRIKE_POSE_TICKS = 9;
 const FLOATER_TICKS = 30;
+/** Words start at head height and only drift a little, so they stay clear of the prompt for the next strike above. */
+const FLOAT_FROM = 50;
+const FLOAT_RISE_EVERY = 10;
 /** How quickly the two of them catch up with where the drill says they are. */
 const EASE = 0.28;
 
 type Floater = { text: string; x: number; y: number; ticks: number; color: string };
+
+const KI_BAR_X = 5;
+/**
+ * Where the row of marks for the set goes, beside the ki bar: centred if there's room, and pushed right and
+ * packed closer if not, so on the smallest screen they never run into the bar or off the edge.
+ */
+export function markLayout(width: number, kiWidth: number): { left: number; stride: number } {
+  const count = KIRIKAESHI_SEQUENCE.length;
+  const clear = KI_BAR_X + kiWidth + 6;
+  const stride = Math.max(4, Math.min(7, Math.floor((width - KI_BAR_X - clear) / count)));
+  return { left: Math.max(clear, Math.round((width - count * stride) / 2)), stride };
+}
 
 /** Sensei's stamina drill, with Bo receiving. All the rules are in duel/kirikaeshi.ts. */
 export function createKirikaeshiScene(): Scene {
@@ -39,7 +55,7 @@ export function createKirikaeshiScene(): Scene {
   let partnerX = 0;
   let floaters: Floater[] = [];
 
-  const float = (text: string, color: string) => floaters.push({ text, x: playerX, y: GROUND - 54, ticks: FLOATER_TICKS, color });
+  const float = (text: string, color: string) => floaters.push({ text, x: playerX, y: GROUND - FLOAT_FROM, ticks: FLOATER_TICKS, color });
 
   const react = (game: Game) => {
     for (const e of state.events) {
@@ -50,13 +66,14 @@ export function createKirikaeshiScene(): Scene {
         game.audio.play("clean");
       } else if (e.type === "call") {
         strikeTicks = STRIKE_POSE_TICKS;
-        float(SAYU_CALL, UI.dim);
+        // Green when it was on Bo's beat. Off it is just as good a men, only quieter.
+        float(SAYU_CALL, e.onBeat ? UI.good : UI.dim);
         game.audio.play("call");
         game.audio.play("clash");
       } else if (e.type === "stomp") game.audio.play("stomp");
       else if (e.type === "windowOpen") game.audio.play("flag");
       else {
-        const text = { rushed: KIRIKAESHI_EARLY, wrong: KIRIKAESHI_WRONG, late: KIRIKAESHI_LATE, slow: KIRIKAESHI_LATE, flat: NO_STOMP }[e.type];
+        const text = { wrong: KIRIKAESHI_WRONG, flat: NO_STOMP }[e.type];
         float(text, UI.accent);
         game.audio.play("blocked");
       }
@@ -82,14 +99,18 @@ export function createKirikaeshiScene(): Scene {
     return "guard";
   };
 
-  /** Which key is next, and on sayu men, how long until it lands. */
+  /**
+   * The strike that's next, over your head, and nothing that runs out: it waits for you. On sayu men a bar
+   * empties towards Bo's beat, for anyone who wants to keep it, and goes once the beat's gone by.
+   */
   const drawPrompt = (ctx: CanvasRenderingContext2D, at: number, game: Game) => {
     const { phase, spec, dueIn, beat } = state;
-    if (phase === "big") drawKeyPrompt(ctx, at, GROUND, teachingKeys(game.input, KIRIKAESHI_BIG_KEYS), state.ticks / BIG_WINDOW);
-    else if (phase === "rhythm") {
-      const key = KIRIKAESHI_SEQUENCE[beat].side === "left" ? keyLabel(game.input, "left", "a") : keyLabel(game.input, "right", "d");
-      const inWindow = dueIn <= spec.window;
-      drawKeyPrompt(ctx, at, GROUND, inWindow ? `${key} ${KIRIKAESHI_NOW}` : key, Math.max(0, dueIn) / spec.interval);
+    if (phase === "big") drawKeyPrompt(ctx, at, GROUND, teachingKeys(game.input, KIRIKAESHI_BIG_KEYS), null);
+    else if (phase === "rhythm" || phase === "contact") {
+      const side = KIRIKAESHI_SEQUENCE[beat].side!;
+      const key = side === "left" ? keyLabel(game.input, "left", "a") : keyLabel(game.input, "right", "d");
+      const beatBar = phase === "rhythm" && dueIn >= -spec.window ? Math.max(0, dueIn) / spec.interval : null;
+      drawKeyPrompt(ctx, at, GROUND, `${key} ${KIRIKAESHI_SIDE[side]}`, beatBar);
     }
   };
 
@@ -119,7 +140,7 @@ export function createKirikaeshiScene(): Scene {
       tick++;
       for (const f of floaters) {
         f.ticks--;
-        if (f.ticks % 3 === 0) f.y--;
+        if (f.ticks % FLOAT_RISE_EVERY === 0) f.y--;
       }
       floaters = floaters.filter((f) => f.ticks > 0);
       if (strikeTicks > 0) strikeTicks--;
@@ -128,7 +149,7 @@ export function createKirikaeshiScene(): Scene {
 
       if (state.outcome) {
         if (--finishing === 0) {
-          const reply = kirikaeshiOutcome(game.run, { outcome: state.outcome, misses: state.misses });
+          const reply = kirikaeshiOutcome(game.run, { outcome: state.outcome, misses: state.misses, onBeat: state.onBeat });
           game.run = reply.run;
           game.message = reply.lines;
           game.go("club");
@@ -168,20 +189,34 @@ export function createKirikaeshiScene(): Scene {
         drawText(ctx, KIRIKAESHI_TITLE, 5, 1, UI.text);
         const slips = `Slips ${state.misses}/${MISSES_ALLOWED}`;
         drawText(ctx, slips, viewW - 5 - measureText(slips), 1, state.misses >= MISSES_ALLOWED ? UI.bad : UI.accent);
-        drawKiBar(ctx, 5, 13, state.ki, state.kiMax, tick);
-        // The set, one mark a strike, so you can see how much of it is left to breathe through.
-        const stride = 7;
-        const left = (viewW - KIRIKAESHI_SEQUENCE.length * stride) / 2;
+        drawKiBar(ctx, KI_BAR_X, 13, state.ki, state.kiMax, tick);
+        // The set, one mark a strike, so you can see where you are in it and how much is left to breathe through.
+        const { left, stride } = markLayout(viewW, kiBarWidth(state.kiMax));
         KIRIKAESHI_SEQUENCE.forEach((beat, i) => {
-          ctx.fillStyle = i < state.beat ? UI.good : beat.kind === "big" ? UI.accent : beat.dir > 0 ? UI.track : UI.dim;
-          const height = beat.kind === "big" ? 6 : 3;
+          const next = i === state.beat && !state.outcome;
+          ctx.fillStyle = i < state.beat ? UI.good : next ? UI.text : beat.kind === "big" ? UI.accent : beat.dir > 0 ? UI.track : UI.dim;
+          const height = beat.kind === "big" || next ? 6 : 3;
           ctx.fillRect(left + i * stride, 12 + (6 - height) / 2, stride - 2, height);
         });
+        // A notch under the one that's next, in case the colours are hard to tell apart.
+        if (!state.outcome && state.beat < KIRIKAESHI_SEQUENCE.length) {
+          ctx.fillStyle = UI.text;
+          ctx.fillRect(left + state.beat * stride + 1, 19, stride - 4, 1);
+        }
         if (state.ki < KI_LOW && !state.outcome) drawTextCentered(ctx, KIRIKAESHI_LOW, viewW / 2, 1, UI.bad);
+        // Only shown while it's going, so missing the beat never puts anything on screen.
+        if (state.streak >= 2 && !state.outcome) {
+          const label = kirikaeshiRhythm(state.streak);
+          const width = measureText(label);
+          ctx.fillStyle = UI.panel;
+          ctx.fillRect(viewW - width - 7, 21, width + 4, 10);
+          drawText(ctx, label, viewW - 5 - width, 22, UI.good);
+        }
         if (state.phase === "follow" && !state.outcome) drawZanshinMeter(ctx, keyLabel(game.input, "right", "d"), state.traveled / FOLLOW_NEEDED);
         ctx.fillStyle = UI.panel;
         ctx.fillRect(0, viewH - 11, viewW, 11);
-        drawTextCentered(ctx, teachingKeys(game.input, KIRIKAESHI_HELP), viewW / 2, viewH - 10, UI.dim);
+        const help = KIRIKAESHI_HELP[state.phase === "contact" ? "rhythm" : state.phase === "breath" && state.beat === 0 ? "start" : state.phase];
+        if (!state.outcome) drawTextCentered(ctx, teachingKeys(game.input, help), viewW / 2, viewH - 10, UI.dim);
       });
       cards.render(ctx);
     },
