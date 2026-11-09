@@ -43,6 +43,13 @@ test("Ren notices what's on your tare", () => {
   assert.ok(moon.includes("moon"));
 });
 
+test("Ren says who they are before remarking on your tare", () => {
+  const lines = homeArrival(firstDrillsDone())!.lines;
+  const named = lines.findIndex((line) => line.includes("I'm Ren"));
+  const tare = lines.findIndex((line) => line.includes("tare"));
+  assert.ok(named >= 0 && tare > named, lines.join(" | "));
+});
+
 test("Ren is gone again once the next armor is earned, until the bogu is complete", () => {
   const run = firstDrillsDone();
   assert.equal(homeVisitor({ ...run, gear: { ...run.gear, do: true } }), null);

@@ -26,9 +26,9 @@ export const CLUB_HALL_ROWS = 9;
 const MOMO_GUARD_ROW = 10;
 const MOMO_GUARD_COL = 8;
 
-/** Where a visitor stands: in plain sight of the door, and in nobody's way. */
+/** Where a visitor stands: in plain sight of the door, in nobody's way, and not right under Nao. */
 const VISITOR_ROW = 3;
-const VISITOR_COL = 6;
+const VISITOR_COL = 4;
 
 /** The club as it stands: o is the unlocked storage door. */
 export function clubRows(state: { storageOpen: boolean; screenBroken: boolean; momoGuards: boolean; visitor?: boolean }): string[] {
