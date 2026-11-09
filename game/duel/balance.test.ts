@@ -14,7 +14,7 @@ const pooled = (a: StyleName, b: StyleName) => {
 };
 
 test("nobody beats everybody", () => {
-  const styles: StyleName[] = ["masher", "turtle", "runner", "reader", "baiter", "pressurer"];
+  const styles: StyleName[] = ["masher", "turtle", "runner", "reader", "baiter", "pressurer", "launcher"];
   for (const a of styles) {
     const beaten = styles.filter((b) => b !== a && share(pooled(a, b)) > 0.55);
     assert.ok(beaten.length < styles.length - 1, `${a} beats ${beaten.join(", ")}`);
@@ -49,6 +49,16 @@ test("bait alone isn't enough: someone who only ever counters is at best even wi
   for (const style of ["baiter", "pressurer"] as StyleName[]) {
     const r = pooled("counterOnly", style);
     assert.ok(share(r) < 0.5, `counter-only against ${style}: ${r.wins} to ${r.losses}`);
+  }
+});
+
+test("launching straight into a strike is worth having but isn't the best plan (issue #14)", () => {
+  // The launcher is the reader, plus a launch and a strike straight off it from outside range now and then.
+  const r = pooled("launcher", "reader");
+  assert.ok(share(r) >= 0.3 && share(r) <= 0.55, `launcher against reader: ${r.wins} to ${r.losses}`);
+  for (const style of ["masher", "runner"] as StyleName[]) {
+    const beat = versus("launcher", style, SEEDS);
+    assert.ok(share(beat) >= 0.6, `launcher against ${style}: ${beat.wins} to ${beat.losses}`);
   }
 });
 

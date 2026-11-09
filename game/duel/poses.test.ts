@@ -7,7 +7,7 @@ import type { AttackKind, Fighter, Stance } from "./rules.ts";
 
 const fighter = (stance: Stance, attack: AttackKind | null = null): Fighter => ({
   kamae: "chudan",
-  x: 100, ki: 100, kiMax: 100, stance, stanceTicks: 5, attack, points: 0, stompAge: 9999, launchTicks: 0, launchDir: 0, pressure: 0, kiaiTicks: 0, parryCooldown: 0, counterTicks: 0, hiki: false, opening: null, openingTicks: 0, queued: null, countering: false, reparryTicks: 0, reparryUsed: false,
+  x: 100, ki: 100, kiMax: 100, stance, stanceTicks: 5, attack, points: 0, stompAge: 9999, launchTicks: 0, launchDir: 0, launchStrikeTicks: 0, pressure: 0, kiaiTicks: 0, parryCooldown: 0, counterTicks: 0, hiki: false, opening: null, openingTicks: 0, queued: null, countering: false, reparryTicks: 0, reparryUsed: false,
 });
 const fight = { phase: "fight" as const, striking: null, scored: false };
 

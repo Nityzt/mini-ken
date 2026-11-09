@@ -82,7 +82,7 @@ type Floater = { text: string; x: number; y: number; ticks: number; color: strin
 type Dust = { x: number; ticks: number };
 type Ghost = { i: 0 | 1; x: number; pose: DuelPose; flip: boolean; ticks: number };
 
-const HELP_LINES = ["Hold W Q E to open, then J K L + Space. S block", "Hold I: seme   Space while holding: kiai", "Double-tap toward them: launch", "Tap S when their tip shines: parry", "Both swing together? Pass, turn, go on"];
+const HELP_LINES = ["Hold W Q E to open, then J K L + Space. S block", "Hold I: seme   Space while holding: kiai", "Double-tap toward them, then J K L: no opening", "Tap S when their tip shines: parry", "Both swing together? Pass, turn, go on"];
 const HELP_NO_SEME = HELP_LINES[3];
 /** The controls while hilt to hilt, which are nothing like the usual ones. Which key pushes depends on which side you're on. */
 export const lockHelp = (towardThemIsRight: boolean): string => (towardThemIsRight ? "D push  S hold  JKL cut back  A out" : "A push  S hold  JKL cut back  D out");
@@ -113,7 +113,7 @@ function readPlayerAttack(input: Input): AttackKind | null {
 }
 
 /** Reads the keyboard into a fighter's input. A strike pressed just before recovery ends still counts. */
-export function createPlayerControl({ openings = true }: { openings?: boolean } = {}): (input: Input, me: Pick<Fighter, "stance"> & Partial<Pick<Fighter, "counterTicks">>, canSeme?: boolean, crossed?: boolean) => FighterInput {
+export function createPlayerControl({ openings = true }: { openings?: boolean } = {}): (input: Input, me: Pick<Fighter, "stance"> & Partial<Pick<Fighter, "counterTicks" | "launchStrikeTicks">>, canSeme?: boolean, crossed?: boolean) => FighterInput {
   let buffered: AttackKind | null = null;
   let bufferTicks = 0;
   let opening: Opening | null = null;
@@ -129,8 +129,8 @@ export function createPlayerControl({ openings = true }: { openings?: boolean } 
     for (const shown of OPENING_KEYS) if (input.wasPressed(shown)) opening = shown;
     if (opening && !input.isDown(opening)) opening = OPENING_KEYS.find((shown) => input.isDown(shown)) ?? null;
     const canAct = me.stance === "guard" || me.stance === "block" || me.stance === "tsuba" || me.stance === "opening";
-    // Hilt to hilt and a parry's answer need no opening. Otherwise the strike waits a moment for one, and the rules get to hear about it once.
-    const ready = !openings || me.stance === "tsuba" || me.stance === "opening" || !!opening || (me.counterTicks ?? 0) > 0;
+    // Hilt to hilt, a parry's answer and a strike off a launch need no opening. Otherwise the strike waits a moment for one, and the rules get to hear about it once.
+    const ready = !openings || me.stance === "tsuba" || me.stance === "opening" || !!opening || (me.counterTicks ?? 0) > 0 || (me.launchStrikeTicks ?? 0) > 0;
     const attack = canAct && ready ? buffered : null;
     if (attack) {
       buffered = null;

@@ -17,10 +17,12 @@ const STRIKING = RANGE_MAX - 4;
 const FRESH_OPENING = 40;
 /** and after this long a reader takes it for bait and presses it until it gives, rather than waiting it out for ever. */
 const STALE_OPENING = 240;
+/** How often, each tick it's at launching distance, the launcher goes for it. */
+const LAUNCH_CHANCE = 0.1;
 
 /** One player: reads the match, and says what to press. */
 export type Style = (duel: DuelState) => FighterInput;
-export type StyleName = "idle" | "masher" | "turtle" | "runner" | "reader" | "baiter" | "counterOnly" | "pressurer" | "clockRunner";
+export type StyleName = "idle" | "masher" | "turtle" | "runner" | "reader" | "baiter" | "counterOnly" | "pressurer" | "clockRunner" | "launcher";
 
 type Sense = {
   me: DuelState["fighters"][0];
@@ -240,6 +242,31 @@ const STYLES: Record<StyleName, (side: 0 | 1, seed: number) => Style> = {
       if (s.me.ki < 35) return IDLE;
       return { ...IDLE, seme: true, stomp: s.me.kiaiTicks === 0 };
     }),
+  /** The reader, who also launches in from outside range now and then and strikes straight off the launch (issue #14). */
+  launcher: (side, seed) => {
+    const reads = STYLES.reader(side, seed);
+    let luck = seed ^ 0x2545f491;
+    let held: FighterInput = IDLE;
+    return (duel) => {
+      const plan = reads(duel);
+      if (!ticksNext(duel)) return held;
+      held = plan;
+      const me = duel.fighters[side];
+      if (duel.phase !== "fight" || duel.lock || (me.stance !== "guard" && me.stance !== "opening")) return held;
+      const toward = side === 0 ? 1 : -1;
+      const gap = distance(duel);
+      if (me.launchStrikeTicks > 0 && !plan.block) {
+        const r = nextRandom(luck);
+        luck = r.seed;
+        held = { ...IDLE, attack: CUTS[Math.floor(r.value * CUTS.length)], stomp: true };
+      } else if (gap > RANGE_MAX + 16 && gap < RANGE_MAX + 44 && me.ki > 50 && !plan.block) {
+        const r = nextRandom(luck);
+        luck = r.seed;
+        if (r.value < LAUNCH_CHANCE) held = { ...plan, dash: toward };
+      }
+      return held;
+    };
+  },
 };
 
 export const makeStyle = (name: StyleName, side: 0 | 1, seed: number): Style => STYLES[name](side, seed);
