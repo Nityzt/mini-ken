@@ -76,7 +76,6 @@ export function createDungeonScene(nameOf: () => string = () => 'you'): Scene {
     forfeit(game) {
       game.run = abandonDungeon(game.run);
       game.message = ['You find the service ladder and recover your equipment. The hidden door is still there when you are ready.'];
-      game.fromFight = true;
       game.go('rival-dojo');
     },
     enter(game) {
@@ -119,7 +118,7 @@ export function createDungeonScene(nameOf: () => string = () => 'you'): Scene {
         game.run = saveDungeonProgress(game.run, state);
         if (state.phase === 'escaped') {
           mode = 'escape';
-          const leave = () => { game.run = finishDungeon(game.run); game.fromFight = true; game.go('rival-dojo'); };
+          const leave = () => { game.run = finishDungeon(game.run); game.go('rival-dojo'); };
           dialogue.open(ESCAPE_LINES, leave, leave);
         }
       }
