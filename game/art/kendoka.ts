@@ -1,3 +1,4 @@
+import { paletteForGear } from "./gear-colors.ts";
 import { PALETTE } from "./palette.ts";
 import { drawSprite, grid } from "./sprite.ts";
 
@@ -176,12 +177,13 @@ const HELD: Record<HeldShinai, Blade[]> = {
   nito: [{ from: [9, 8], to: [16, -4] }, { from: [11, 14], to: [19, 11] }],
 };
 
-function drawBlade(ctx: CanvasRenderingContext2D, x: number, y: number, blade: Blade, flip: boolean): void {
+function drawBlade(ctx: CanvasRenderingContext2D, x: number, y: number, blade: Blade, flip: boolean, colors?: Record<string,string>): void {
   const steps = Math.max(Math.abs(blade.to[0] - blade.from[0]), Math.abs(blade.to[1] - blade.from[1]));
   for (let i = 0; i <= steps; i++) {
     const dx = Math.round(blade.from[0] + ((blade.to[0] - blade.from[0]) * i) / steps);
     const dy = Math.round(blade.from[1] + ((blade.to[1] - blade.from[1]) * i) / steps);
-    ctx.fillStyle = i < 2 ? PALETTE.W : i === 2 ? PALETTE.K : i >= steps - 1 ? PALETTE.W : PALETTE.Y;
+    const channel = i < 2 || i >= steps - 1 ? "W" : i === 2 ? "K" : "Y";
+    ctx.fillStyle = colors?.[channel] ?? PALETTE[channel];
     ctx.fillRect(flip ? x + KENDOKA_WIDTH - 1 - dx : x + dx, y + dy, 1, 1);
   }
 }
@@ -199,7 +201,7 @@ export function drawKendoka(
   drawSprite(ctx, KENDOKA_GRIDS[`${facing}${frame}`], x, y, options);
   for (const piece of OVERLAY_ORDER) {
     if (!gear[piece] || (piece === "shinai" && options.held)) continue;
-    drawSprite(ctx, GEAR_OVERLAYS[piece][facing], x, y, options);
+    drawSprite(ctx, GEAR_OVERLAYS[piece][facing], x, y, { ...options, colors: paletteForGear(options.colors,piece) });
   }
-  if (options.held && gear.shinai) for (const blade of HELD[options.held]) drawBlade(ctx, x, y, blade, !!options.flip);
+  if (options.held && gear.shinai) for (const blade of HELD[options.held]) drawBlade(ctx, x, y, blade, !!options.flip, paletteForGear(options.colors,"shinai"));
 }

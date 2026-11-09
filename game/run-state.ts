@@ -1,3 +1,4 @@
+import type { EquipmentId, EquipmentSlot, ModId } from "./equipment.ts";
 import { wornKi } from "./durability.ts";
 import { NO_GEAR, type Gear } from "./art/kendoka.ts";
 import { DEFAULT_CHARACTER, type CharacterId } from "./characters.ts";
@@ -120,6 +121,8 @@ export type RunState = {
   durability: Record<string, number>;
   /** The shinai you've chosen to carry, or empty for the best you've got. */
   wielded: string;
+  equipped: Partial<Record<EquipmentSlot, EquipmentId>>;
+  mods: Partial<Record<EquipmentId, ModId>>;
   /** How far along getting your own shinai you are. See `shinai-story.ts`. */
   shinaiQuest: string;
   /** You made one with your own hands, rather than buying it. */
@@ -172,6 +175,8 @@ export const createRunState = (): RunState => ({
   whyKendo: "",
   durability: {},
   wielded: "",
+  equipped: {},
+  mods: {},
   shinaiQuest: "",
   madeShinai: false,
   hp: 100,

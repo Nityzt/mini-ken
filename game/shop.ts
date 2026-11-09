@@ -1,8 +1,9 @@
 import { GOOSE_COLORS, HERON_COLORS, OTTER_COLORS, RACCOON_COLORS, RIVAL_COLORS } from "./art/palette.ts";
 import { TEAM_COLORS } from "./art/looks.ts";
+import { EQUIPMENT, equip, equipmentKi, isEquipment, type PurchasedEquipmentId, type ModId } from "./equipment.ts";
 import type { RunState } from "./run-state.ts";
 
-export type ShopItemId =
+export type ShopItemId = PurchasedEquipmentId
   | "fineShinai" | "deerKote" | "lacquerDo" | "inkColors"
   | "charm" | "festivalColors"
   | "ownColors" | "raccoonColors" | "gooseColors" | "heronColors" | "otterColors" | "radishColors"
@@ -12,9 +13,6 @@ export type ShopItem = { name: string; price: number; line: string; icon: string
 export type StallId = "store" | "cup" | "pinecone" | "raccoon" | "goose" | "heron" | "otter" | "radish" | "beachShop" | "parkShop" | "steelShop" | "fallsShop" | "lantern" | "bamboo";
 
 export const SHOP_ITEMS: Record<ShopItemId, ShopItem> = {
-  fineShinai: { name: "Fine shinai", price: 80, line: "Well balanced, so swings tire you less. Ki +5.", icon: "iconShinai", ki: 5 },
-  deerKote: { name: "Deerskin kote", price: 150, line: "Soft palms and a sure grip. Ki +5.", icon: "iconKote", ki: 5 },
-  lacquerDo: { name: "Lacquered do", price: 300, line: "It rings when it's struck, and you stand taller in it. Ki +10.", icon: "iconDo", ki: 10 },
   inkColors: { name: "Ink armor", price: 120, line: "Black lacquer and black cords. Just for looks.", icon: "iconDo" },
   charm: { name: "Omamori charm", price: 60, line: "Tied inside your tare, for luck. Ki +3.", icon: "iconCharm", ki: 3 },
   festivalColors: { name: "Festival armor", price: 200, line: "Gold trim for big days. Just for looks.", icon: "iconDo" },
@@ -33,6 +31,7 @@ export const SHOP_ITEMS: Record<ShopItemId, ShopItem> = {
   mistColors: { name: "Mist armor", price: 100, line: "Pale blue like the spray. Just for looks.", icon: "iconDo" },
   cascadeColors: { name: "Cascade armor", price: 125, line: "Deep water blue. Just for looks.", icon: "iconDo" },
   lanternColors: { name: "Lantern colors", price: 60, line: "A warm lantern glow. Just for looks.", icon: "iconDo" },
+  ...Object.fromEntries(Object.entries(EQUIPMENT).filter(([, item]) => item.price !== undefined).map(([id, item]) => [id, { ...item, price: item.price! }])) as unknown as Record<PurchasedEquipmentId, ShopItem>,
   bambooColors: { name: "Bamboo colors", price: 60, line: "Fresh bamboo green. Just for looks.", icon: "iconDo" },
 };
 
@@ -62,21 +61,23 @@ export const LOOKS: Partial<Record<ShopItemId, Record<string, string>>> = {
 
 /** What's on sale where. A new stall is one more row here. */
 export const STALLS: Record<StallId, ShopItemId[]> = {
-  store: ["fineShinai", "deerKote", "lacquerDo", "inkColors"],
-  cup: ["charm", "festivalColors"],
-  pinecone: ["ownColors"],
-  raccoon: ["raccoonColors"],
-  goose: ["gooseColors"],
-  heron: ["heronColors"],
-  otter: ["otterColors"],
-  radish: ["radishColors"],
-  beachShop: ["tideColors", "coralColors"],
-  parkShop: ["blossomColors", "mossColors"],
-  steelShop: ["copperColors", "slateColors"],
-  fallsShop: ["mistColors", "cascadeColors"],
-  lantern: ["lanternColors"],
-  bamboo: ["bambooColors"],
+  store: ["fineShinai", "deerKote", "lacquerDo", "inkColors", "guardedShinai", "linedDo"],
+  cup: ["charm", "festivalColors", "festivalMen", "linedDo"],
+  pinecone: ["ownColors", "pineTare", "tunedShinai"],
+  raccoon: ["raccoonColors", "raccoonKote", "linedDo"],
+  goose: ["gooseColors", "gooseShinai", "guardedShinai"],
+  heron: ["heronColors", "heronDo", "linedDo"],
+  otter: ["otterColors", "otterMen", "guardedShinai"],
+  radish: ["radishColors", "radishShinai", "tunedShinai"],
+  beachShop: ["tideColors", "coralColors", "tideShinai", "guardedShinai"],
+  parkShop: ["blossomColors", "mossColors", "blossomTare", "tunedShinai"],
+  steelShop: ["copperColors", "slateColors", "forgeDo", "linedDo"],
+  fallsShop: ["mistColors", "cascadeColors", "mistMen", "guardedShinai"],
+  lantern: ["lanternColors", "lanternKote", "linedDo"],
+  bamboo: ["bambooColors", "bambooTare", "tunedShinai"],
 };
+
+export const MOD_STALLS: Record<StallId, ModId[]> = Object.fromEntries(Object.keys(STALLS).map(stall => [stall, ["balancedGrip", "softLining", "reinforced"]])) as Record<StallId, ModId[]>;
 
 export const isShopItem = (id: string): id is ShopItemId => Object.hasOwn(SHOP_ITEMS, id);
 export const owns = (run: RunState, id: ShopItemId): boolean => run.owned.includes(id);
@@ -86,7 +87,8 @@ export const canBuy = (run: RunState, id: ShopItemId): boolean => !owns(run, id)
 /** Takes the money and hands it over. New colors go on straight away. */
 export function buy(run: RunState, id: ShopItemId): RunState {
   if (!canBuy(run, id)) return run;
-  return { ...run, money: run.money - SHOP_ITEMS[id].price, owned: [...run.owned, id], look: LOOKS[id] ? id : run.look };
+  const bought = { ...run, money: run.money - SHOP_ITEMS[id].price, owned: [...run.owned, id], look: LOOKS[id] ? id : run.look };
+  return isEquipment(id) ? equip(bought, id) : bought;
 }
 
 /** Puts on colors you own, or takes them off if you're already wearing them. */
@@ -95,4 +97,4 @@ export function wear(run: RunState, id: ShopItemId): RunState {
   return { ...run, look: run.look === id ? "" : id };
 }
 
-export const shopKi = (run: RunState): number => run.owned.reduce((sum, id) => sum + (isShopItem(id) ? SHOP_ITEMS[id].ki ?? 0 : 0), 0);
+export const shopKi = (run: RunState): number => equipmentKi(run) + (owns(run, "charm") ? SHOP_ITEMS.charm.ki ?? 0 : 0);

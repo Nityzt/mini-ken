@@ -1,4 +1,5 @@
 import test from "node:test";
+import type { EquipmentId, ModId } from "./equipment.ts";
 import assert from "node:assert/strict";
 import { wrapText } from "./art/font.ts";
 import { STAGE_W } from "./core/scale.ts";
@@ -183,4 +184,56 @@ test("taking the men on and off leaves your colors alone, and the other way roun
 test("every shinai you can carry is gear, wherever you got it", () => {
   for (const item of ["shinai", "ownShinai", "shop:fineShinai"] as const) assert.equal(itemKind(item), "Gear", item);
   assert.equal(itemKind("bamboo"), "Item");
+});
+
+test("purchased armor equips its slot and earned armor can be selected again", () => {
+  const start = { ...createRunState(), gear: { ...createRunState().gear, do: true }, owned: ["forgeDo"] };
+  assert.equal(isWearable("shop:forgeDo"), true);
+  assert.equal(itemKind("shop:forgeDo"), "Gear");
+  const changed = toggleWorn(start, "shop:forgeDo");
+  assert.equal(isWorn(changed, "shop:forgeDo"), true);
+  assert.equal(isWorn(changed, "do"), false);
+  assert.equal(isWorn(toggleWorn(changed, "do"), "do"), true);
+  assert.ok(inventoryOf(changed).includes("shop:forgeDo"));
+});
+
+test("variant icons show their material colors and descriptions show installed modifications", async () => {
+  const { modify } = await import("./equipment.ts");
+  const start = { ...createRunState(), money: 200, gear: { ...createRunState().gear, do: true }, owned: ["forgeDo"] };
+  const modded = modify(start, "forgeDo", "softLining");
+  const { inventoryDescription } = await import("./items.ts");
+  assert.match(inventoryDescription(modded, "shop:forgeDo"), /Ki \+9/);
+  assert.match(inventoryDescription(modded, "shop:forgeDo"), /Soft lining/);
+  assert.ok(itemIconColors("shop:forgeDo"));
+});
+
+test("equipment names and fitted effects fit together on the inventory card", async () => {
+  const { EQUIPMENT, MODS, equipmentInfo } = await import("./equipment.ts");
+  const { inventoryDescription } = await import("./items.ts");
+  const { CARD_TEXT_WIDTH, CARD_TEXT_LINES } = await import("./scenes/inventory-page.ts");
+  const base = new Set(["shinai", "ownShinai", "tare", "do", "men", "kote"]);
+  for (const key of Object.keys(EQUIPMENT) as EquipmentId[]) {
+    const item = (base.has(key) ? key : `shop:${key}`) as Parameters<typeof itemInfo>[0];
+    for (const mod of [undefined, ...Object.keys(MODS) as ModId[]]) {
+      if (mod && !MODS[mod].slots.includes(equipmentInfo(key).slot)) continue;
+      const run = { ...createRunState(), mods: mod ? { [key]: mod } : {} };
+      const lines = wrapText(itemInfo(item).name, CARD_TEXT_WIDTH).length + wrapText(inventoryDescription(run, item), CARD_TEXT_WIDTH).length;
+      assert.ok(lines <= CARD_TEXT_LINES, `${key}/${mod}: ${lines} lines`);
+    }
+  }
+});
+
+test("a selected men variant toggles walking visibility without changing combat gear", () => {
+  const start = { ...createRunState(), gear: { ...createRunState().gear, men: true }, owned: ["mistMen"] };
+  const selected = toggleWorn(start, "shop:mistMen");
+  assert.equal(selected.equipped.men, "mistMen");
+  assert.equal(isWorn(selected, "shop:mistMen"), false, "selected but kept off between fights");
+  const worn = toggleWorn(selected, "shop:mistMen");
+  assert.equal(worn.menOn, true);
+  assert.equal(isWorn(worn, "shop:mistMen"), true);
+  assert.equal(walkingGear(worn).men, true);
+  const off = toggleWorn(worn, "shop:mistMen");
+  assert.equal(off.menOn, false);
+  assert.equal(off.equipped.men, "mistMen");
+  assert.equal(off.gear.men, true, "always available for combat");
 });

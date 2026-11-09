@@ -1,4 +1,6 @@
 import { PINECONE_COLORS } from "./art/palette.ts";
+import { EQUIPMENT, equippedAt, type EquipmentSlot } from "./equipment.ts";
+import type { RunState } from "./run-state.ts";
 import { INSIGNIA_COLORS, type Insignia } from "./insignia.ts";
 import { LOOKS, OWN_COLORS, type ShopItemId } from "./shop.ts";
 
@@ -83,14 +85,22 @@ export const playerName = (who: { character: CharacterId; name?: string }): stri
 const cached = new Map<string, Record<string, string>>();
 
 /** The colors the player is drawn in. Sprites are cached by this object, so the same look always returns the same one. */
-export function playerColors(who: { character: CharacterId; insignia: Insignia; gi: boolean; look?: string }): Record<string, string> {
+export function playerColors(who: { character: CharacterId; insignia: Insignia; gi: boolean; look?: string } & Partial<Pick<RunState, "gear" | "owned" | "equipped" | "mods" | "wielded" | "madeShinai" | "shinaiQuest">>): Record<string, string> {
   const { character, insignia, gi, look = "" } = who;
-  const key = `${character}/${insignia.cloth}/${insignia.mark}/${gi}/${look}`;
+  const equipmentColors: Record<string, string> = {};
+  // Character previews have no equipment; real players show only the pieces worn.
+  if (who.gear && who.owned) {
+    for (const slot of ["shinai", "tare", "do", "men", "kote"] as EquipmentSlot[]) {
+      const id = equippedAt(who as RunState, slot);
+      if (id) for (const [channel,color] of Object.entries(EQUIPMENT[id].colors ?? {})) equipmentColors[`${slot}:${channel}`] = color;
+    }
+  }
+  const key = `${character}/${insignia.cloth}/${insignia.mark}/${gi}/${look}/${JSON.stringify(equipmentColors)}`;
   let colors = cached.get(key);
   if (!colors) {
     const person = characterById(character);
     const armor = look === OWN_COLORS ? person.armor : { ...PINECONE_COLORS, ...LOOKS[look as ShopItemId] };
-    colors = { ...person.look, ...armor, ...(gi ? {} : person.street), ...person.men, Z: INSIGNIA_COLORS[insignia.cloth], z: INSIGNIA_COLORS[insignia.mark] };
+    colors = { ...person.look, ...armor, ...(gi ? {} : person.street), ...person.men, ...equipmentColors, Z: INSIGNIA_COLORS[insignia.cloth], z: INSIGNIA_COLORS[insignia.mark] };
     cached.set(key, colors);
   }
   return colors;
