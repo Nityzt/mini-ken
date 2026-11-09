@@ -2,6 +2,10 @@ import { MEN_INHERITS, PALETTE, RIVAL_COLORS, SENIOR_COLORS } from "./palette.ts
 import { FULL_GEAR, type Gear } from "./kendoka.ts";
 import type { Kamae } from "../duel/rules.ts";
 import { drawSprite, grid } from "./sprite.ts";
+import { INSIGNIA_COLORS, symbolGrid, type Insignia } from "../insignia.ts";
+
+export const duelInsigniaPixels = (insignia: Insignia): { x: number; y: number; color: string }[] =>
+  symbolGrid(insignia.symbol).flatMap((row, y) => [...row].map((pixel, x) => ({ x, y, color: INSIGNIA_COLORS[pixel === "#" ? insignia.mark : insignia.cloth] })));
 
 export const FIGHTER_WIDTH = 32;
 export const FIGHTER_HEIGHT = 40;
@@ -481,6 +485,8 @@ export function drawFighter(
   options: {
     flip?: boolean;
     colors?: Record<string, string>;
+    insignia?: Insignia;
+    showRibbon?: boolean;
     weapon?: "shinai" | "stick" | "none";
     kamae?: Kamae;
     /** The pose being left behind, and how far through leaving it, from 0 to 1. */
@@ -552,9 +558,12 @@ export function drawFighter(
   if (!armBehind) rightArm();
   place(gear.do ? CHEST_DO : CHEST_GI, torsoX, 17 + torsoY);
   place(gear.tare ? WAIST_TARE : WAIST_PLAIN, torsoX, 22 + torsoY);
+  if (gear.tare && options.insignia) {
+    for (const pixel of duelInsigniaPixels(options.insignia)) exactly(14 + torsoX + pixel.x, 23 + torsoY + pixel.y, pixel.color);
+  }
 
   // The tasuki ribbon ties to the do, and matches the flag the referees raise.
-  if (gear.do) {
+  if (gear.do && options.showRibbon !== false) {
     const ribbon = side === "player" ? PALETTE.R : PALETTE.W;
     px(5 + torsoX, 20 + torsoY, ribbon, 2);
     px(4 + torsoX, 22 + torsoY, ribbon, 2);

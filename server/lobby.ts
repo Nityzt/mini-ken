@@ -1,5 +1,6 @@
 import type { ClientMessage, Identity, LobbyClosedReason, MatchReport, OutcomeReason, ServerMessage } from "../game/net/protocol.ts";
 import { decideOutcome } from "./outcome.ts";
+import { allowedAppearance, rankForRecord } from "../game/net/appearance.ts";
 
 export const LOBBY_EMPTY_MS = 600_000;
 export const VISIBLE_WAIT_MS = 120_000;
@@ -82,16 +83,19 @@ export function createLobbyHub(deps: {
     lobby.state = "playing";
     lobby.rematch.clear();
     lobby.match = { order, reports: blankReports(), left: null, gone: [false, false], lastInputAt: [firstInputBy, firstInputBy], lastFrame: [-1, -1], reportDeadline: null };
-    order[0].player.send({ t: "match", seed, side: 0, opponent: order[1].player.identity });
-    order[1].player.send({ t: "match", seed, side: 1, opponent: order[0].player.identity });
+    order[0].player.send({ t: "match", seed, side: 0, opponent: order[1].player.identity, self: order[0].player.identity });
+    order[1].player.send({ t: "match", seed, side: 1, opponent: order[0].player.identity, self: order[1].player.identity });
   };
 
   const settle = (lobby: Lobby, match: Match, winner: 0 | 1 | null, reason: OutcomeReason, now: number) => {
     lobby.state = "settling";
     const [one, two] = match.order;
     const players: [string, string] = [one.player.id, two.player.id];
-    const tell = (record: { wins: [number, number]; losses: [number, number] }) => {
+    const tell = (record: { wins: [number, number]; losses: [number, number] }, verified = true) => {
       match.order.forEach((member, side) => {
+        const recordHere = { wins: record.wins[side], losses: record.losses[side] };
+        const identity = member.player.identity;
+        if (verified) member.player.identity = { ...identity, rank: rankForRecord(recordHere), ...(identity.appearance ? { appearance: allowedAppearance(identity.appearance, recordHere) } : {}) };
         if (match.gone[side]) return;
         const mine = winner === null ? null : winner === side ? "you" : "them";
         member.player.send({ t: "outcome", winner: mine, reason, wins: record.wins[side], losses: record.losses[side] });
@@ -110,7 +114,7 @@ export function createLobbyHub(deps: {
       .catch((error: unknown) => {
         // The match is still over. The next look at their record will just be missing it.
         console.error("Couldn't record a match:", error instanceof Error ? error.message : "unknown");
-        tell({ wins: [0, 0], losses: [0, 0] });
+        tell({ wins: [0, 0], losses: [0, 0] }, false);
       });
   };
 

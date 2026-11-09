@@ -7,6 +7,7 @@ import { parseServerMessage, PROTOCOL_VERSION, type ClientMessage, type ServerMe
 import { createSession, signUp } from "./accounts.ts";
 import { createRelay } from "./relay.ts";
 import { tempDb } from "./test-db.ts";
+import { DEFAULT_INSIGNIA } from "../game/insignia.ts";
 
 const ORIGIN = "https://kendo.example";
 
@@ -105,6 +106,17 @@ test("identity comes from the session, whatever a client says", async (t) => {
   assert.equal(identity.guest, false);
 });
 
+test("the relay limits an appearance to colors unlocked by the account record", async (t) => {
+  const { account, open } = await setup(t);
+  const socket = open((await account("Emi")).token);
+  const me = client(socket);
+  await opened(socket);
+  const appearance = { character: "emi", armor: "radish", insignia: DEFAULT_INSIGNIA } as const;
+  me.send({ t: "hello", version: PROTOCOL_VERSION, appearance });
+  const { identity } = await me.next("welcome");
+  assert.deepEqual(identity.appearance, { ...appearance, armor: "pine" });
+});
+
 test("an old client is asked to refresh", async (t) => {
   const { account, open } = await setup(t);
   const socket = open((await account("Emi")).token);
@@ -136,8 +148,9 @@ test("two players go from a lobby to a recorded result", async (t) => {
   const a = client(emiSocket);
   const b = client(kenSocket);
   await Promise.all([opened(emiSocket), opened(kenSocket)]);
+  const appearance = { character: "emi", armor: "ink", insignia: { symbol: "star", cloth: "red", mark: "cream" } } as const;
   for (const player of [a, b]) {
-    player.send({ t: "hello", version: PROTOCOL_VERSION });
+    player.send({ t: "hello", version: PROTOCOL_VERSION, appearance });
     player.send({ t: "visible", visible: true });
   }
   await Promise.all([a.next("welcome"), b.next("welcome")]);
@@ -148,6 +161,8 @@ test("two players go from a lobby to a recorded result", async (t) => {
   const [matchA, matchB] = await Promise.all([a.next("match"), b.next("match")]);
   assert.equal(matchA.seed, matchB.seed);
   assert.notEqual(matchA.side, matchB.side);
+  assert.deepEqual(matchA.opponent.appearance, appearance);
+  assert.deepEqual(matchB.opponent.appearance, appearance);
   a.send({ t: "input", frame: 3, bits: 5 });
   assert.deepEqual(await b.next("input"), { t: "input", frame: 3, bits: 5 });
   a.send({ t: "result", report: "won" });

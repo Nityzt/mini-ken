@@ -3,6 +3,7 @@ import type { IncomingMessage } from "node:http";
 import type { Duplex } from "node:stream";
 import { WebSocketServer, type WebSocket } from "ws";
 import { ONLINE_MIN_DAN } from "../game/net/profile.ts";
+import { allowedAppearance, rankForRecord, type Appearance } from "../game/net/appearance.ts";
 import { LOBBY_CODE_ALPHABET, LOBBY_CODE_LENGTH, parseClientMessage, PROTOCOL_VERSION, type ClientMessage, type Identity, type ServerMessage } from "../game/net/protocol.ts";
 import { isOpen } from "../game/progress.ts";
 import { readSave } from "../game/save.ts";
@@ -62,9 +63,10 @@ export function createRelay(deps: { db: Db; now(): number; publicOrigin: string 
     let windowStart = now();
     let windowCount = 0;
 
-    const greet = async () => {
+    const greet = async (appearance?: Appearance) => {
       greeted = true;
-      const identity: Identity = { id: account.id, name: account.username, dan: await danOf(db, account.id), guest: false };
+      const [dan, record] = await Promise.all([danOf(db, account.id), recordOf(db, account.id)]);
+      const identity: Identity = { id: account.id, name: account.username, dan, guest: false, rank: rankForRecord(record), ...(appearance ? { appearance: allowedAppearance(appearance, record) } : {}) };
       if (socket.readyState !== socket.OPEN) return;
       player = { id: account.id, identity, send: say, close: () => socket.close() };
       hub.connect(player, now());
@@ -87,7 +89,7 @@ export function createRelay(deps: { db: Db; now(): number; publicOrigin: string 
       if (!message) return;
       if (!greeted) {
         if (message.t === "hello" && message.version === PROTOCOL_VERSION) {
-          greet().catch(() => socket.terminate());
+          greet(message.appearance).catch(() => socket.terminate());
           return;
         }
         say({ t: "rejected", reason: REFRESH });
