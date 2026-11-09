@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { moveAndCollide, type TileMap } from "./collision.ts";
+import { moveAndCollide, slideIntoGap, type TileMap } from "./collision.ts";
 
 const map: TileMap = {
   tile: 16,
@@ -58,4 +58,40 @@ test("past the sides of a map is solid, but above and below are open", () => {
   const open: TileMap = { tile: 16, solid: "#", rows: ["..", ".."] };
   assert.equal(moveAndCollide(box(0, 0), -5, 0, open).box.x, 0);
   assert.equal(moveAndCollide(box(0, 20), 0, 40, open).box.y, 60);
+});
+
+// A wall with a one-tile doorway at column 2, like the storage door: rows 0-1 are a hall, row 2 the wall, row 3 the room.
+const doorway: TileMap = {
+  tile: 16,
+  solid: "#",
+  rows: [
+    ".....",
+    ".....",
+    "##.##",
+    ".....",
+  ],
+};
+const walker = (x: number, y: number) => ({ x, y, w: 10, h: 8 });
+
+test("walking at a doorway a few pixels off eases you into it instead of stopping you dead", () => {
+  let left = walker(30, 22); // 2px left of the doorway's 32 to 48
+  for (let i = 0; i < 30; i++) left = slideIntoGap(left, 0, 1.5, doorway, 6);
+  assert.ok(left.y > 3 * 16, `got through to y=${left.y}`);
+  let right = walker(40, 22); // 2px right of it
+  for (let i = 0; i < 30; i++) right = slideIntoGap(right, 0, 1.5, doorway, 6);
+  assert.ok(right.y > 3 * 16, `got through to y=${right.y}`);
+  let up = walker(29, 52); // and back out again, from the room
+  for (let i = 0; i < 40; i++) up = slideIntoGap(up, 0, -1.5, doorway, 6);
+  assert.ok(up.y < 2 * 16, `got back out to y=${up.y}`);
+});
+
+test("a wall well away from any gap stays a wall", () => {
+  let b = walker(4, 22);
+  for (let i = 0; i < 30; i++) b = slideIntoGap(b, 0, 1.5, doorway, 6);
+  assert.deepEqual(b, walker(4, 24));
+});
+
+test("moving freely or diagonally is just moving", () => {
+  assert.deepEqual(slideIntoGap(walker(4, 4), 1.5, 0, doorway, 6), moveAndCollide(walker(4, 4), 1.5, 0, doorway).box);
+  assert.deepEqual(slideIntoGap(walker(30, 22), 1, 1, doorway, 6), moveAndCollide(walker(30, 22), 1, 1, doorway).box);
 });
