@@ -5,16 +5,21 @@ export const GRID_COLS = 6;
 export type SlotGroup<T> = { title: string; slots: (T | null)[] };
 export type Cell = { group: number; slot: number; row: number; col: number; index: number | null };
 
-/** Every slot's place. Rows count down the whole page, and each group starts on a row of its own. */
-export function layoutGrid(groupSizes: readonly number[], pickable: readonly (readonly boolean[])[], cols = GRID_COLS): Cell[] {
+/**
+ * Every slot's place. Rows count down the whole page, and each group starts on a row of its own.
+ * A group can start a few columns in (`offsets`), so up and down line up with where it's drawn.
+ */
+export function layoutGrid(groupSizes: readonly number[], pickable: readonly (readonly boolean[])[], cols = GRID_COLS, offsets: readonly number[] = []): Cell[] {
   const cells: Cell[] = [];
   let row = 0;
   let index = 0;
   groupSizes.forEach((size, group) => {
+    const offset = offsets[group] ?? 0;
+    const across = cols - offset;
     for (let slot = 0; slot < size; slot++) {
-      cells.push({ group, slot, row: row + Math.floor(slot / cols), col: slot % cols, index: pickable[group][slot] ? index++ : null });
+      cells.push({ group, slot, row: row + Math.floor(slot / across), col: offset + (slot % across), index: pickable[group][slot] ? index++ : null });
     }
-    row += Math.ceil(size / cols);
+    row += Math.ceil(size / across);
   });
   return cells;
 }

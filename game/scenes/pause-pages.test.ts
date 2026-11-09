@@ -52,3 +52,12 @@ test("a full ki bar means the most ki anything asks for", () => {
   assert.equal(KI_GOAL, Math.max(...LADDER.map((u) => u.ki ?? 0)));
   assert.ok(KI_GOAL > 0);
 });
+
+test("the equipment card's labels fit beside its picture, and the empty-slot note fits under it", async () => {
+  const { SCREEN_SLOTS } = await import("../equipment-screen.ts");
+  const content = await import("./content.ts");
+  const besidePicture = 62;
+  const labels = [...SCREEN_SLOTS.map((slot) => `${slot} slot`.toUpperCase()), content.ITEM_LOCKED, content.SLOT_EMPTY, content.ITEM_FIGHTS_ONLY, content.ITEM_IN_HAND, content.ITEM_PUT_AWAY, content.ITEM_NOT_WORN, content.ITEM_READY];
+  for (const label of labels) assert.ok(measureText(label) <= besidePicture, label);
+  assert.ok(wrapText(content.SLOT_EMPTY_LINE, CARD_TEXT_WIDTH).length <= CARD_TEXT_LINES);
+});
