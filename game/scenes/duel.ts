@@ -557,7 +557,8 @@ const PROMPT_TIMER_WIDTH = 34;
 const PROMPT_OVER_GROUND = 56;
 
 /** Which key answers what's coming, or just how long is left when `label` is null. Centered over `x`. */
-export function drawKeyPrompt(ctx: CanvasRenderingContext2D, x: number, ground: number, label: string | null, left: number): void {
+/** A key prompt over someone's head. `left` is how much of its timer is left, and null leaves the timer off. */
+export function drawKeyPrompt(ctx: CanvasRenderingContext2D, x: number, ground: number, label: string | null, left: number | null): void {
   const at = guiPoint(ctx, x, ground - PROMPT_OVER_GROUND);
   onGui(ctx, () => {
     const width = Math.max(PROMPT_TIMER_WIDTH, label ? measureText(label) : 0) + 4;
@@ -566,6 +567,7 @@ export function drawKeyPrompt(ctx: CanvasRenderingContext2D, x: number, ground: 
     ctx.fillStyle = UI.panel;
     ctx.fillRect(boxLeft, top, width, label ? 15 : 6);
     if (label) drawTextCentered(ctx, label, boxLeft + width / 2, top + 1, UI.accent);
+    if (left === null) return;
     const barY = top + (label ? 11 : 2);
     ctx.fillStyle = UI.track;
     ctx.fillRect(boxLeft + 2, barY, PROMPT_TIMER_WIDTH, 2);

@@ -1,7 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { durabilityOf, FULL_DURABILITY, OLD_SHINAI_DURABILITY } from "../durability.ts";
-import { asShinai, inventoryOf, isWorn, itemsGained, toggleWorn } from "../items.ts";
+import { inventoryOf } from "../equipment-screen.ts";
+import { asShinai, isWorn, itemsGained, toggleWorn } from "../items.ts";
 import { currentObjective } from "../objective.ts";
 import { createRunState, type RunState } from "../run-state.ts";
 import { answerOffer, answerWhy, talkToMomo, talkToSensei } from "./club-story.ts";

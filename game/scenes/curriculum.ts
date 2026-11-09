@@ -4,6 +4,7 @@ import { AKI_COLORS, BO_COLORS, GEN_COLORS, SENIOR_COLORS, YUI_COLORS } from "..
 import { RANGE_MAX, TSUBA_GAP } from "../duel/constants.ts";
 import { createDuel, distance, type AttackKind, type DuelEvent, type DuelState, type FighterInput, type Target } from "../duel/rules.ts";
 import type { OpponentId } from "../world/dojos.ts";
+import type { ArmorPiece } from "../run-state.ts";
 import { COACH_NAME, SENPAI_LINES } from "./content.ts";
 import type { TeachKey } from "./teach-card.ts";
 import { challengeText, lessonText } from "./teaching.ts";
@@ -193,7 +194,7 @@ const SEME_LESSONS: Lesson[] = [
 ];
 
 /** What passing each level of challenge earns. Sensei gives the tare; the senpai give the rest. */
-export const CHALLENGE_REWARD: (keyof Gear)[] = ["do", "men", "kote"];
+export const CHALLENGE_REWARD: ArmorPiece[] = ["do", "men", "kote"];
 const LEVEL_TARGET: Target[] = ["men", "do", "kote"];
 /** What each level throws at you. Partners stop short of anything you aren't armored for. */
 const LEVEL_ATTACKS: AttackKind[][] = [[], ["bigMen", "do"], ["men", "do"]];

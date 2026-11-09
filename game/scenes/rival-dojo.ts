@@ -101,8 +101,8 @@ export function createRivalDojoScene(nameOf: () => string): Scene {
       visit = null;
       visitLines = null;
       arriving = false;
-      // Back from a match, you're still standing where you started it.
-      const stayed = game.fromFight && walkerAt === game.run.node;
+      // Back from a match or the passage below, you're still standing where you started it.
+      const stayed = game.returning && walkerAt === game.run.node;
       if (!stayed) walker = createWalker(start.col, start.row);
       walkerAt = game.run.node;
       // Whoever's next has come to have a look at you.

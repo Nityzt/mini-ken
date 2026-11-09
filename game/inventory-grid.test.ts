@@ -37,3 +37,10 @@ test("an empty inventory doesn't break", () => {
   const none = layoutGrid([], []);
   assert.equal(moveInGrid(none, 0, 1, 1), 0);
 });
+
+test("a group can start a few columns in, and up and down line up with it", () => {
+  const offset = layoutGrid([5, 6], [full(5), full(6)], 6, [1]);
+  assert.deepEqual(offset.filter((c) => c.group === 0).map((c) => c.col), [1, 2, 3, 4, 5]);
+  assert.equal(moveInGrid(offset, 0, 0, 1), 6, "the first slot sits over the second column");
+  assert.equal(moveInGrid(offset, 5, 0, -1), 0, "the first column goes up to the nearest");
+});
