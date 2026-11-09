@@ -125,7 +125,8 @@ export function createTitleScene(): Scene {
             if (selected) drawText(ctx, ">", (STAGE_W - measureText(option)) / 2 - 10, y, UI.accent);
           });
           const helpLines = [
-            `${keyLabel(game.input, "left", "a")} ${keyLabel(game.input, "right", "d")} move   ${keyLabel(game.input, "confirm", "e")} talks`,
+            // The dojo is walked in four directions, so all four keys are shown, not just a duel's left and right.
+            `${(["up", "left", "down", "right"] as const).map((action) => keyLabel(game.input, action, { up: "w", left: "a", down: "s", right: "d" }[action])).join(" ")} move   ${keyLabel(game.input, "confirm", "e")} talks`,
             `${keyLabel(game.input, "pause", "escape")} menu   ${keyLabel(game.input, "fullscreen", "f")} fullscreen`,
           ];
           helpLines.forEach((line, i) => drawTextCentered(ctx, line, STAGE_W / 2, BOX_TOP + 9 + options.length * 10 + i * 9, UI.dim));

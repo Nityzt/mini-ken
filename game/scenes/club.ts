@@ -15,7 +15,7 @@ import { currentObjective } from "../objective.ts";
 import { DOJOS, opponentById } from "../world/dojos.ts";
 import { askToGrade, showLetter, type Asker } from "../grading.ts";
 import { hasLetter, personDan, presenceOf, type PersonId } from "../ranks.ts";
-import { answerOffer, answerWhy, cupOffer, doorResponse, interactionLabel, kirikaeshiOffer, lineOffer, senpaiMenu, senseiMenu, talkToMomo, talkToSenpai, talkToSensei } from "./club-story.ts";
+import { answerOffer, answerWhy, cupOffer, doorResponse, homeLabel, kirikaeshiOffer, lineOffer, senpaiMenu, senseiMenu, talkToMomo, talkToSenpai, talkToSensei } from "./club-story.ts";
 import { rest } from "../health.ts";
 import { talkToChallenger } from "./challengers.ts";
 import { openTopics } from "./chatter.ts";
@@ -24,7 +24,7 @@ import { offerBet } from "./bet-menu.ts";
 import { createMenu } from "./choice.ts";
 import { createShop } from "./shop.ts";
 import { findEgg } from "../money.ts";
-import { HELP_OFFER, MOMO_AT_DOOR, MOMO_STORAGE_OPEN, OFFER_OPTIONS, SCREEN_HINT, SCREEN_LOOK, SCREEN_NEEDS_TRAINING, SCREEN_NO_SHINAI, STORAGE_LOCKED, WAZA_OFFER, WHY_OPTIONS } from "./content.ts";
+import { HELP_OFFER, MOMO_AT_DOOR, MOMO_STORAGE_OPEN, OFFER_OPTIONS, OFFER_QUESTION, SCREEN_HINT, SCREEN_LOOK, SCREEN_NEEDS_TRAINING, SCREEN_NO_SHINAI, STORAGE_LOCKED, WAZA_OFFER, WHY_OPTIONS, WHY_QUESTION } from "./content.ts";
 import { crowdDrawings, drawNamedChat, rankTagShown } from "./crowd.ts";
 import { drawInteractPrompt, drawObjective, drawTopBar } from "./ui.ts";
 import type { SenpaiId, Session } from "./curriculum.ts";
@@ -59,7 +59,7 @@ function drawStorageDoor(ctx: CanvasRenderingContext2D, cam: { x: number; y: num
   const options = { colors: lookOf("pinecone").room };
   const x = storageDoor.col * TILE - cam.x;
   const y = storageDoor.row * TILE - cam.y;
-  drawSprite(ctx, TILE_GRIDS.doorOpen, x, y, options);
+  drawSprite(ctx, TILE_GRIDS.doorwayIn, x, y, options);
   ctx.save();
   ctx.beginPath();
   ctx.rect(x, y, TILE, TILE);
@@ -207,7 +207,7 @@ export function createClubScene(nameOf: () => string): Scene {
       const answer = answerOffer(game.run, id);
       if (answer.after) handOver(game, answer, answer.after);
       else dialogue.open(answer.lines);
-    });
+    }, ask === "why" ? WHY_QUESTION : OFFER_QUESTION);
   };
   const talkSensei = (game: Game) => {
     const reply = talkToSensei(game.run);
@@ -614,8 +614,10 @@ export function createClubScene(nameOf: () => string): Scene {
       drawTopBar(ctx, "Pinecone Dojo", game.run);
       if (!dialogue.active && !menu.active) {
         drawObjective(ctx, currentObjective(game.run));
-        const label = interactionLabel(personAhead(walker, rows, CLUB_SOLID, PEOPLE)?.char ?? tileInFront(walker, rows), "home");
-        if (label) drawInteractPrompt(ctx, label, walker.box.x + walker.box.w / 2 - cam.x, walker.box.y - cam.y, keyLabel(game.input, "confirm", "e"));
+        const ahead = personAhead(walker, rows, CLUB_SOLID, PEOPLE);
+        const label = homeLabel(ahead?.char ?? tileInFront(walker, rows));
+        // Facing up at someone, a prompt over your head would sit on their face, so it goes under your feet.
+        if (label) drawInteractPrompt(ctx, label, walker.box.x + walker.box.w / 2 - cam.x, walker.box.y - cam.y, keyLabel(game.input, "confirm", "e"), !!ahead && walker.facing === "up");
       }
       if (menToast !== null) drawMenToast(ctx, menToast, game.reducedMotion, { pause: keyLabel(game.input, "pause", "escape"), confirm: keyLabel(game.input, "confirm", "e") }, playerColors(game.run));
       dialogue.render(ctx, speakersIn(figures, SPEAKERS, you, talkingTo));
