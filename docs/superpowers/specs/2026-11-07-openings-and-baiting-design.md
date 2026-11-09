@@ -59,7 +59,8 @@ There are three openings, each leaving one target exposed.
 **Strikes that need no opening (my call):**
 - A parry's counter, because the parry came first.
 - A hiki strike, because the pull is its tell.
-These two keep today's `exposes` table for what they leave open. Every other strike, including the bots' `quickMen` and `bigMen`, needs an opening.
+- A strike off a launch toward them (owner, issue #14), because the launch is the commitment. It's allowed while the launch lasts and 8 ticks after (`LAUNCH_STRIKE_GRACE`), and takes 5 ticks longer than usual (`LAUNCH_STRIKE_EXTRA`). In the simulation, a reader who also launches in this way from outside range is no better than a plain reader (19 to 29 pooled); without the extra 5 ticks it was a little better (26 to 22).
+These three keep today's `exposes` table for what they leave open. Every other strike, including the bots' `quickMen` and `bigMen`, needs an opening.
 
 ### Plain guard and ki (owner)
 

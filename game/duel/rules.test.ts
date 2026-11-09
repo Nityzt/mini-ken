@@ -10,7 +10,7 @@ const attack = (a: AttackKind): FighterInput => ({ move: 0, block: false, attack
 
 const fighter = (stance: Stance, attackKind: AttackKind | null = null): Fighter => ({
   kamae: "chudan",
-  x: 100, ki: 100, kiMax: 100, stance, stanceTicks: 5, attack: attackKind, points: 0, stompAge: 9999, launchTicks: 0, launchDir: 0, pressure: 0, kiaiTicks: 0, parryCooldown: 0, counterTicks: 0, hiki: false, opening: null, openingTicks: 0, queued: null, countering: false, reparryTicks: 0, reparryUsed: false,
+  x: 100, ki: 100, kiMax: 100, stance, stanceTicks: 5, attack: attackKind, points: 0, stompAge: 9999, launchTicks: 0, launchDir: 0, launchStrikeTicks: 0, pressure: 0, kiaiTicks: 0, parryCooldown: 0, counterTicks: 0, hiki: false, opening: null, openingTicks: 0, queued: null, countering: false, reparryTicks: 0, reparryUsed: false,
 });
 
 /** A duel in the fight phase with fighters this far apart. */

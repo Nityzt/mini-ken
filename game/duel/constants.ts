@@ -55,6 +55,13 @@ export const FLAG_AFTER_HIT = 12;
 export const LAUNCH_TICKS = 14;
 export const LAUNCH_SPEED = 4;
 export const LAUNCH_COST = 10;
+/**
+ * A strike pressed while launching toward them, or this soon after landing, needs no opening (issue #14): the launch
+ * is the commitment, and it's as easy to see coming as an opening. Launch, opening and strike was too many keys.
+ */
+export const LAUNCH_STRIKE_GRACE = 8;
+/** And it takes this much longer than usual, half an opening's minimum, so the launch itself is the warning. With none, a reader who also launched beat a plain reader; with this, it doesn't. */
+export const LAUNCH_STRIKE_EXTRA = 5;
 
 // Seme: hold to press the opponent with your spirit, spending ki.
 export const SEME_DRAIN = 0.5;

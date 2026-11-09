@@ -2,7 +2,7 @@ import {
   ABSORB_COST, BOW_TICKS, FREEZE_AIUCHI, FREEZE_BLOCK, FREEZE_BREAK, FREEZE_CROSS, FREEZE_HIT, FREEZE_LOCK, FREEZE_PARRY, FREEZE_SHAKEN, FREEZE_SHOVE, TEMPO_FRAMES, TEMPO_TICKS, BROKEN_TICKS, CLOSING_TICKS, CROSS_CLEAN_WINDOW, CROSS_GAP, CROSS_LOCK_WITHIN, CROSS_QUICK_WINDOW, CROSS_SETTLE, CROSS_SPEED, CROSS_WRONG_WINDOW, BLOCK_DRAIN, COUNTER_DRIVE_TICKS, COUNTER_TICKS, COUNTER_WINDUP, DEFLECT_KI_LOSS, DEFLECT_TICKS, HIKI_STEP_TICKS, HIKI_TELL, HIKI_WINDUP,
   KI_AFTER_BREAK, KI_LOW, KI_MAX, KI_RECOVERY, LOCK_DISTANCE, LOW_KI_SLOWDOWN,
   LOW_KI_WALK, MATCH_TICKS, MIN_DISTANCE, OPENING_MIN, OPENING_START_KI, PARRY_COOLDOWN, PARRY_KI, PARRY_LOCK_WITHIN, PARRY_WINDOW, POINTS_TO_WIN, RANGE_MAX, RANGE_MIN, RECOVERY_TICKS, REPARRY_LOCK_WITHIN, REPARRY_MISS, REPARRY_WINDOW, RETURN_KI_RATE, RETURN_SETTLE, RETURN_WALK, RING_MAX, RING_MIN,
-  KIAI_COOLDOWN, KIAI_COST, KIAI_PRESS, LAUNCH_COST, LAUNCH_SPEED, LAUNCH_TICKS, SEME_DECAY, SEME_DRAIN, SEME_RANGE, SEME_START_KI, SEME_TICKS, SHAKEN_KI_LOSS, SHAKEN_TICKS, SHOVE_TICKS,
+  KIAI_COOLDOWN, KIAI_COST, KIAI_PRESS, LAUNCH_COST, LAUNCH_SPEED, LAUNCH_STRIKE_EXTRA, LAUNCH_STRIKE_GRACE, LAUNCH_TICKS, SEME_DECAY, SEME_DRAIN, SEME_RANGE, SEME_START_KI, SEME_TICKS, SHAKEN_KI_LOSS, SHAKEN_TICKS, SHOVE_TICKS,
   START_DISTANCE, STOMP_WINDOW, STUMBLE_TICKS, SWING_COST, TAIATARI_BALANCE, TSUBA_BREAK, TSUBA_CARRY, TSUBA_CLOSE_SPEED, TSUBA_DRIFT, TSUBA_ENTER, TSUBA_GAP, TSUBA_PUSH_COST, TSUBA_TICKS, TSUBA_WAKARE_GAP,
   WALK, ZANSHIN_EDGE_MAX, ZANSHIN_EDGE_MIN, ZANSHIN_HIKI, ZANSHIN_PASS, ZANSHIN_SLIDE, ZANSHIN_WINDOW,
 } from "./constants.ts";
@@ -38,6 +38,8 @@ export type Fighter = {
   stompAge: number;
   launchTicks: number;
   launchDir: -1 | 0 | 1;
+  /** How much longer a strike can go straight off a launch toward them, with no opening. */
+  launchStrikeTicks: number;
   /** How close the opponent's seme has come to making this fighter flinch. */
   pressure: number;
   /** How long until this fighter can kiai again. */
@@ -213,7 +215,7 @@ export const startX = (i: 0 | 1) => (RING_MIN + RING_MAX) / 2 + (i === 0 ? -STAR
 
 function newFighter(i: 0 | 1, options: DuelOptions): Fighter {
   const kiMax = options.kiMax?.[i] ?? KI_MAX;
-  return { kamae: options.kamae?.[i] ?? "chudan", x: startX(i), ki: kiMax, kiMax, stance: "guard", stanceTicks: 0, attack: null, points: 0, stompAge: NEVER_STOMPED, launchTicks: 0, launchDir: 0, pressure: 0, kiaiTicks: 0, parryCooldown: 0, counterTicks: 0, hiki: false, opening: null, openingTicks: 0, queued: null, countering: false, reparryTicks: 0, reparryUsed: false };
+  return { kamae: options.kamae?.[i] ?? "chudan", x: startX(i), ki: kiMax, kiMax, stance: "guard", stanceTicks: 0, attack: null, points: 0, stompAge: NEVER_STOMPED, launchTicks: 0, launchDir: 0, launchStrikeTicks: 0, pressure: 0, kiaiTicks: 0, parryCooldown: 0, counterTicks: 0, hiki: false, opening: null, openingTicks: 0, queued: null, countering: false, reparryTicks: 0, reparryUsed: false };
 }
 
 export function createDuel(options: DuelOptions = {}): DuelState {
@@ -265,12 +267,15 @@ function startStrike(s: DuelState, i: 0 | 1, attack: AttackKind): void {
   const fromOpening = f.stance === "opening";
   const usual = fromOpening ? ATTACKS[attack].windup : (s.options.windups?.[i]?.[attack] ?? ATTACKS[attack].windup);
   f.countering = f.counterTicks > 0;
-  const base = f.countering ? Math.min(usual, COUNTER_WINDUP) : usual;
+  // Off a launch, the strike takes a little longer than usual, so the launch is the warning an opening would have been.
+  const offLaunch = f.launchStrikeTicks > 0 && !f.countering ? Math.max(0, LAUNCH_STRIKE_EXTRA - (fromOpening ? f.openingTicks : 0)) : 0;
+  const base = (f.countering ? Math.min(usual, COUNTER_WINDUP) : usual) + offLaunch;
   if (f.countering) {
     f.launchTicks = COUNTER_DRIVE_TICKS;
     f.launchDir = i === 0 ? 1 : -1;
   }
   f.counterTicks = 0;
+  f.launchStrikeTicks = 0;
   f.stanceTicks = isTired(f) ? Math.round(base * LOW_KI_SLOWDOWN) : base;
   f.stance = "windup";
   f.attack = attack;
@@ -283,6 +288,7 @@ function applyInput(s: DuelState, i: 0 | 1, input: FighterInput): void {
   const canParry = !s.options.basics;
   if (f.parryCooldown > 0) f.parryCooldown--;
   if (f.counterTicks > 0) f.counterTicks--;
+  if (f.launchStrikeTicks > 0) f.launchStrikeTicks--;
   if (f.stance === "block" && !input.block) f.stance = "guard";
   if (f.stance === "seme" && (!input.seme || f.ki <= 0 || input.attack || input.block || input.dash || input.opening)) f.stance = "guard";
   if (f.stance === "opening") {
@@ -312,9 +318,13 @@ function applyInput(s: DuelState, i: 0 | 1, input: FighterInput): void {
     f.launchTicks = LAUNCH_TICKS;
     f.launchDir = input.dash;
     f.ki = Math.max(0, f.ki - LAUNCH_COST);
+    if (input.dash === (i === 0 ? 1 : -1)) f.launchStrikeTicks = LAUNCH_TICKS + LAUNCH_STRIKE_GRACE;
     s.events.push({ type: "launch", by: i });
   }
-  if (f.stance === "guard" && input.attack && (s.options.direct?.[i] || f.counterTicks > 0)) {
+  // Off a launch toward them, the strike goes at once, from guard or from an opening alike.
+  if (free && input.attack && !input.block && f.launchStrikeTicks > 0) {
+    startStrike(s, i, input.attack);
+  } else if (f.stance === "guard" && input.attack && (s.options.direct?.[i] || f.counterTicks > 0)) {
     startStrike(s, i, input.attack);
   } else if (f.stance === "guard" && input.opening && !input.block && !input.seme && f.ki >= OPENING_START_KI) {
     f.stance = "opening";
@@ -827,6 +837,7 @@ function resetForNextPoint(s: DuelState): void {
     f.attack = null;
     f.stompAge = NEVER_STOMPED;
     f.launchTicks = 0;
+    f.launchStrikeTicks = 0;
     f.pressure = 0;
     f.parryCooldown = 0;
     f.counterTicks = 0;
@@ -920,6 +931,7 @@ export function ruleTick(state: DuelState, a: FighterInput, b: FighterInput): Du
       f.queued = null;
     }
     if (f.stance !== "windup") f.countering = false;
+    if (f.stance !== "guard" && f.stance !== "opening") f.launchStrikeTicks = 0;
     if (f.stance !== "deflected") {
       f.reparryTicks = 0;
       f.reparryUsed = false;
