@@ -115,6 +115,14 @@ export const WORLD_GRIDS: Record<string, string[]> = {
     "..CCCCCCCCCCCC..",
     "................",
   ]),
+  dojoLantern: t([
+    "....rrrrrrrr....", "...rRRRRRRRRr...", "..rRRRRRRRRRRr..", ".rrrrrrrrrrrrrr.",
+    "...OOOOOOOOOO...", "...OYYOOOOYYO...", "..rOYYObbOYYOr..", "..ROOOObbOOOOR..", "...DDDDbbDDDD...", "...bbbbbbbbbb...",
+  ]),
+  dojoBamboo: t([
+    "....gggggggg....", "...gGGGGGGGGg...", "..gGGGGGGGGGGg..", ".gggggggggggggg.",
+    "...OOOOOOOOOO...", "...OwwOOOOwwO...", "...OwwObbOwwO...", "...OOOObbOOOO...", "...GGGGbbGGGG...", "...bbbbbbbbbb...",
+  ]),
   station: t([
     "......KKKK......",
     ".....KWWWWK.....",

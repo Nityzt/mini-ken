@@ -2,6 +2,7 @@ import { keyLabel } from "../core/key-labels.ts";
 import { playerColors } from "../characters.ts";
 import { currentObjective } from "../objective.ts";
 import { createShop } from "./shop.ts";
+import { findCityEgg } from "./city-eggs.ts";
 import { drawObjective, drawStatus, fitTitle, statusWidth } from "./ui.ts";
 import { drawKendoka, type Facing } from "../art/kendoka.ts";
 import { drawText, drawTextCentered, measureText } from "../art/font.ts";
@@ -37,6 +38,8 @@ const DOJO_ART: Partial<Record<NodeId, string[]>> = {
   raccoon: WORLD_GRIDS.dojoRaccoon,
   heron: WORLD_GRIDS.dojoHeron,
   otter: WORLD_GRIDS.dojoOtter,
+  lantern: WORLD_GRIDS.dojoLantern,
+  bamboo: WORLD_GRIDS.dojoBamboo,
 };
 const MARKER_WIDTHS = [9, 13, 15, 15, 15, 13, 9];
 const MARKER_COLORS: Record<string, string> = { dojo: PALETTE.Y, stop: PALETTE.C, station: "#7FD1AE", tower: PALETTE.W, path: PALETTE.W, master: PALETTE.G, tournament: "#C08CF0", store: "#F0A04B" };
@@ -264,7 +267,14 @@ export function createMapScene(nameOf: () => string): Scene {
           game.go("training");
         });
       }
+    } else if (node.kind === "path") {
+      const egg = findCityEgg(game.run, here);
+      if (egg) { game.run = egg.run; game.audio.play("secret"); dialogue.open(egg.lines); }
     } else if (node.kind === "store") {
+      if (here !== "store") {
+        shop.open(here as "beachShop" | "parkShop" | "steelShop" | "fallsShop");
+        return;
+      }
       const arrival = shopArrival(game.run);
       if (!arrival) openBench(game);
       else dialogue.open(arrival.lines, () => {
@@ -317,7 +327,7 @@ export function createMapScene(nameOf: () => string): Scene {
   };
 
   return {
-    busy: () => dialogue.active || menu.active || choosing !== null,
+    busy: () => dialogue.active || menu.active || shop.active || choosing !== null,
     enter(game) {
       walking = null;
       choosing = null;

@@ -303,7 +303,7 @@ export function createClubScene(nameOf: () => string): Scene {
   };
 
   return {
-    busy: () => dialogue.active || menu.active,
+    busy: () => dialogue.active || menu.active || shop.active,
     enter(game) {
       seed = Math.floor(Math.random() * 2 ** 31);
       lingering = null;

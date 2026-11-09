@@ -4,7 +4,7 @@ import { BACKDROP_GRIDS } from "../art/backdrops.ts";
 import { WORLD_GRIDS } from "../art/world.ts";
 import { DOJOS, MOMO, SPAR_PARTNERS } from "../world/dojos.ts";
 import { DISTRICTS, GANGS } from "../world/map.ts";
-import { ART_CAST, ART_PAGE_TITLES, CITY_SPRITES, sheetCell } from "./art-sheet.ts";
+import { ART_CAST, ART_PAGE_TITLES, CITY_SPRITES, SHEET_PAGE_SIZE, sheetCell } from "./art-sheet.ts";
 
 test("everyone you can fight is in the cast", () => {
   const names = ART_CAST.map((person) => person.name);
@@ -27,8 +27,8 @@ test("every district and every street has a page", () => {
 });
 
 test("the sheet's grids stay on the screen", () => {
-  const last = sheetCell(CITY_SPRITES.length - 1);
+  const last = sheetCell(Math.min(SHEET_PAGE_SIZE, CITY_SPRITES.length) - 1);
   assert.ok(last.x + 16 <= 214, "clear of the tower");
   assert.ok(last.y + 24 <= 144, "above the bottom edge");
-  assert.ok(ART_CAST.every((_, i) => sheetCell(i).y + 24 <= 144));
+  assert.ok(ART_CAST.every((_, i) => sheetCell(i % SHEET_PAGE_SIZE).y + 24 <= 144));
 });

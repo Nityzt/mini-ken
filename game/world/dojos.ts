@@ -8,13 +8,13 @@ import {
   RACCOON_ARRIVAL, REN_LINES, SORA_LINES, SORA_WIN_LINES, WIN_LINES,
 } from "../scenes/content.ts";
 import type { SenpaiId } from "../scenes/curriculum.ts";
-import { GOOSE_MAP, HERON_MAP, OTTER_MAP, RACCOON_MAP, RIVAL_MAP, RIVAL_SOLID } from "../scenes/levels.ts";
+import { BAMBOO_MAP, GOOSE_MAP, HERON_MAP, LANTERN_MAP, OTTER_MAP, RACCOON_MAP, RIVAL_MAP, RIVAL_SOLID } from "../scenes/levels.ts";
 import type { NodeId } from "./map.ts";
 
-export type DojoId = "radish" | "goose" | "raccoon" | "heron" | "otter";
-export type MemberId = "kei" | "dai" | "ida" | "pip" | "niko" | "rio" | "teo" | "uma" | "val" | "wes" | "tetsu" | "shin";
+export type DojoId = "radish" | "goose" | "raccoon" | "heron" | "otter" | "lantern" | "bamboo";
+export type MemberId = "kei" | "dai" | "ida" | "pip" | "niko" | "rio" | "teo" | "uma" | "val" | "wes" | "tetsu" | "shin" | "mina" | "yori" | "taro" | "fuwa";
 /** The heads of the rival dojos. They watch, they talk, and they'll fight you if you've got the rank. */
-export type DojoSenseiId = "raiko" | "kan" | "nemu" | "hagane" | "mizu";
+export type DojoSenseiId = "raiko" | "kan" | "nemu" | "hagane" | "mizu" | "tama" | "hoshi";
 /** Whoever you're paired with at a grading. */
 export type CandidateId = "asa" | "ume" | "goro";
 export type OpponentId = DojoId | SenpaiId | MemberId | CandidateId | DojoSenseiId | "momo" | "renVisit" | "sensei";
@@ -116,6 +116,26 @@ export const DOJOS: Record<DojoId, Dojo> = {
     challenge: MIKA_LINES,
     winLines: MIKA_WIN_LINES,
   },
+  lantern: {
+    name: "Lantern Dojo", rival: "Kiri", crest: "lantern", style: "restless",
+    colors: seniorColors(TEAM_COLORS.lantern!), room: LANTERN_MAP, solid: RIVAL_SOLID,
+    arrival: ["Lantern Dojo. The sea breeze makes the lanterns sway."],
+    arrivals: ["A lantern taps gently against the window.", "The room smells of salt and warm tea."],
+    helperIds: { G: "mina", E: "yori" },
+    sensei: { id: "tama", name: "Tama", colors: senseiColors(TEAM_COLORS.lantern!) },
+    challenge: ["Kiri: Let's see if you can keep up with the tide. Rei!"],
+    winLines: ["Rei. Kiri bows, grinning."],
+  },
+  bamboo: {
+    name: "Bamboo Dojo", rival: "Nori", crest: "bamboo", style: "patient",
+    colors: seniorColors(TEAM_COLORS.bamboo!), room: BAMBOO_MAP, solid: RIVAL_SOLID,
+    arrival: ["Bamboo Dojo. Leaves whisper against the windows."],
+    arrivals: ["Someone has swept the floor between every practice.", "Bamboo shadows sway across the mat."],
+    helperIds: { G: "taro", E: "fuwa" },
+    sensei: { id: "hoshi", name: "Hoshi", colors: senseiColors(TEAM_COLORS.bamboo!) },
+    challenge: ["Nori: No rush. Let's see what you notice. Rei!"],
+    winLines: ["Rei. Nori bows, smiling."],
+  },
   otter: {
     name: "Soggy Otter Dojo",
     rival: "Kenji",
@@ -166,11 +186,17 @@ export const DOJO_SENSEIS: Record<DojoSenseiId, Opponent & { home: DojoId }> = {
   mizu: sensei("otter", "torrent", 180, 2.5),
   hagane: sensei("heron", "iron", 190, 2),
   raiko: sensei("radish", "sensei", 200, 2.5),
+  tama: sensei("lantern", "steady", 150, 1.5),
+  hoshi: sensei("bamboo", "patient", 150, 1.5),
 };
 
 /** The people you meet in each rival's dojo. They enter cups for their own dojo, on the same rules as everyone else. */
 const member = (home: DojoId, rival: string, style: RivalStyle): Opponent & { home: DojoId } => ({ rival, home, style, crest: DOJOS[home].crest, colors: DOJOS[home].colors });
 export const MEMBERS: Record<MemberId, Opponent & { home: DojoId }> = {
+  mina: member("lantern", "Mina", "steady"),
+  yori: member("lantern", "Yori", "exact"),
+  taro: member("bamboo", "Taro", "wall"),
+  fuwa: member("bamboo", "Fuwa", "patient"),
   niko: member("raccoon", "Niko", "wall"),
   rio: member("raccoon", "Rio", "exact"),
   ida: member("goose", "Ida", "restless"),

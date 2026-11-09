@@ -958,7 +958,7 @@ export const HELP_TITLE = "Helping out";
 export const helpPaid = (amount: number) => `Sensei Kuma: That helps. Here's ${amount} kensen for your trouble.`;
 export const HELP_FAILED = "Sensei Kuma: They learned what not to do, at least. Try again when you like.";
 export const MENU_MERCH = "Merch";
-export const SHOP_TITLES: Record<string, string> = { store: "Bogu Shop", cup: "Tournament stall", pinecone: "Pinecone merch", raccoon: "Raccoon merch", goose: "Goose merch", heron: "Heron merch", otter: "Otter merch", radish: "Radish merch" };
+export const SHOP_TITLES: Record<string, string> = { store: "Bogu Shop", beachShop: "Shell Market", parkShop: "Blossom Shop", steelShop: "Forge Shop", fallsShop: "Falls Outfitters", lantern: "Lantern merch", bamboo: "Bamboo merch", cup: "Tournament stall", pinecone: "Pinecone merch", raccoon: "Raccoon merch", goose: "Goose merch", heron: "Heron merch", otter: "Otter merch", radish: "Radish merch" };
 export const SHOP_HELP = "E buy or wear   X leave";
 export const SHOP_OWNED = "Owned";
 export const SHOP_WORN = "Worn";

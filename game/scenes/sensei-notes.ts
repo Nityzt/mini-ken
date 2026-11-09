@@ -4,6 +4,8 @@ import type { DojoId } from "../world/dojos.ts";
 
 /** Practice notes tucked beside ordinary dojo furnishings, available even after a stash is collected. */
 const NOTES: Record<DojoId, { tile: string; lines: string[] }> = {
+  lantern: { tile: "r", lines: ["A salt-stained note: Tama keeps a steady rhythm. Watch the opening before committing your cut."] },
+  bamboo: { tile: "p", lines: ["A note among the leaves: Hoshi waits patiently. Vary your timing and avoid rushing into a parry."] },
   goose: { tile: "p", lines: ["A crumpled practice note: Kan favors big men and often charges. Watch for an open side, then strike do and slide through."] },
   raccoon: { tile: "p", lines: ["A sleepy student's note: Nemu often goes for kote, with a long tell. Watch your wrist and answer their opening before the cut."] },
   heron: { tile: "r", lines: ["A note wedged in the rack: Hagane waits and parries. Vary your timing; show an opening, then block if they take the bait."] },

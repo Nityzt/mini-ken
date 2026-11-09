@@ -45,6 +45,7 @@ export function impliedDan(run: RunState): number {
 export type PersonId = OpponentId | "examiner";
 const PERSON_DAN: Partial<Record<PersonId, number>> = {
   examiner: 8,
+  lantern: 2, bamboo: 2, tama: 4, hoshi: 4, mina: 1, yori: 1, taro: 1, fuwa: 1,
   raiko: 7,
   sensei: 6,
   hagane: 6,

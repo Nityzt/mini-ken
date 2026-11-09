@@ -5,7 +5,7 @@ import { drawSprite, grid } from "./sprite.ts";
 import { TILE_GRIDS } from "./tiles.ts";
 
 /** Every place a match can happen, each with a mark of its own. */
-export type Crest = "pinecone" | "radish" | "goose" | "raccoon" | "heron" | "otter" | "arena" | "hall" | "hut";
+export type Crest = "pinecone" | "radish" | "goose" | "raccoon" | "heron" | "otter" | "lantern" | "bamboo" | "arena" | "hall" | "hut";
 
 export const FLOOR_Y = 92;
 
@@ -107,6 +107,12 @@ const CREST_GRIDS: Record<Crest, string[]> = {
     "..C.bbbbbb.C",
     ".CC........CC",
   ]),
+  lantern: grid(14, 16, [
+    ".....kkkk", "....kRRRRk", "...kRYYYYRk", "...kRYYYYRk", "...kRYYYYRk", "....kRRRRk", ".....kkkk", "......kk", ".....kkkk",
+  ]),
+  bamboo: grid(14, 16, [
+    "...g.....g", "...g.gg..g", "...ggg...g", "...g.....g", "...G.....g", "...G.gg..g", "...ggg...g", "...G.....G", "...G.....G", "...G.....G", "..ggg...ggg",
+  ]),
   // The grading hall's mark: a rank certificate, with its seal.
   hall: grid(14, 16, [
     "..bbbbbbbbbb",
@@ -162,6 +168,8 @@ export const BACKDROP_GRIDS: Record<string, string[]> = {
   crestRaccoon: CREST_GRIDS.raccoon,
   crestHeron: CREST_GRIDS.heron,
   crestOtter: CREST_GRIDS.otter,
+  crestLantern: CREST_GRIDS.lantern,
+  crestBamboo: CREST_GRIDS.bamboo,
   crestArena: CREST_GRIDS.arena,
   crestHall: CREST_GRIDS.hall,
   crestHut: CREST_GRIDS.hut,

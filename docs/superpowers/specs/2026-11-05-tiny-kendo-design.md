@@ -527,5 +527,8 @@ The minimum rank is 1st dan. Real matches are duels through a lobby code or invi
 - **A timekeeper at matches.**
 
 
+## More places to visit
+
+The beach, park, steel and falls maps each have a regional shop and a quiet side path. The shops sell distinctive cosmetic armor that works with the existing inventory and save. Looking around the side paths reveals one small 25-kensen discovery per district, once per run. Two optional dojos, Lantern by the beach and Bamboo by the park, have their own rooms, people and challenges. They add practice and rewards without changing the existing route to Ren; they do not host cups.
 
 **Custom controls (owner, 2026-11-08).** The pause menu opens a controls editor with the default bindings prefilled. Every action can have one or more keyboard keys, and actions can share a key. Guests keep controls in browser storage; signed-in players keep a separate account setting that follows them to another browser. Restoring defaults changes only the controls.
