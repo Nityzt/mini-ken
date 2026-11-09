@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { BLOCK_DRAIN, KI_RECOVERY, OPENING_DRAIN, OPENING_MIN, OPENING_START_KI } from "./constants.ts";
+import { BLOCK_DRAIN, KI_RECOVERY, OPENING_MIN, OPENING_START_KI } from "./constants.ts";
 import { ATTACKS, createDuel, distance, exposedTargets, openingTarget, ruleTick, skipBow, step, type AttackKind, type DuelState, type FighterInput, type Opening } from "./rules.ts";
 
 const IDLE: FighterInput = { move: 0, block: false, attack: null };
@@ -116,12 +116,19 @@ test("you can walk and launch in an opening", () => {
   assert.ok(launched.fighters[0].ki < launched.fighters[0].kiMax, "and launching costs ki");
 });
 
-test("holding an opening or a block drains ki slowly, even when nothing touches you", () => {
-  const opened = ticks(inRange(), 20, { ...IDLE, opening: "raise" });
-  assert.ok(Math.abs(opened.fighters[0].ki - (100 - 20 * OPENING_DRAIN)) < 1e-6);
+test("holding an opening neither drains ki nor recovers it (issue #15)", () => {
+  for (const ki of [100, 50, OPENING_START_KI]) {
+    const s = inRange();
+    s.fighters[0].ki = ki;
+    const opened = ticks(s, 200, { ...IDLE, opening: "raise" });
+    assert.equal(opened.fighters[0].stance, "opening", "still holding it");
+    assert.equal(opened.fighters[0].ki, ki);
+  }
+});
+
+test("holding a block drains ki slowly, even when nothing touches you", () => {
   const blocked = ticks(inRange(), 20, { ...IDLE, block: true });
   assert.ok(Math.abs(blocked.fighters[0].ki - (100 - 20 * BLOCK_DRAIN)) < 1e-6);
-  assert.ok(OPENING_DRAIN > BLOCK_DRAIN);
 });
 
 test("plain guard is the only place ki comes back, and walking in it counts", () => {
@@ -133,8 +140,8 @@ test("plain guard is the only place ki comes back, and walking in it counts", ()
   assert.ok(Math.abs(tired(IDLE) - (50 + 10 * KI_RECOVERY)) < 1e-6);
   assert.ok(Math.abs(tired({ ...IDLE, move: -1 }) - (50 + 10 * KI_RECOVERY)) < 1e-6);
   assert.ok(tired({ ...IDLE, block: true }) < 50);
-  assert.ok(tired({ ...IDLE, opening: "raise" }) < 50);
-  assert.ok(tired({ ...IDLE, opening: "raise", move: -1 }) < 50);
+  assert.equal(tired({ ...IDLE, opening: "raise" }), 50);
+  assert.equal(tired({ ...IDLE, opening: "raise", move: -1 }), 50);
 });
 
 test("a block that runs dry breaks", () => {
@@ -143,14 +150,6 @@ test("a block that runs dry breaks", () => {
   const next = ruleTick(s, { ...IDLE, block: true }, IDLE);
   assert.equal(next.fighters[0].stance, "broken");
   assert.ok(next.events.some((e) => e.type === "broken" && e.by === 0));
-});
-
-test("an opening that runs dry drops into guard, queued strike and all", () => {
-  let s = ruleTick(inRange(), { ...IDLE, opening: "raise", attack: "men" }, IDLE);
-  s.fighters[0].ki = OPENING_DRAIN / 2;
-  s = ruleTick(s, { ...IDLE, opening: "raise" }, IDLE);
-  assert.equal(s.fighters[0].stance, "guard");
-  assert.equal(s.fighters[0].queued, null);
 });
 
 test("an opening needs a little ki to start", () => {

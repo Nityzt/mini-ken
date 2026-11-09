@@ -13,6 +13,10 @@ const STOMP_AT = 3;
 const CUTS: Target[] = ["men", "kote", "do"];
 const OPENINGS: Opening[] = ["raise", "wrist", "drop"];
 const STRIKING = RANGE_MAX - 4;
+/** Holding an opening is free (issue #15), so nothing ends one but the holder. After this long a presser stops gambling on it, */
+const FRESH_OPENING = 40;
+/** and after this long a reader takes it for bait and presses it until it gives, rather than waiting it out for ever. */
+const STALE_OPENING = 240;
 
 /** One player: reads the match, and says what to press. */
 export type Style = (duel: DuelState) => FighterInput;
@@ -159,7 +163,8 @@ const STYLES: Record<StyleName, (side: 0 | 1, seed: number) => Style> = {
         decidedFor = s.shown;
         if (goes) return strike(s, exposedTargets(s.them)[0], pick(s, OPENINGS));
         // Not trusting it means pressing them to find out what's behind it, or getting ready for it.
-        if (s.me.ki > 50) return { ...IDLE, seme: true, stomp: s.me.kiaiTicks === 0 };
+        // An opening costs nothing to hold, so one that's been there a while is bait to be pressed until it gives.
+        if (s.me.ki > (s.shown > STALE_OPENING ? 25 : 50)) return { ...IDLE, seme: true, stomp: s.me.kiaiTicks === 0 };
         if (s.me.ki > 25) return { ...IDLE, block: true };
       }
       // Pressing leaves them open, so that's the answer to it. And someone only blocking needs breaking first.
@@ -230,7 +235,8 @@ const STYLES: Record<StyleName, (side: 0 | 1, seed: number) => Style> = {
       if (incoming) return incoming;
       if (canPunish(s)) return strike(s, "men", pick(s, OPENINGS));
       if (s.gap > STRIKING) return { ...IDLE, move: s.toward };
-      if (s.them.stance === "opening" && s.shown >= REACTION && s.roll() < 0.05) return strike(s, exposedTargets(s.them)[0], pick(s, OPENINGS));
+      // A fresh opening is worth a gamble now and then. One that's been held a while is bait, and it gets pressed like anyone else.
+      if (s.them.stance === "opening" && s.shown >= REACTION && s.shown <= FRESH_OPENING && s.roll() < 0.05) return strike(s, exposedTargets(s.them)[0], pick(s, OPENINGS));
       if (s.me.ki < 35) return IDLE;
       return { ...IDLE, seme: true, stomp: s.me.kiaiTicks === 0 };
     }),
