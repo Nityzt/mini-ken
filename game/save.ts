@@ -6,6 +6,7 @@ import { isInsignia } from "./insignia.ts";
 import { impliedDan } from "./ranks.ts";
 import { createRunState, type RunState } from "./run-state.ts";
 import { NODES } from "./world/map.ts";
+import { CHALLENGE_REWARD, SENPAI_IDS } from "./scenes/curriculum.ts";
 import { CUP_IDS } from "./world/tournament.ts";
 
 export const SAVE_KEY = "tiny-kendo-save";
@@ -52,6 +53,11 @@ export function parseRun(raw: unknown): RunState | null {
         gear[piece] = value[piece] as boolean;
       }
       out.gear = gear;
+      continue;
+    } else if (key === "armorFrom") {
+      if (!isRecord(value) || !Object.values(value).every((v) => typeof v === "string")) return null;
+      // Only real pieces from real senpai are kept. Anything else can't have come from the game, and dropping it frees that senpai rather than stranding anyone.
+      out.armorFrom = Object.fromEntries(Object.entries(value).filter(([piece, senpai]) => (CHALLENGE_REWARD as string[]).includes(piece) && (SENPAI_IDS as string[]).includes(senpai as string)));
       continue;
     } else if (key === "equipped" || key === "mods") {
       if (!isRecord(value) || !Object.values(value).every(v => typeof v === "string")) return null;

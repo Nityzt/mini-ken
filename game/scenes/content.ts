@@ -200,15 +200,18 @@ export const LINE_WRONG = "Wrong opening!";
 export const LINE_SLOW = "Too slow!";
 export const LINE_PASSED_BY = "Walked past!";
 export const LINE_HELP = "J men  K kote  L do  Space stomp";
+/** "Aki, Bo or Yui", "Bo or Yui", or just "Yui". */
+export const eitherOf = (names: string[]): string => (names.length > 1 ? `${names.slice(0, -1).join(", ")} or ${names.at(-1)}` : names[0] ?? "");
+/** Each piece of armor comes from a different senpai, so Sensei names whoever's still left to pass. */
 export const SENSEI_ROUND_DONE = [
-  "Sensei Kuma: Now practise with a senpai: Aki, Bo or Yui. Pass one of their challenges and you'll earn a do.",
-  "Sensei Kuma: Take that to a senpai. Pass one of their challenges and you'll earn a men.",
-  "Sensei Kuma: Back to a senpai one last time. Pass one of their challenges and the kote is yours.",
+  (left: string) => `Sensei Kuma: Now practise with a senpai: ${left}. Pass one of their challenges and you'll earn a do.`,
+  (left: string) => `Sensei Kuma: Take that to a senpai you haven't passed yet: ${left}. Pass their challenge and you'll earn a men.`,
+  (left: string) => `Sensei Kuma: One last senpai: ${left}. Pass their challenge and the kote is yours.`,
 ];
 export const SENSEI_WAITING = [
-  "Sensei Kuma: Go on, pick a senpai: Aki, Bo or Yui. Pass a challenge and you'll earn your do.",
-  "Sensei Kuma: Go on, pick a senpai. Pass a challenge and you'll earn your men.",
-  "Sensei Kuma: Go on, pick a senpai. Pass a challenge and you'll earn your kote.",
+  (left: string) => `Sensei Kuma: Go on, pick a senpai: ${left}. Pass a challenge and you'll earn your do.`,
+  (left: string) => `Sensei Kuma: Go on, a senpai you haven't passed yet: ${left}. Pass a challenge and you'll earn your men.`,
+  (left: string) => `Sensei Kuma: Go on, one last senpai: ${left}. Pass a challenge and you'll earn your kote.`,
 ];
 export const SENSEI_NEXT = [
   "",
@@ -269,6 +272,7 @@ export const SENPAI_LINES = {
     sparAgain: "Aki: Any time! I'll be here. Or there. Somewhere.",
     pass: "Aki: Whew, you kept up! Here, this one's yours.",
     fail: "Aki: Too many misses! Come back and try again, any time. I'll be here. Or there. Somewhere.",
+    given: (piece: string, others: string) => `Aki: I already gave you your ${piece}! Go and find ${others} for this one. Go, go!`,
   },
   bo: {
     intro: "Bo: Mm. I'm a wall. Walls open up eventually. You just have to notice.",
@@ -284,6 +288,7 @@ export const SENPAI_LINES = {
     sparAgain: "Bo: Mm. Rest first.",
     pass: "Bo: Mm. You noticed. This is yours.",
     fail: "Bo: Mm. You hit the wall a lot. Rest, then come back.",
+    given: (piece: string, others: string) => `Bo: Mm. You passed me for the ${piece}. ${others} next.`,
   },
   yui: {
     intro: "Yui: I count every stomp. Every strike starts from far away, and I only allow one mistake.",
@@ -299,6 +304,7 @@ export const SENPAI_LINES = {
     sparAgain: "Yui: We'll begin again when you're ready.",
     pass: "Yui: Clean. I have nothing to correct. This is yours.",
     fail: "Yui: That's two mistakes. We'll begin again when you're ready.",
+    given: (piece: string, others: string) => `Yui: I've tested you once already, for the ${piece}. ${others} must test you this time.`,
   },
 };
 export const LESSON_GOOD = "Good!";
@@ -328,7 +334,7 @@ export const OBJECTIVES = {
   shinaiBamboo: "Take the bamboo to Fumi at the Bogu Shop",
   shinaiReturn: "Return Sensei's old shinai",
   firstDrill: "Finish Sensei's first drill",
-  senpaiChallenge: "Pass any one senpai's challenge",
+  senpaiChallenge: (left: string) => `Pass a senpai's challenge: ${left}`,
   nextLesson: "See Sensei for your next lesson",
   renPoint: "Ren wants one point from you",
   grading: (rank: string) => `Ask at home to grade for ${rank}`,
@@ -647,13 +653,13 @@ export function allContentLines(): string[] {
     LINE_SLOW,
     LINE_PASSED_BY,
     LINE_HELP,
-    ...SENSEI_ROUND_DONE,
-    ...SENSEI_WAITING,
+    // The longest anyone's list of who's left can be.
+    ...[...SENSEI_ROUND_DONE, ...SENSEI_WAITING].map((line) => line(eitherOf(["Aki", "Bo", "Yui"]))),
     ...SENSEI_NEXT.filter(Boolean),
     STORAGE_LOCKED,
     ...Object.values(DRILL_PRAISE),
     ...Object.values(LESSON_PROMPTS),
-    ...Object.values(SENPAI_LINES).flatMap((s) => [s.intro, ...s.chat, s.seeSensei, ...s.prompts, s.spar, s.sparWin, s.sparAgain, s.pass, s.fail]),
+    ...Object.values(SENPAI_LINES).flatMap((s) => [s.intro, ...s.chat, s.seeSensei, ...s.prompts, s.spar, s.sparWin, s.sparAgain, s.pass, s.fail, s.given("kote", eitherOf(["Aki", "Bo"]))]),
     ...MOMO_PRACTICE,
     ...MOMO_GUARD,
     ...MOMO_GUARD_SEME,

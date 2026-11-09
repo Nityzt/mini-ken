@@ -145,3 +145,25 @@ test("your name survives a save, older saves go by the character's, and it can't
   assert.equal(parseRun({ ...createRunState(), name: "<name>:{}" })?.name, "name");
   assert.equal(parseRun({ ...createRunState(), name: 7 }), null);
 });
+
+test("who gave you each piece of armor survives a save", () => {
+  const run: RunState = { ...played(), armorFrom: { do: "yui" } };
+  assert.deepEqual(parseRun(JSON.parse(JSON.stringify(run)))?.armorFrom, { do: "yui" });
+});
+
+test("a save from before armor was tied to a senpai loads with nobody on record", () => {
+  const { armorFrom: _unset, ...older } = played();
+  const loaded = parseRun({ ...older, gear: { tare: true, do: true, men: true, kote: false, shinai: true }, senseiRounds: 3 });
+  assert.deepEqual(loaded?.armorFrom, {});
+  assert.equal(loaded?.gear.men, true);
+});
+
+test("a save that names one senpai for several pieces still loads as it is", () => {
+  assert.deepEqual(parseRun({ ...played(), armorFrom: { do: "aki", men: "aki" } })?.armorFrom, { do: "aki", men: "aki" });
+});
+
+test("made-up pieces or senpai in the armor record are dropped, and a broken record is rejected", () => {
+  assert.deepEqual(parseRun({ ...played(), armorFrom: { do: "bo", tare: "aki", men: "momo", kote: "ren" } })?.armorFrom, { do: "bo" });
+  assert.equal(parseRun({ ...played(), armorFrom: ["aki"] }), null);
+  assert.equal(parseRun({ ...played(), armorFrom: { do: 3 } }), null);
+});

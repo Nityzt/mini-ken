@@ -60,9 +60,11 @@ One hall plus a storage room. Learning happens in a loop: **Sensei teaches, a se
 | Round | Sensei teaches | Then | Earns |
 |---|---|---|---|
 | 1 | Suriashi, men with fumikomi, follow-through | | Tare, from Sensei |
-| | | Pass any one senpai's challenge on the same drill | Do |
-| 2 | Blocking a strike to your do, and the do counter | Pass any one senpai's challenge on it | Men |
-| 3 | The kote counter, and the launch | Pass any one senpai's challenge on it | Kote |
+| | | Pass a senpai's challenge on the same drill | Do |
+| 2 | Blocking a strike to your do, and the do counter | Pass a different senpai's challenge on it | Men |
+| 3 | The kote counter, and the launch | Pass the last senpai's challenge on it | Kote |
+
+**Every senpai, once each (owner, issue #16):** each piece comes from a different senpai, in whatever order you like, so all three have tested you by the time you have the kote. A senpai who has already given you a piece says so and names who's left, but still talks, and still spars once you're armored. Sensei and the objective line name only the senpai still left. The save records who gave which piece (`armorFrom`). Saves from before this have no record, so every senpai is free for whatever's left. A record naming one senpai twice still loads, and if a record ever left nobody free, everyone would be, so nobody is stranded.
 
 5. **Beat a senpai in a real match** (first to two). Any of Aki, Bo or Yui will spar once you're fully armored. They go easier than any rival, with longer tells.
 6. **The front door opens** once you've won one.
@@ -75,7 +77,7 @@ One hall plus a storage room. Learning happens in a loop: **Sensei teaches, a se
 
 **Armor rule (owner):** partners won't really hit a target until you wear the armor for it. Until then they stop short and it costs nothing. Once you wear the armor, their hit on it counts as a miss in a challenge.
 
-**The senpai (my call on names and styles):** each runs the current drill in their own style, and only one has to be passed each round. Passing needs a set number of clean strikes before too many misses. A failed challenge costs nothing and can be retried.
+**The senpai (my call on names and styles):** each runs the current drill in their own style, and one has to be passed each round, a different one every time. Passing needs a set number of clean strikes before too many misses. A failed challenge costs nothing and can be retried.
 - **Aki**, chatty and restless, never stands still, so the range keeps changing.
 - **Bo**, a calm wall, keeps a guard up and only opens it in moments.
 - **Yui**, an exacting perfectionist, starts each strike from far away and allows fewer misses.
