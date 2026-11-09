@@ -1,3 +1,4 @@
+import { keyLabel, teachingKeys } from "../core/key-labels.ts";
 import { playerColors } from "../characters.ts";
 import { drawHall } from "../art/backdrops.ts";
 import { drawEveryoneThere } from "../art/courtside-art.ts";
@@ -82,11 +83,11 @@ export function createKirikaeshiScene(): Scene {
   };
 
   /** Which key is next, and on sayu men, how long until it lands. */
-  const drawPrompt = (ctx: CanvasRenderingContext2D, at: number) => {
+  const drawPrompt = (ctx: CanvasRenderingContext2D, at: number, game: Game) => {
     const { phase, spec, dueIn, beat } = state;
-    if (phase === "big") drawKeyPrompt(ctx, at, GROUND, KIRIKAESHI_BIG_KEYS, state.ticks / BIG_WINDOW);
+    if (phase === "big") drawKeyPrompt(ctx, at, GROUND, teachingKeys(game.input, KIRIKAESHI_BIG_KEYS), state.ticks / BIG_WINDOW);
     else if (phase === "rhythm") {
-      const key = KIRIKAESHI_SEQUENCE[beat].side === "left" ? "A" : "D";
+      const key = KIRIKAESHI_SEQUENCE[beat].side === "left" ? keyLabel(game.input, "left", "a") : keyLabel(game.input, "right", "d");
       const inWindow = dueIn <= spec.window;
       drawKeyPrompt(ctx, at, GROUND, inWindow ? `${key} ${KIRIKAESHI_NOW}` : key, Math.max(0, dueIn) / spec.interval);
     }
@@ -157,7 +158,7 @@ export function createKirikaeshiScene(): Scene {
       const turned = state.outcome === "passed";
       drawFighter(ctx, bo, GROUND, partnerPose(), "rival", frame, undefined, { flip: !turned, colors: BO_COLORS });
       drawFighter(ctx, you, GROUND, playerPose(), "player", frame, game.run.gear, { flip: turned, colors: playerColors(game.run) });
-      drawPrompt(ctx, you);
+      drawPrompt(ctx, you, game);
       for (const f of floaters) drawTag(ctx, f.text, origin + Math.round(f.x), f.y + 9, f.color);
       ctx.restore();
 
@@ -177,10 +178,10 @@ export function createKirikaeshiScene(): Scene {
           ctx.fillRect(left + i * stride, 12 + (6 - height) / 2, stride - 2, height);
         });
         if (state.ki < KI_LOW && !state.outcome) drawTextCentered(ctx, KIRIKAESHI_LOW, viewW / 2, 1, UI.bad);
-        if (state.phase === "follow" && !state.outcome) drawZanshinMeter(ctx, "D", state.traveled / FOLLOW_NEEDED);
+        if (state.phase === "follow" && !state.outcome) drawZanshinMeter(ctx, keyLabel(game.input, "right", "d"), state.traveled / FOLLOW_NEEDED);
         ctx.fillStyle = UI.panel;
         ctx.fillRect(0, viewH - 11, viewW, 11);
-        drawTextCentered(ctx, KIRIKAESHI_HELP, viewW / 2, viewH - 10, UI.dim);
+        drawTextCentered(ctx, teachingKeys(game.input, KIRIKAESHI_HELP), viewW / 2, viewH - 10, UI.dim);
       });
       cards.render(ctx);
     },

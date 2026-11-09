@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import type { ClientMessage, Identity, ServerMessage } from "../game/net/protocol.ts";
 import { createLobbyHub, LOBBY_EMPTY_MS, REPORT_WAIT_MS, SILENCE_MS, START_COUNTDOWN_MS, VISIBLE_WAIT_MS, type MatchResult, type Player } from "./lobby.ts";
+import { DEFAULT_INSIGNIA } from "../game/insignia.ts";
 
 type TestPlayer = Player & { got: ServerMessage[]; closed: boolean; last(t: ServerMessage["t"]): ServerMessage | undefined };
 
@@ -350,6 +351,40 @@ test("a rematch needs both players, and tells each about the other", async () =>
   hub.message(second, { t: "rematch" }, 8);
   assert.equal(first.got.filter((message) => message.t === "match").length, matchesSoFar + 1);
   assert.equal(second.got.filter((message) => message.t === "match").length, matchesSoFar + 1);
+});
+
+test("a rematch refreshes rank and validates both players' appearances", async () => {
+  const { hub, a, b, inMatch } = setup();
+  a.identity = { ...a.identity, rank: "gold", appearance: { character: "emi", armor: "radish", insignia: DEFAULT_INSIGNIA } };
+  const { first, second } = inMatch();
+  hub.message(first, { t: "result", report: "won" }, 5);
+  hub.message(second, { t: "result", report: "lost" }, 6);
+  await settled();
+  hub.message(first, { t: "rematch" }, 7);
+  hub.message(second, { t: "rematch" }, 8);
+  const mine = a.last("match");
+  const theirs = b.last("match");
+  assert.ok(mine?.t === "match" && theirs?.t === "match");
+  assert.equal(mine.self?.rank, "bronze");
+  assert.equal(mine.self?.appearance?.armor, "pine");
+  assert.deepEqual(theirs.opponent, mine.self);
+});
+
+test("a failed record write does not revoke the last verified appearance", async () => {
+  const hub = createLobbyHub({ rollCode: () => "ABCDE", rollSeed: () => 0, record: () => Promise.reject(new Error("database down")) });
+  const a = player("a");
+  const b = player("b");
+  a.identity = { ...a.identity, rank: "gold", appearance: { character: "emi", armor: "radish", insignia: DEFAULT_INSIGNIA } };
+  hub.connect(a, 0); hub.connect(b, 0);
+  hub.message(a, { t: "visible", visible: true }, 0); hub.message(b, { t: "visible", visible: true }, 0);
+  hub.message(a, { t: "create-lobby" }, 0); hub.message(b, { t: "join-lobby", code: "ABCDE" }, 0);
+  hub.message(a, { t: "result", report: "won" }, 1); hub.message(b, { t: "result", report: "lost" }, 2);
+  await settled();
+  hub.message(a, { t: "rematch" }, 3); hub.message(b, { t: "rematch" }, 4);
+  const match = a.last("match");
+  assert.ok(match?.t === "match");
+  assert.equal(match.self?.rank, "gold");
+  assert.equal(match.self?.appearance?.armor, "radish");
 });
 
 test("leaving between matches ends the lobby, without another result", async () => {

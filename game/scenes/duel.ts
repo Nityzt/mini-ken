@@ -1,3 +1,4 @@
+import { keyLabel, teachingKeys } from "../core/key-labels.ts";
 import { wearFrom } from "../durability.ts";
 import { gearName } from "../items.ts";
 import { playerColors, playerName } from "../characters.ts";
@@ -9,6 +10,7 @@ import { drawShinpan, drawWatchers } from "../art/courtside-art.ts";
 import { drawFighter, drawShine, drawSwingTrail, shinaiTip, type DuelPose } from "../art/duel-sprites.ts";
 import { drawText, drawTextCentered, LINE_HEIGHT, measureText, wrapText } from "../art/font.ts";
 import type { Gear } from "../art/kendoka.ts";
+import type { Insignia } from "../insignia.ts";
 import { PALETTE, UI } from "../art/palette.ts";
 import { drawHpBar, drawTag } from "./ui.ts";
 import type { GameAudio } from "../core/audio.ts";
@@ -586,6 +588,7 @@ export function drawZanshinMeter(ctx: CanvasRenderingContext2D, key: string, pro
 }
 
 const HP_ROOM = 54;
+export const hudRange = (duel: DuelState): string => distance(duel) > RANGE_MAX ? "Too far" : distance(duel) < RANGE_MIN ? "Too close" : "In range";
 const RANGE_LABEL_HALF = 30;
 /** Your HP goes after your name and points, unless a long name would run it into the range label in the middle. Then it goes after your ki bar, on the row below. */
 export function hpSlot(nameWidth: number, toWin: number, kiWidth: number, width: number): { x: number; y: number } {
@@ -593,14 +596,14 @@ export function hpSlot(nameWidth: number, toWin: number, kiWidth: number, width:
   return x + HP_ROOM <= width / 2 - RANGE_LABEL_HALF ? { x, y: 2 } : { x: 5 + kiWidth + 6, y: 10 };
 }
 
-export function drawDuelHud(ctx: CanvasRenderingContext2D, view: DuelView, names: [string, string], helpLine: string, me: 0 | 1 = 0, hp?: number): void {
+export function drawDuelHud(ctx: CanvasRenderingContext2D, view: DuelView, names: [string, string], helpLine: string, me: 0 | 1 = 0, hp?: number, input?: Input, flipped = false): void {
   onGui(ctx, () => {
-    const [you, rival] = view.duel.fighters;
+    const [you, rival] = flipped ? [view.duel.fighters[1], view.duel.fighters[0]] : view.duel.fighters;
     ctx.fillStyle = UI.panel;
     ctx.fillRect(0, 0, viewW, 20);
     drawText(ctx, names[0], 5, 2, UI.text);
     const toWin = view.duel.options.pointsToWin ?? POINTS_TO_WIN;
-    drawPips(ctx, 11 + measureText(names[0]), 2, you.points, PALETTE.R, toWin);
+    drawPips(ctx, 11 + measureText(names[0]), 2, you.points, flipped ? UI.text : PALETTE.R, toWin);
     drawKiBar(ctx, 5, 13, you.ki, you.kiMax, view.walkTick);
     if (hp !== undefined) {
       const slot = hpSlot(measureText(names[0]), toWin, kiBarWidth(you.kiMax), viewW);
@@ -609,14 +612,14 @@ export function drawDuelHud(ctx: CanvasRenderingContext2D, view: DuelView, names
     }
     const rivalNameX = viewW - 5 - measureText(names[1]);
     drawText(ctx, names[1], rivalNameX, 2, UI.text);
-    drawPips(ctx, rivalNameX - 4 - toWin * 9, 2, rival.points, UI.text, toWin);
+    drawPips(ctx, rivalNameX - 4 - toWin * 9, 2, rival.points, flipped ? PALETTE.R : UI.text, toWin);
     drawKiBar(ctx, viewW - 5, 13, rival.ki, rival.kiMax, view.walkTick);
     const clock = view.duel.phase === "bow" ? null : clockLabel(view.duel);
     if (clock) drawTextCentered(ctx, clock, viewW / 2, 11, view.duel.clock !== null && view.duel.clock <= LOW_TIME_TICKS ? UI.accent : UI.dim);
 
     if (view.duel.phase === "fight") {
-      const dist = distance(view.duel);
-      const [label, color] = view.duel.lock ? [TSUBA_LABEL, UI.accent] : dist > RANGE_MAX ? ["Too far", UI.dim] : dist < RANGE_MIN ? ["Too close", UI.dim] : ["In range", UI.good];
+      const range = hudRange(view.duel);
+      const [label, color] = view.duel.lock ? [TSUBA_LABEL, UI.accent] : [range, range === "In range" ? UI.good : UI.dim];
       drawTextCentered(ctx, label, viewW / 2, 3, color);
     }
 
@@ -632,7 +635,7 @@ export function drawDuelHud(ctx: CanvasRenderingContext2D, view: DuelView, names
     }
 
     const z = view.duel.zanshin;
-    if (z && z.by === me) drawZanshinMeter(ctx, z.dir * (view.duel.crossed ? -1 : 1) > 0 ? "D" : "A", z.traveled / z.needed);
+    if (z && z.by === me) drawZanshinMeter(ctx, input ? keyLabel(input, z.dir * (view.duel.crossed ? -1 : 1) > 0 ? "right" : "left", z.dir * (view.duel.crossed ? -1 : 1) > 0 ? "d" : "a") : (z.dir * (view.duel.crossed ? -1 : 1) > 0 ? "D" : "A"), z.traveled / z.needed);
 
     ctx.fillStyle = UI.panel;
     ctx.fillRect(0, viewH - 11, viewW, 11);
@@ -681,7 +684,7 @@ export function drawDuelStage(
   ctx: CanvasRenderingContext2D,
   view: DuelView,
   crest: Crest,
-  options: { opponent?: "rival" | "senior"; opponentColors?: Record<string, string>; playerColors?: Record<string, string>; gear?: Gear; referees?: boolean; reducedMotion?: boolean; facing?: OpponentId | null; you?: 0 | 1 } = {},
+  options: { opponent?: "rival" | "senior"; opponentColors?: Record<string, string>; playerColors?: Record<string, string>; insignias?: [Insignia | undefined, Insignia | undefined]; gear?: Gear; referees?: boolean; reducedMotion?: boolean; facing?: OpponentId | null; you?: 0 | 1; presentationFlipped?: boolean; showRibbons?: boolean } = {},
 ): void {
   const { opponent = "rival", opponentColors, playerColors: playerLook, gear, referees = true, reducedMotion = false, facing = null, you = 0 } = options;
   const { duel } = view;
@@ -706,7 +709,7 @@ export function drawDuelStage(
   if (!reducedMotion) {
     for (const ghost of view.ghosts) {
       ctx.globalAlpha = (GHOST_ALPHA * ghost.ticks) / GHOST_TICKS;
-      drawFighter(ctx, ghost.x, GROUND, ghost.pose, ghost.i === 0 ? "player" : opponent, 0, ghost.i === 0 ? gear : undefined, { flip: ghost.flip, colors: ghost.i === 1 ? opponentColors : playerLook, kamae: duel.fighters[ghost.i].kamae });
+      drawFighter(ctx, ghost.x, GROUND, ghost.pose, ghost.i === 0 ? "player" : opponent, 0, ghost.i === 0 ? gear : undefined, { flip: ghost.flip, colors: ghost.i === 1 ? opponentColors : playerLook, insignia: options.insignias?.[ghost.i], showRibbon: options.showRibbons, kamae: duel.fighters[ghost.i].kamae });
     }
     ctx.globalAlpha = 1;
   }
@@ -737,7 +740,8 @@ export function drawDuelStage(
     const other = duel.fighters[i === 0 ? 1 : 0];
     // Walking back, you face where you're going until you're nearly there. Leaving, you've turned your back.
     const toLine = startX(i) - fighter.x;
-    const flip = closing?.away ? i === 0 : duel.phase === "point" && Math.abs(toLine) > FACE_LINE_WITHIN ? toLine < 0 : undefined;
+    const lineFlip = closing?.away ? i === 0 : duel.phase === "point" && Math.abs(toLine) > FACE_LINE_WITHIN ? toLine < 0 : undefined;
+    const flip = lineFlip === undefined ? undefined : lineFlip !== !!options.presentationFlipped;
     // A commanding presence glows all the time, not just when charging.
     const pressing = !!duel.options.presence?.[i] && (fighter.stance === "guard" || fighter.stance === "block");
     const charging = fighter.stance === "seme" || (pressing && duel.phase === "fight");
@@ -758,7 +762,7 @@ export function drawDuelStage(
     if (!reducedMotion && view.strikeTicks[i] > STRIKE_POSE_TICKS - TRAIL_TICKS) {
       drawSwingTrail(ctx, x, GROUND, track.was, pose, facesLeft, fighter.kamae);
     }
-    drawFighter(ctx, x + tremble + shaking, ground, pose, i === 0 ? "player" : opponent, frame, i === 0 ? gear : undefined, { flip: facesLeft, colors: i === 1 ? opponentColors : playerLook, kamae: fighter.kamae, from: track.was, blend, bob, sway, coil, motion });
+    drawFighter(ctx, x + tremble + shaking, ground, pose, i === 0 ? "player" : opponent, frame, i === 0 ? gear : undefined, { flip: facesLeft, colors: i === 1 ? opponentColors : playerLook, insignia: options.insignias?.[i], showRibbon: options.showRibbons, kamae: fighter.kamae, from: track.was, blend, bob, sway, coil, motion });
     // Only the strike coming at you shines: it's your cue to parry, and your own swing doesn't need one.
     const brightness = i === you ? 0 : parryShine(duel, i);
     if (brightness > 0) {
@@ -1052,14 +1056,14 @@ export function createDuelScene(): Scene {
       const crest = game.tournament ? CUPS[game.tournament.cup].crest : dojo.crest;
       drawDuelStage(ctx, view, crest, { opponentColors: dojo.colors, playerColors: playerColors(game.run), gear: game.run.gear, reducedMotion: game.reducedMotion, facing: opposing });
       const theirDan = personDan(opposing);
-      drawDuelHud(ctx, view, [`${playerName(game.run)} ${rankLabel(game.run)}`, theirDan ? `${dojo.rival} ${danLabel(theirDan)}` : dojo.rival], view.duel.lock ? lockHelp(!view.duel.crossed) : helpLine(view.walkTick, game.run.seme), 0, hurts && !hitsTaken ? Math.max(0, game.run.hp - view.duel.fighters[1].points * HP_PER_POINT) : hurts ? game.run.hp : undefined);
+      drawDuelHud(ctx, view, [`${playerName(game.run)} ${rankLabel(game.run)}`, theirDan ? `${dojo.rival} ${danLabel(theirDan)}` : dojo.rival], teachingKeys(game.input, view.duel.lock ? lockHelp(!view.duel.crossed) : helpLine(view.walkTick, game.run.seme)), 0, hurts && !hitsTaken ? Math.max(0, game.run.hp - view.duel.fighters[1].points * HP_PER_POINT) : hurts ? game.run.hp : undefined, game.input);
       const { duel } = view;
       // On the easier fights, show which key answers the tell that's coming.
       const them = duel.fighters[1];
       if (duel.phase === "fight" && (them.stance === "opening" || (them.stance === "windup" && them.attack)) && tellsShown(game)) {
         // While it's only an opening, nothing's coming yet, so the bar's full. Once the strike starts, it's how long you've got.
         const left = them.stance === "opening" ? 1 : them.stanceTicks / (them.opening ? ATTACKS[them.attack!].windup : (duel.options.windups?.[1]?.[them.attack!] ?? ATTACKS[them.attack!].windup));
-        onStage(ctx, () => drawKeyPrompt(ctx, screenX(duel, them.x), GROUND, targetPrompt(exposedTargets(them)[0]), left));
+        onStage(ctx, () => drawKeyPrompt(ctx, screenX(duel, them.x), GROUND, targetPrompt(exposedTargets(them)[0], game.input), left));
       }
       onGui(ctx, () => {
         if (stake && view.duel.phase !== "over") drawTextCentered(ctx, betHud(stake), viewW / 2, 21, UI.accent);

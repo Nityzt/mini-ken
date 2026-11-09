@@ -1,7 +1,7 @@
 import { readFileSync, renameSync, writeFileSync } from "node:fs";
 import type { Db, DbRow } from "../db.ts";
 
-export const TABLES = ["accounts", "sessions", "story_saves", "matches"] as const;
+export const TABLES = ["accounts", "sessions", "story_saves", "account_settings", "matches"] as const;
 export type DbDump = { takenAt: number; tables: Record<string, DbRow[]> };
 
 export async function dumpDb(db: Db, now = Date.now()): Promise<DbDump> {

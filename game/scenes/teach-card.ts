@@ -1,7 +1,9 @@
 import { drawText, GLYPH_HEIGHT, LINE_HEIGHT, measureText, wrapText } from "../art/font.ts";
-import { UI } from "../art/palette.ts";
+import { PALETTE, UI } from "../art/palette.ts";
 import { onGui, STAGE_H, STAGE_W, viewH, viewW } from "../core/scale.ts";
 import type { Game } from "../core/scene.ts";
+import type { Input } from "../core/input.ts";
+import { instructionText, keyLabel, teachingKeys } from "../core/key-labels.ts";
 import { dimScreen, drawHints, drawKeycap } from "./ui.ts";
 
 /** A key, or keys pressed together, and what it does. */
@@ -48,7 +50,8 @@ export const keysLine = (keys: TeachKey[], tick: number): string => {
 };
 
 /** Drawn at the stage's size however fine the interface's pixels are, because it's the one thing on screen that matters. */
-function drawCard(ctx: CanvasRenderingContext2D, card: TeachCard, ready: boolean): void {
+function drawCard(ctx: CanvasRenderingContext2D, original: TeachCard, ready: boolean, input: Input): void {
+  const card = { ...original, text: instructionText(input, original.text), keys: original.keys.map(([key, does]): TeachKey => [teachingKeys(input, key), does]) };
   onGui(ctx, () => {
     dimScreen(ctx, DIM);
     const scale = Math.max(1, Math.floor(Math.min(viewW / STAGE_W, viewH / STAGE_H)));
@@ -60,6 +63,11 @@ function drawCard(ctx: CanvasRenderingContext2D, card: TeachCard, ready: boolean
     ctx.fillRect(0, 0, CARD_W, height);
     ctx.fillStyle = UI.panel;
     ctx.fillRect(1, 1, CARD_W - 2, height - 2);
+    // A woven-looking border and a colored heading make the notice feel at home in the dojo.
+    ctx.fillStyle = PALETTE.g;
+    ctx.fillRect(2, 2, CARD_W - 4, TITLE_H + 9);
+    ctx.fillStyle = PALETTE.G;
+    for (let x = 4; x < CARD_W - 4; x += 8) ctx.fillRect(x, 3, 3, 1);
 
     let y = 7;
     drawText(ctx, card.title, Math.round((CARD_W - measureText(card.title) * TITLE_SCALE) / 2), y, UI.accent, TITLE_SCALE);
@@ -67,7 +75,7 @@ function drawCard(ctx: CanvasRenderingContext2D, card: TeachCard, ready: boolean
     const lines = wrapText(card.text, CARD_TEXT_W);
     const named = /^[^:]{1,20}:/.exec(lines[0])?.[0] ?? "";
     lines.forEach((line, i) => {
-      const x = Math.round((CARD_W - measureText(line)) / 2);
+      const x = PADDING;
       drawText(ctx, line, x, y, UI.text);
       if (i === 0 && named) drawText(ctx, named, x, y, UI.accent);
       y += LINE_HEIGHT;
@@ -83,7 +91,7 @@ function drawCard(ctx: CanvasRenderingContext2D, card: TeachCard, ready: boolean
         y += KEY_ROW;
       }
     }
-    if (ready) drawHints(ctx, [CONTINUE], y + 5, CARD_W);
+    if (ready) drawHints(ctx, [[keyLabel(input, "confirm", "e"), "continue"]], y + 5, CARD_W);
     ctx.restore();
   });
 }
@@ -92,6 +100,7 @@ function drawCard(ctx: CanvasRenderingContext2D, card: TeachCard, ready: boolean
 export function createTeachCards() {
   let queue: TeachCard[] = [];
   let ticks = 0;
+  let input = {} as Input;
   return {
     get active() {
       return queue.length > 0;
@@ -106,7 +115,8 @@ export function createTeachCards() {
       queue = [];
       game.debug.teachCard = null;
     },
-    show(game: Pick<Game, "audio" | "debug">, card: TeachCard) {
+    show(game: Pick<Game, "audio" | "debug"> & Partial<Pick<Game, "input">>, card: TeachCard) {
+      if (game.input) input = game.input;
       if (!queue.length) {
         ticks = 0;
         game.audio.play("flag");
@@ -116,6 +126,7 @@ export function createTeachCards() {
     },
     update(game: Pick<Game, "input" | "debug">) {
       if (!queue.length) return;
+      input = game.input;
       if (ticks < READ_TICKS) {
         ticks++;
         return;
@@ -126,7 +137,7 @@ export function createTeachCards() {
       game.debug.teachCard = queue[0]?.title ?? null;
     },
     render(ctx: CanvasRenderingContext2D) {
-      if (queue.length) drawCard(ctx, queue[0], ticks >= READ_TICKS);
+      if (queue.length) drawCard(ctx, queue[0], ticks >= READ_TICKS, input);
     },
   };
 }

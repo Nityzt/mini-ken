@@ -12,8 +12,17 @@ export const GEAR_LINES: Record<keyof Gear, string> = {
 };
 
 export const GI_LINE = "A spare gi and hakama. A little big, a little musty, and yours to borrow.";
+export const DOOR_WELCOME = [
+  "Nao: Welcome to Pinecone Dojo, <name>! I am Nao. This is where we practice kendo together.",
+  "Nao: Walk with the movement keys and press E near someone to talk. You can explore, practice and challenge other dojos as you grow.",
+  "Nao: Look for Momo on the left side of the hall. Her name appears when you get close. She will help you get started!",
+];
 export const MOMO_WELCOME = [
   "Senpai Momo: Welcome to Pinecone Dojo! You must be <name>, the new one. I'm Momo. I've been here longer than the paint.",
+  "Senpai Momo: Kendo is bamboo sword practice. We learn posture, footwork and timing.",
+  "Senpai Momo: We treat our partners with respect, too. A bow starts and ends every practice.",
+  "Senpai Momo: Practice with Sensei, earn your armor, and challenge people here and beyond the dojo.",
+  "Senpai Momo: Take it one step at a time.",
   "Senpai Momo: First practice? Lovely. Kendo starts with manners, and that means the right clothes. Not those ones.",
   "Senpai Momo: Sensei likes everyone in a proper gi. Even the beginners. Especially the beginners.",
   "Senpai Momo: We keep a spare in storage. It's a little big and a little musty, but it's clean enough. Come on, I'll show you.",

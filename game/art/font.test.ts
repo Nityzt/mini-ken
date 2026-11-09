@@ -2,6 +2,10 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { GLYPHS, GLYPH_HEIGHT, drawText, measureText, wrapText } from "./font.ts";
 
+test("rank thresholds can display a percent sign", () => {
+  assert.ok(GLYPHS["%"]);
+});
+
 /** Records the pixels text would light up. */
 function recorder() {
   const pixels: [number, number, number][] = [];

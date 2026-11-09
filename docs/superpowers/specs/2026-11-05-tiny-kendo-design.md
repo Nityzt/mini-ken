@@ -52,7 +52,7 @@ Press a key to start. Controls are shown on screen. A new game opens **character
 ### 2. The first day at the club (owner's order, revised 2026-11-05)
 One hall plus a storage room. Learning happens in a loop: **Sensei teaches, a senpai tests, the armor is earned, and Sensei teaches the next thing.**
 
-1. **Arrive in street clothes** and talk to Senpai Momo. After a few lines of welcome she walks you across the hall to the storage door, the player following a few steps behind. At the door she warns you it sticks, rattles it, and slides it open. The storage room only appears once it's open. She then tells you to collect the gi and change, and walks back to her spot while you take control. Backing out of the welcome means no walk, and she offers again next time (my call on the details).
+1. **Arrive in street clothes.** Nao welcomes you at the door, explains how to move and talk, and points you toward Momo. Momo introduces kendo and the path through practice and challenges. Then talk to Senpai Momo. After a few lines of welcome she walks you across the hall to the storage door, the player following a few steps behind. At the door she warns you it sticks, rattles it, and slides it open. The storage room only appears once it's open. She then tells you to collect the gi and change, and walks back to her spot while you take control. Backing out of the welcome means no walk, and she offers again next time (my call on the details).
 2. **Borrow the spare gi** from storage.
 3. **Borrow Sensei Kuma's old shinai (owner, 2026-11-06).** Sensei's heard from Momo that you're joining, and asks why. You pick: to hit people, it looked cool, fun exercise, or to be like Zoro. Nothing's wrong, Sensei has a dry word for each, and remembers it. Then Sensei notices you've no shinai and offers the old one, half worn out, to be returned once you're stronger. You can say not yet and be asked again. Until you've got it, the cracked screen just reminds you that you've nothing to hit it with.
 4. **Work through the armor loop:**
@@ -68,6 +68,8 @@ One hall plus a storage room. Learning happens in a loop: **Sensei teaches, a se
 6. **The front door opens** once you've won one.
 
 **New items (owner, 2026-11-05):** anything you earn, by any route, stops the game. The screen darkens, the item drops into the middle and bounces, and "NEW ITEM ACQUIRED" appears with its name and one line about it. The same card announces seme and cup trophies. It can't be skipped by the key you were already mashing. It waits for conversations and fades to finish, and any scene change waits for it. With reduced motion, the item simply sits still.
+
+**Reading and readiness (owner, issue #3):** each lesson stops on its own ready card, with the relevant keys and instructions before the action starts. First-match guidance states the points needed and the strike, stomp and follow-through needed to score. Lesson cards and their in-practice reminders use framed, colored dojo notices with readable text. Kyu advances with armor earned through Sensei's drills and senpai challenges, and the final kyu step requires a senpai win; receiving the gi or shinai alone grants no rank.
 
 **The insignia (owner, 2026-11-05):** the tare from Sensei is the only armor he gives you. Right after its card you can design the zekken, the cloth on its front: a symbol and two colors (my call: nine fixed symbols rather than free drawing, so it stays safe to show other players later). It's optional, X skips it, and the Esc menu can bring it back at any time. It shows on your armor everywhere.
 
@@ -165,7 +167,7 @@ You meet the people you'll fight long before you fight them.
 
 - **Older saves** get the dan their wins already imply, so nobody is locked out of somewhere they'd reached.
 - **Levels.** All practice earns experience, including repeats and losses: 30 for a win, 10 for a loss, 20 for a line drill pass, 15 for a drill, 30 for a street fight and 60 for a cup. Each level takes longer than the last and is worth 1 ki, so practice can stand in for a little of the ki the first-time rewards give, but not much: level 20 takes about 300 wins.
-- **Everyone else's rank.** Named people carry a dan: Examiner Ono 8th, Sensei Kuma 6th, Ren and Shin 5th, Momo, Mika, Kenji and Tetsu 4th, Sora and Hana 3rd, senpai and dojo members 1st or 2nd. It floats over their head when you're close, because a full room of tags hid the people. From 3rd dan up they carry a faint aura outside battle, a few motes and a ring on the floor, stronger with rank and still with reduced motion.
+- **Everyone else's rank.** Named people carry a dan: Examiner Ono 8th, Sensei Kuma 6th, Ren and Shin 5th, Momo, Mika, Kenji and Tetsu 4th, Sora and Hana 3rd, senpai and dojo members 1st or 2nd. Their name floats over their head when you're close; their rank appears in the duel HUD. From 3rd dan up they carry a faint aura outside battle, a few motes and a ring on the floor, stronger with rank and still with reduced motion.
 - **People practicing.** Every dojo has a group doing suburi in tandem, stepping forward on one cut and back on the next, and a pair in keiko taking turns to attack. They're scenery you walk around. I left them out of the duel background on purpose, because every tell has to stay easy to read.
 - **Stances.** The same rules apply to both fighters, and every attack still has a tell.
   - **Jodan (Tetsu, 4th dan, Angry Goose, needs your 1st dan):** shinai overhead. The men is out of reach in guard, and strikes land from 10 further out than anyone else's, so the usual safe distance isn't safe. Tells are a little quicker. A men opens the wrist, a kote opens the do, and a miss leaves them hanging longer.
@@ -494,6 +496,8 @@ Moods are shown as you bow, and they're always true ("Yui looks calm. Watch for 
 
 Nemu and Kan need 2nd dan, and Mizu, Hagane and Raiko need 3rd. Beating them is worth kensen, ki and bragging rights, but no rank, and there's a challenge for beating all five. They're built so that mashing never wins and it takes seme to stand up to them.
 
+**Reading the senseis (owner, issue #4).** Their existing styles have distinct habits: Kan favors big men and charges, Nemu favors kote with a long tell, Mizu keeps a quick rhythm, Hagane waits and often parries, and Raiko mixes openings with attacks. Every rival dojo has a practice note tucked into a rack or plant that hints at a way to respond. It can be reread and shares its hiding place with any existing stash without replacing the reward. These opponents still use the normal visible openings and counterplay.
+
 ## Multiplayer (owner, 2026-11-05)
 
 The minimum rank is 1st dan. Real matches are duels through a lobby code or invite link, on an account. `docs/multiplayer.md` has the details, and `docs/superpowers/specs/2026-11-06-accounts-multiplayer-design.md` has the design.
@@ -505,6 +509,8 @@ The minimum rank is 1st dan. Real matches are duels through a lobby code or invi
 - **A story's money, ki and gear have no effect on a match:** everyone fights with the same ki and full armor.
 - **Tournaments are practice for now.** They play stand-ins, which are ordinary rivals getting harder round by round, and don't touch an account's record. With no server configured, duels are against stand-ins too, and the screen says so.
 - **A match can't be skipped** the way the ceremonies can in the story, because both players have to stay in step.
+
+**Multiplayer appearance and rank (owner, issue #5).** Players choose a separate multiplayer character, armor colors and tare insignia even without a story, and can edit them again from the multiplayer menu. Existing story characters and insignia seed the first choice. Appearance is saved in the browser, separated by account, and is not synced between devices. Pinecone, personal and ink colors are available immediately; Bronze also permits Raccoon and Goose, Silver permits Heron and Otter, and Gold permits Radish. Bronze is the default, Silver requires at least five recorded human matches and a 50% win rate, and Gold at least ten and a 65% win rate (owner confirmed thresholds). Practice against stand-ins does not unlock ranks. The server checks the account record before sending a selected appearance to the opponent. Both screens show the same fighters, with a persistent local-player marker. The server randomizes starting order; the displayed sides rotate after every point while lockstep identities stay fixed.
 
 ## After a fight, leaving, health and talk (owner, 2026-11-06; numbers are my call)
 
@@ -524,3 +530,5 @@ The minimum rank is 1st dan. Real matches are duels through a lobby code or invi
 ## More places to visit
 
 The beach, park, steel and falls maps each have a regional shop and a quiet side path. The shops sell distinctive cosmetic armor that works with the existing inventory and save. Looking around the side paths reveals one small 25-kensen discovery per district, once per run. Two optional dojos, Lantern by the beach and Bamboo by the park, have their own rooms, people and challenges. They add practice and rewards without changing the existing route to Ren; they do not host cups.
+
+**Custom controls (owner, 2026-11-08).** The pause menu opens a controls editor with the default bindings prefilled. Every action can have one or more keyboard keys, and actions can share a key. Guests keep controls in browser storage; signed-in players keep a separate account setting that follows them to another browser. Restoring defaults changes only the controls.

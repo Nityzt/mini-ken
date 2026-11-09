@@ -5,7 +5,7 @@ import { LOBBY_CODE_ALPHABET, LOBBY_CODE_LENGTH, parseClientMessage, parseLobbyC
 const opponent = { id: "o", name: "Other", dan: 2, guest: false };
 
 test("this is the lobby version of the protocol", () => {
-  assert.equal(PROTOCOL_VERSION, 3);
+  assert.equal(PROTOCOL_VERSION, 4);
 });
 
 test("every client message survives the trip to the server", () => {

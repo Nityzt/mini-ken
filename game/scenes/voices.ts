@@ -17,6 +17,7 @@ export const VOICES: Record<string, Voice> = {
   Taro: voice(205, 7, { tract: 0.9, lilt: 0.5, volume: 0.22 }),
   Fuwa: voice(370, 6, { lilt: 0.8, fall: 3, volume: 0.16 }),
   "Sensei Hoshi": voice(145, 8, { wave: "triangle", tract: 0.84, lilt: 0.4, volume: 0.24 }),
+  Nao: voice(315, 5, { wave: "triangle", tract: 1.1, lilt: 1.3, fall: 2, volume: 0.19 }),
   Aki: voice(420, 4, { tract: 1.2, lilt: 1.8, fall: 1.5, volume: 0.19 }), // Never stops. Never stands still.
   Bo: voice(190, 7, { wave: "triangle", tract: 0.9, lilt: 0.3, fall: 1, volume: 0.34 }), // "Mm. Indigo runs."
   Yui: voice(390, 5, { tract: 1.15, lilt: 1.4, fall: 2, volume: 0.16 }), // A thousand suburi, nine of them right.

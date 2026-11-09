@@ -1,5 +1,6 @@
 import { nextRandom, type RivalStyle } from "../duel/rival.ts";
 import type { AuthProvider } from "./auth.ts";
+import type { Appearance } from "./appearance.ts";
 import { bracketStatus, createBracket, finishRound, nextOpponentIn } from "./bracket.ts";
 import type { Bracket, BracketEntrant, Identity, LinkMessage, MatchReport } from "./protocol.ts";
 import { createStandIn } from "./stand-in.ts";
@@ -11,6 +12,8 @@ export type FoundMatch = {
   seed: number;
   side: 0 | 1;
   opponent: Identity;
+  /** Server-validated appearance used for this match. */
+  self?: Identity;
   /** Anything that has to run every tick alongside the match, like a stand-in. */
   pump?(): void;
   /** A real match, where the server decides how it went. */
@@ -97,7 +100,7 @@ export function createStandInService(auth: AuthProvider, rollSeed: () => number 
 }
 
 /** Lobbies if there's a server, and always stand-ins for practice. Real tournaments aren't in this version. */
-export function createOnlineService(auth: AuthProvider, serverUrl?: string, lobbyOptions: { alert?(): void } = {}): OnlineService {
+export function createOnlineService(auth: AuthProvider, serverUrl?: string, lobbyOptions: { alert?(): void; appearance?(): Appearance } = {}): OnlineService {
   const practice = createStandInService(auth);
   if (!serverUrl) return practice;
   return {
@@ -107,6 +110,7 @@ export function createOnlineService(auth: AuthProvider, serverUrl?: string, lobb
       createLobbyClient({
         url: resolveServerUrl(serverUrl, location),
         join,
+        appearance: lobbyOptions.appearance?.(),
         alert: lobbyOptions.alert ?? (() => {}),
         visibility: {
           hidden: () => pageAway(document),

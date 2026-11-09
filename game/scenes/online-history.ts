@@ -1,3 +1,4 @@
+import { keyLabel } from "../core/key-labels.ts";
 import { drawDuelBackdrop } from "../art/backdrops.ts";
 import { drawText, drawTextCentered, measureText, LINE_HEIGHT } from "../art/font.ts";
 import { UI } from "../art/palette.ts";
@@ -34,7 +35,7 @@ export function createOnlineHistoryScene(): Scene {
       if (game.input.wasPressed("down")) first = Math.min(first + 1, Math.max(0, rows.length - VISIBLE));
       if (game.input.wasPressed("up")) first = Math.max(0, first - 1);
     },
-    render(ctx) {
+    render(ctx, game) {
       drawDuelBackdrop(ctx, "arena");
       onGui(ctx, () => {
         onStage(ctx, () => {
@@ -50,7 +51,7 @@ export function createOnlineHistoryScene(): Scene {
               drawTextCentered(ctx, historyLine(row), STAGE_W / 2, body + i * LINE_HEIGHT, row.result === "won" ? UI.accent : row.result === "lost" ? UI.text : UI.dim);
             });
           }
-          drawTextCentered(ctx, HISTORY_BACK, STAGE_W / 2, body + VISIBLE * LINE_HEIGHT, UI.dim);
+          drawTextCentered(ctx, `${keyLabel(game.input, "cancel", "x")}: back`, STAGE_W / 2, body + VISIBLE * LINE_HEIGHT, UI.dim);
         });
       });
     },

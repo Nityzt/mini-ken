@@ -53,6 +53,10 @@ const TABLES = [
     data TEXT,
     updated_at INTEGER NOT NULL
   )`,
+  `CREATE TABLE IF NOT EXISTS account_settings (
+    account_id TEXT PRIMARY KEY,
+    bindings TEXT NOT NULL
+  )`,
   `CREATE TABLE IF NOT EXISTS matches (
     id TEXT PRIMARY KEY,
     player_a TEXT NOT NULL,

@@ -1,3 +1,4 @@
+import { keyLabel } from "../core/key-labels.ts";
 import { playerColors } from "../characters.ts";
 import { currentObjective } from "../objective.ts";
 import { createShop } from "./shop.ts";
@@ -443,7 +444,7 @@ export function createMapScene(nameOf: () => string): Scene {
         drawStatus(ctx, game.run);
         ctx.fillStyle = UI.panel;
         ctx.fillRect(0, viewH - 11, viewW, 11);
-        const prompt = game.autoTo ? AUTO_WALK(NODES[game.autoTo].name) : walking ? "" : promptAt(game.run.node, game.run);
+        const prompt = game.autoTo ? AUTO_WALK(NODES[game.autoTo].name) : walking ? "" : promptAt(game.run.node, game.run).replace("Arrows or WASD", `${keyLabel(game.input, "left", "a")} ${keyLabel(game.input, "right", "d")} ${keyLabel(game.input, "up", "w")} ${keyLabel(game.input, "down", "s")}`).replace("E ", `${keyLabel(game.input, "confirm", "e")} `);
         drawTextCentered(ctx, prompt, viewW / 2, viewH - 10, UI.dim);
         if (!dialogue.active && !choosing) drawObjective(ctx, currentObjective(game.run));
         if (choosing) {

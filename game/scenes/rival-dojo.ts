@@ -1,3 +1,4 @@
+import { keyLabel } from "../core/key-labels.ts";
 import { drawKendoka, FULL_GEAR, type Gear, type HeldShinai } from "../art/kendoka.ts";
 import { TEAM_COLORS } from "../art/looks.ts";
 import { PALETTE } from "../art/palette.ts";
@@ -7,15 +8,15 @@ import type { TileMap } from "../core/collision.ts";
 import { viewH, viewW } from "../core/scale.ts";
 import type { Game, Scene } from "../core/scene.ts";
 import { playerColors } from "../characters.ts";
-import { danLabel, personDan, presenceOf, type PersonId } from "../ranks.ts";
-import { arrivalLine, DOJOS, dojoFor, MEMBERS, type OpponentId } from "../world/dojos.ts";
+import { personDan, presenceOf, type PersonId } from "../ranks.ts";
+import { arrivalLine, opponentById, DOJOS, dojoFor, MEMBERS, type OpponentId } from "../world/dojos.ts";
 import { cupAt } from "../world/tournament.ts";
 import { talkToChallenger, type ChallengerId } from "./challengers.ts";
 import { offerBet } from "./bet-menu.ts";
 import { askAway } from "../grading.ts";
 import { createMenu } from "./choice.ts";
 import { createShop } from "./shop.ts";
-import { findEgg } from "../money.ts";
+import { inspectDojo } from "./sensei-notes.ts";
 import { crowdDrawings, drawNamedChat, rankTagShown } from "./crowd.ts";
 import { challengerMenu, cupOffer, dojoSenseiMenu, headMenu, helperMenu, interactionLabel } from "./club-story.ts";
 import { openTopics } from "./chatter.ts";
@@ -203,11 +204,11 @@ export function createRivalDojoScene(nameOf: () => string): Scene {
           game.go("tournament");
         } : undefined);
       } else {
-        const egg = findEgg(game.run, dojoFor(game.run.node), front);
-        if (egg) {
-          game.run = egg.run;
-          game.audio.play("secret");
-          dialogue.open(egg.lines);
+        const found = inspectDojo(game.run, dojoFor(game.run.node), front);
+        if (found) {
+          game.run = found.run;
+          if (found.foundStash) game.audio.play("secret");
+          dialogue.open(found.lines);
         }
       }
     },
@@ -255,7 +256,7 @@ export function createRivalDojoScene(nameOf: () => string): Scene {
       const tags: (() => void)[] = [];
       const you: Figure = figureAt(ctx, walker.box.x + walker.box.w / 2 - cam.x, walker.box.y - 12 - cam.y, walker.box.y + 8 - cam.y);
       const figures: Record<string, Figure | undefined> = {};
-      const person = (char: string, id: PersonId, standing: "down" | "side", gear: Gear, look: { colors?: Record<string, string>; flip?: boolean; held?: HeldShinai }) => {
+      const person = (char: string, id: Exclude<PersonId, "examiner">, standing: "down" | "side", gear: Gear, look: { colors?: Record<string, string>; flip?: boolean; held?: HeldShinai }) => {
         const spot = place(room, char);
         const x = spot.col * TILE - cam.x;
         const y = spot.row * TILE - 4 - cam.y;
@@ -266,7 +267,7 @@ export function createRivalDojoScene(nameOf: () => string): Scene {
           : { facing: standing, flip: look.flip };
         const dan = personDan(id);
         const near = rankTagShown({ x: walker.box.x + walker.box.w / 2 - cam.x, y: walker.box.y - cam.y }, { x: x + 8, y: y + 16 });
-        if (dan > 0 && near) tags.push(() => drawRankTag(ctx, danLabel(dan), x + 8, y - 8, presenceOf(dan) > 0));
+        if (near) tags.push(() => drawRankTag(ctx, opponentById(id).rival, x + 8, y - 8, presenceOf(dan) > 0));
         return {
           y: spot.row * TILE,
           draw: () => {
@@ -303,7 +304,7 @@ export function createRivalDojoScene(nameOf: () => string): Scene {
       if (!dialogue.active && !menu.active) {
         drawObjective(ctx, currentObjective(game.run));
         const label = interactionLabel(personAhead(walker, room, dojo.solid, PEOPLE)?.char ?? tileInFront(walker, room), "rival");
-        if (label) drawInteractPrompt(ctx, label, walker.box.x + walker.box.w / 2 - cam.x, walker.box.y - cam.y);
+        if (label) drawInteractPrompt(ctx, label, walker.box.x + walker.box.w / 2 - cam.x, walker.box.y - cam.y, keyLabel(game.input, "confirm", "e"));
       }
       // Everybody here goes by a name their own line can be matched to.
       const speakers: Record<string, string> = { [dojo.rival]: "R", [`Sensei ${dojo.sensei.name}`]: "X", Sensei: "X", [MEMBERS[dojo.helperIds.G].rival]: "G", [MEMBERS[dojo.helperIds.E].rival]: "E" };
