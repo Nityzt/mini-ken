@@ -1,3 +1,4 @@
+import { keyLabel } from "../core/key-labels.ts";
 import { drawText, LINE_HEIGHT, measureText } from "../art/font.ts";
 import { UI } from "../art/palette.ts";
 import type { Input } from "../core/input.ts";
@@ -27,7 +28,7 @@ export function visibleRows(size: number, at: number): { first: number; count: n
 }
 
 /** The same box as a conversation, along the bottom of the stage. */
-export function drawChoice(ctx: CanvasRenderingContext2D, choice: Choice): void {
+export function drawChoice(ctx: CanvasRenderingContext2D, choice: Choice, input?: Input): void {
   onGui(ctx, () => {
     const { first, count } = visibleRows(choice.options.length, choice.at);
     const height = count * LINE_HEIGHT + 10;
@@ -40,9 +41,10 @@ export function drawChoice(ctx: CanvasRenderingContext2D, choice: Choice): void 
     ctx.fillRect(7, top, STAGE_W - 14, height);
     ctx.fillStyle = UI.panel;
     ctx.fillRect(8, top + 1, STAGE_W - 16, height - 2);
-    const hintX = STAGE_W - 12 - measureText(CHOICE_HINT);
-    ctx.fillRect(hintX - 2, top - 10, measureText(CHOICE_HINT) + 6, 10);
-    drawText(ctx, CHOICE_HINT, hintX, top - 9, UI.dim);
+    const hint = input ? `${keyLabel(input, "confirm", "e")} choose   ${keyLabel(input, "cancel", "x")} back` : CHOICE_HINT;
+    const hintX = STAGE_W - 12 - measureText(hint);
+    ctx.fillRect(hintX - 2, top - 10, measureText(hint) + 6, 10);
+    drawText(ctx, hint, hintX, top - 9, UI.dim);
     choice.options.slice(first, first + count).forEach((option, i) => {
       const y = top + 5 + i * LINE_HEIGHT;
       const selected = first + i === choice.at;
@@ -66,6 +68,7 @@ export type Menu = {
 /** A question on the table, and what picking an answer does. X just closes it. */
 export function createMenu(): Menu {
   let current: { choice: Choice; pick: (id: string) => void } | null = null;
+  let keys: Input | undefined;
   return {
     get active() {
       return current !== null;
@@ -74,6 +77,7 @@ export function createMenu(): Menu {
       current = { choice: createChoice(options), pick };
     },
     update(input) {
+      keys = input;
       if (!current) return;
       const step = stepChoice(current.choice, { up: input.wasPressed("up"), down: input.wasPressed("down"), confirm: input.wasPressed("confirm"), cancel: input.wasPressed("cancel") });
       const { pick } = current;
@@ -81,7 +85,7 @@ export function createMenu(): Menu {
       if (step.picked) pick(step.picked);
     },
     render(ctx) {
-      if (current) drawChoice(ctx, current.choice);
+      if (current) drawChoice(ctx, current.choice, keys);
     },
   };
 }

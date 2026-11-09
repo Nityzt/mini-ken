@@ -2,6 +2,8 @@ import { drawText, GLYPH_HEIGHT, LINE_HEIGHT, measureText, wrapText } from "../a
 import { PALETTE, UI } from "../art/palette.ts";
 import { onGui, STAGE_H, STAGE_W, viewH, viewW } from "../core/scale.ts";
 import type { Game } from "../core/scene.ts";
+import type { Input } from "../core/input.ts";
+import { instructionText, keyLabel, teachingKeys } from "../core/key-labels.ts";
 import { dimScreen, drawHints, drawKeycap } from "./ui.ts";
 
 /** A key, or keys pressed together, and what it does. */
@@ -48,7 +50,8 @@ export const keysLine = (keys: TeachKey[], tick: number): string => {
 };
 
 /** Drawn at the stage's size however fine the interface's pixels are, because it's the one thing on screen that matters. */
-function drawCard(ctx: CanvasRenderingContext2D, card: TeachCard, ready: boolean): void {
+function drawCard(ctx: CanvasRenderingContext2D, original: TeachCard, ready: boolean, input: Input): void {
+  const card = { ...original, text: instructionText(input, original.text), keys: original.keys.map(([key, does]): TeachKey => [teachingKeys(input, key), does]) };
   onGui(ctx, () => {
     dimScreen(ctx, DIM);
     const scale = Math.max(1, Math.floor(Math.min(viewW / STAGE_W, viewH / STAGE_H)));
@@ -88,7 +91,7 @@ function drawCard(ctx: CanvasRenderingContext2D, card: TeachCard, ready: boolean
         y += KEY_ROW;
       }
     }
-    if (ready) drawHints(ctx, [CONTINUE], y + 5, CARD_W);
+    if (ready) drawHints(ctx, [[keyLabel(input, "confirm", "e"), "continue"]], y + 5, CARD_W);
     ctx.restore();
   });
 }
@@ -97,6 +100,7 @@ function drawCard(ctx: CanvasRenderingContext2D, card: TeachCard, ready: boolean
 export function createTeachCards() {
   let queue: TeachCard[] = [];
   let ticks = 0;
+  let input = {} as Input;
   return {
     get active() {
       return queue.length > 0;
@@ -111,7 +115,8 @@ export function createTeachCards() {
       queue = [];
       game.debug.teachCard = null;
     },
-    show(game: Pick<Game, "audio" | "debug">, card: TeachCard) {
+    show(game: Pick<Game, "audio" | "debug"> & Partial<Pick<Game, "input">>, card: TeachCard) {
+      if (game.input) input = game.input;
       if (!queue.length) {
         ticks = 0;
         game.audio.play("flag");
@@ -121,6 +126,7 @@ export function createTeachCards() {
     },
     update(game: Pick<Game, "input" | "debug">) {
       if (!queue.length) return;
+      input = game.input;
       if (ticks < READ_TICKS) {
         ticks++;
         return;
@@ -131,7 +137,7 @@ export function createTeachCards() {
       game.debug.teachCard = queue[0]?.title ?? null;
     },
     render(ctx: CanvasRenderingContext2D) {
-      if (queue.length) drawCard(ctx, queue[0], ticks >= READ_TICKS);
+      if (queue.length) drawCard(ctx, queue[0], ticks >= READ_TICKS, input);
     },
   };
 }

@@ -1,3 +1,4 @@
+import { keyLabel } from "../core/key-labels.ts";
 import { drawLabelAt } from "../art/font.ts";
 import { isOpen } from "../progress.ts";
 import { drawKendoka, FULL_GEAR, type Gear } from "../art/kendoka.ts";
@@ -600,7 +601,7 @@ export function createClubScene(nameOf: () => string): Scene {
       if (!dialogue.active && !menu.active) {
         drawObjective(ctx, currentObjective(game.run));
         const label = interactionLabel(personAhead(walker, rows, CLUB_SOLID, PEOPLE)?.char ?? tileInFront(walker, rows), "home");
-        if (label) drawInteractPrompt(ctx, label, walker.box.x + walker.box.w / 2 - cam.x, walker.box.y - cam.y);
+        if (label) drawInteractPrompt(ctx, label, walker.box.x + walker.box.w / 2 - cam.x, walker.box.y - cam.y, keyLabel(game.input, "confirm", "e"));
       }
       dialogue.render(ctx, speakersIn(figures, SPEAKERS, you, talkingTo));
       menu.render(ctx);

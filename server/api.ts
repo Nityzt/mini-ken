@@ -1,4 +1,5 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
+import { isBindings } from "../game/net/keybindings-data.ts";
 import { readSave } from "../game/save.ts";
 import { accountForSession, createSession, endSession, setTutorial, signIn, signUp, type Account } from "./accounts.ts";
 import type { Db } from "./db.ts";
@@ -167,6 +168,19 @@ export function createApi(deps: ApiDeps): (req: IncomingMessage, res: ServerResp
       case "POST /api/me/tutorial": {
         const account = await signedIn(req);
         await setTutorial(db, account.id);
+        return reply(res, 200, {});
+      }
+      case "GET /api/keybindings": {
+        const account = await signedIn(req);
+        const { rows } = await db.execute("SELECT bindings FROM account_settings WHERE account_id = ?", [account.id]);
+        return reply(res, 200, { accountId: account.id, bindings: rows.length ? JSON.parse(String(rows[0].bindings)) : null });
+      }
+      case "PUT /api/keybindings": {
+        const account = await signedIn(req);
+        const { accountId, bindings } = await readBody(req, BODY_LIMIT);
+        if (accountId !== account.id) throw new HttpProblem(409, "The account changed. Please try again.");
+        if (!isBindings(bindings)) throw new HttpProblem(400, "Those aren't valid keybindings.");
+        await db.execute("INSERT INTO account_settings (account_id, bindings) VALUES (?, ?) ON CONFLICT(account_id) DO UPDATE SET bindings = excluded.bindings", [account.id, JSON.stringify(bindings)]);
         return reply(res, 200, {});
       }
       case "GET /api/story":

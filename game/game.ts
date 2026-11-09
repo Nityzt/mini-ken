@@ -1,6 +1,8 @@
 import { createAudio } from "./core/audio.ts";
 import { createFlow, FADE_TICKS, startFade, stepFlow } from "./core/flow.ts";
 import { createInput } from "./core/input.ts";
+import type { BindingsUi } from "./BindingsOverlay.tsx";
+import { createKeybindingSync } from "./net/keybinding-sync.ts";
 import { createLoop } from "./core/loop.ts";
 import { createPauseMenu, menuItems, stepPauseMenu } from "./core/pause-menu.ts";
 import type { Game, Scene, SceneName } from "./core/scene.ts";
@@ -75,7 +77,7 @@ const HEALING_SCENES: SceneName[] = ["club", "rival-dojo", "map", "travel", "gra
 
 export function createGame(
   screen: HTMLCanvasElement,
-  options: { onAccountUi?(ui: AccountUi | null): void },
+  options: { onAccountUi?(ui: AccountUi | null): void; onBindingsUi?(ui: BindingsUi | null): void },
 ): { start(): void; dispose(): void; resize(fit: CanvasFit): void } {
   const ctx = screen.getContext("2d");
   if (!ctx) throw new Error("Canvas 2D is unavailable");
@@ -222,8 +224,12 @@ export function createGame(
     document.title = JOIN_ALERT_TITLE;
   };
 
+  const input = createInput(window);
+  const keybindings = createKeybindingSync({ store, fetcher: (...args) => fetch(...args), onChange: (bindings) => input.setBindings(bindings) });
+  input.setBindings(keybindings.current());
+  let editingBindings = false;
   const game: Game = {
-    input: createInput(window),
+    input,
     reducedMotion: matchMedia("(prefers-reduced-motion: reduce)").matches,
     run,
     audio: createAudio(),
@@ -240,7 +246,7 @@ export function createGame(
     grading: null,
     helping: false,
     bet: 0,
-    online: createOnlineHub({ store, readRun: () => readSave(store) ?? game.run, serverUrl, invite, alert: alertJoin, inStory, reloadRun }),
+    online: createOnlineHub({ store, readRun: () => readSave(store) ?? game.run, serverUrl, invite, alert: alertJoin, inStory, reloadRun, onSignedIn: (id) => void keybindings.signedIn(id), onSignedOut: () => keybindings.signedOut() }),
     go(next) {
       noticeChanges();
       // If there's something to say when you get there, it gets said first, and the cards wait their turn.
@@ -392,7 +398,13 @@ export function createGame(
       confirm: input.wasPressed("confirm"),
       cancel: input.wasPressed("cancel"),
     }, inventoryOf(game.run), (item) => (item === "ticket" ? "use-ticket" : isWearable(item as ItemId) ? "wear" : null), inventoryGroups(game.run).map((group) => group.slots), { goal: goalRow(game.run), rows: LADDER.length });
+    const openBindings = menu.page === "main" && step.menu.page === "controls";
     menu = step.menu;
+    if (openBindings) {
+      editingBindings = true;
+      const close = () => { editingBindings = false; menu = { page: "main", choice: pauseItems().findIndex((item) => item.id === "controls") }; options.onBindingsUi?.(null); input.clear(); };
+      options.onBindingsUi?.({ bindings: keybindings.current(), close, save: async (bindings) => { const saved = await keybindings.set(bindings); if (saved) close(); return saved; } });
+    }
     if (step.action === "wear") {
       game.run = toggleWorn(game.run, inventoryOf(game.run)[menu.choice]);
     }
@@ -449,6 +461,11 @@ export function createGame(
 
   const update = () => {
     const ui = showAccountUi();
+    if (editingBindings) {
+      input.clear();
+      if (scene().keepsRunning?.(game)) scene().liveTick?.(game);
+      return;
+    }
     // Being paused hands the keys back, or nobody could work the menu.
     game.input.setTyping(!!ui || (!flow.paused && (card?.kind === "name" || !!scene().typing?.())));
     // A story waits for a form. Someone else's match can't.
@@ -514,7 +531,7 @@ export function createGame(
       if (card?.kind === "item") drawItemCard(ctx, card.reveal, game.run, game.reducedMotion);
       if (card?.kind === "insignia") drawInsigniaCard(ctx, card.editor, game.run);
       if (card?.kind === "name") drawNameCard(ctx, card.entry, playerColors(game.run));
-      if (flow.paused) drawPauseMenu(ctx, menu, pauseItems(), game.run);
+      if (flow.paused) drawPauseMenu(ctx, menu, pauseItems(), game.run, game.input);
     });
   };
 
@@ -541,11 +558,13 @@ export function createGame(
   const unlockAudio = () => game.audio.unlock();
   // It has to happen right here in the key press, or the browser refuses it.
   const toggleFullscreen = (event: KeyboardEvent) => {
-    if (game.input.typing || event.key.toLowerCase() !== "f" || event.repeat || event.ctrlKey || event.metaKey || event.altKey) return;
+    if (editingBindings || game.input.typing || !input.matches("fullscreen", event.key, event.code) || event.repeat || event.ctrlKey || event.metaKey || event.altKey) return;
     if (document.fullscreenElement) void document.exitFullscreen();
     else void document.documentElement.requestFullscreen?.().catch(() => {});
   };
   const flushSave = () => game.online.save?.flushOnClose();
+  const retryBindings = () => { void keybindings.retry(); };
+  window.addEventListener("online", retryBindings);
   window.addEventListener("pagehide", flushSave);
   window.addEventListener("blur", pauseIfAway);
   document.addEventListener("visibilitychange", pauseIfAway);
@@ -632,7 +651,9 @@ export function createGame(
     dispose() {
       loop.stop();
       game.input.dispose();
+      options.onBindingsUi?.(null);
       stopTitleFlash();
+      window.removeEventListener("online", retryBindings);
       window.removeEventListener("pagehide", flushSave);
       window.removeEventListener("blur", pauseIfAway);
       document.removeEventListener("visibilitychange", pauseIfAway);

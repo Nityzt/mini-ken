@@ -1,3 +1,4 @@
+import { keyLabel, teachingKeys } from "../core/key-labels.ts";
 import { wearFrom } from "../durability.ts";
 import { gearName } from "../items.ts";
 import { playerColors, playerName } from "../characters.ts";
@@ -595,7 +596,7 @@ export function hpSlot(nameWidth: number, toWin: number, kiWidth: number, width:
   return x + HP_ROOM <= width / 2 - RANGE_LABEL_HALF ? { x, y: 2 } : { x: 5 + kiWidth + 6, y: 10 };
 }
 
-export function drawDuelHud(ctx: CanvasRenderingContext2D, view: DuelView, names: [string, string], helpLine: string, me: 0 | 1 = 0, hp?: number, flipped = false): void {
+export function drawDuelHud(ctx: CanvasRenderingContext2D, view: DuelView, names: [string, string], helpLine: string, me: 0 | 1 = 0, hp?: number, input?: Input, flipped = false): void {
   onGui(ctx, () => {
     const [you, rival] = flipped ? [view.duel.fighters[1], view.duel.fighters[0]] : view.duel.fighters;
     ctx.fillStyle = UI.panel;
@@ -634,7 +635,7 @@ export function drawDuelHud(ctx: CanvasRenderingContext2D, view: DuelView, names
     }
 
     const z = view.duel.zanshin;
-    if (z && z.by === me) drawZanshinMeter(ctx, z.dir * (view.duel.crossed ? -1 : 1) > 0 ? "D" : "A", z.traveled / z.needed);
+    if (z && z.by === me) drawZanshinMeter(ctx, input ? keyLabel(input, z.dir * (view.duel.crossed ? -1 : 1) > 0 ? "right" : "left", z.dir * (view.duel.crossed ? -1 : 1) > 0 ? "d" : "a") : (z.dir * (view.duel.crossed ? -1 : 1) > 0 ? "D" : "A"), z.traveled / z.needed);
 
     ctx.fillStyle = UI.panel;
     ctx.fillRect(0, viewH - 11, viewW, 11);
@@ -1055,14 +1056,14 @@ export function createDuelScene(): Scene {
       const crest = game.tournament ? CUPS[game.tournament.cup].crest : dojo.crest;
       drawDuelStage(ctx, view, crest, { opponentColors: dojo.colors, playerColors: playerColors(game.run), gear: game.run.gear, reducedMotion: game.reducedMotion, facing: opposing });
       const theirDan = personDan(opposing);
-      drawDuelHud(ctx, view, [`${playerName(game.run)} ${rankLabel(game.run)}`, theirDan ? `${dojo.rival} ${danLabel(theirDan)}` : dojo.rival], view.duel.lock ? lockHelp(!view.duel.crossed) : helpLine(view.walkTick, game.run.seme), 0, hurts && !hitsTaken ? Math.max(0, game.run.hp - view.duel.fighters[1].points * HP_PER_POINT) : hurts ? game.run.hp : undefined);
+      drawDuelHud(ctx, view, [`${playerName(game.run)} ${rankLabel(game.run)}`, theirDan ? `${dojo.rival} ${danLabel(theirDan)}` : dojo.rival], teachingKeys(game.input, view.duel.lock ? lockHelp(!view.duel.crossed) : helpLine(view.walkTick, game.run.seme)), 0, hurts && !hitsTaken ? Math.max(0, game.run.hp - view.duel.fighters[1].points * HP_PER_POINT) : hurts ? game.run.hp : undefined, game.input);
       const { duel } = view;
       // On the easier fights, show which key answers the tell that's coming.
       const them = duel.fighters[1];
       if (duel.phase === "fight" && (them.stance === "opening" || (them.stance === "windup" && them.attack)) && tellsShown(game)) {
         // While it's only an opening, nothing's coming yet, so the bar's full. Once the strike starts, it's how long you've got.
         const left = them.stance === "opening" ? 1 : them.stanceTicks / (them.opening ? ATTACKS[them.attack!].windup : (duel.options.windups?.[1]?.[them.attack!] ?? ATTACKS[them.attack!].windup));
-        onStage(ctx, () => drawKeyPrompt(ctx, screenX(duel, them.x), GROUND, targetPrompt(exposedTargets(them)[0]), left));
+        onStage(ctx, () => drawKeyPrompt(ctx, screenX(duel, them.x), GROUND, targetPrompt(exposedTargets(them)[0], game.input), left));
       }
       onGui(ctx, () => {
         if (stake && view.duel.phase !== "over") drawTextCentered(ctx, betHud(stake), viewW / 2, 21, UI.accent);

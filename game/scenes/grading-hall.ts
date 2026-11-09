@@ -1,3 +1,4 @@
+import { keyLabel } from "../core/key-labels.ts";
 import { drawKendoka, NO_GEAR } from "../art/kendoka.ts";
 import { EXAMINER_COLORS, HALL_CROWD_COLORS, PALETTE } from "../art/palette.ts";
 import { drawPresence, drawRankTag } from "../art/presence.ts";
@@ -135,7 +136,7 @@ export function createGradingHallScene(nameOf: () => string): Scene {
       if (!dialogue.active) {
         drawObjective(ctx, HALL_OBJECTIVE);
         const label = interactionLabel(personAhead(walker, HALL_MAP, HALL_SOLID, "P")?.char ?? tileInFront(walker, HALL_MAP), "hall");
-        if (label) drawInteractPrompt(ctx, label, walker.box.x + walker.box.w / 2 - cam.x, walker.box.y - cam.y);
+        if (label) drawInteractPrompt(ctx, label, walker.box.x + walker.box.w / 2 - cam.x, walker.box.y - cam.y, keyLabel(game.input, "confirm", "e"));
       }
       const yours: Figure = figureAt(ctx, walker.box.x + walker.box.w / 2 - cam.x, walker.box.y - 12 - cam.y, walker.box.y + 8 - cam.y);
       // Ono does the talking, from the middle of the panel.

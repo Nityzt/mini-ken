@@ -84,6 +84,8 @@ export function createOnlineHub(options: {
   inStory?(): boolean;
   /** The story's changed underneath the game, or gone. */
   reloadRun?(run: RunState | null): void;
+  onSignedIn?(id: string): void;
+  onSignedOut?(): void;
   schedule?(run: () => void, ms: number): void;
 }): OnlineHub {
   const { store, readRun, serverUrl } = options;
@@ -129,6 +131,7 @@ export function createOnlineHub(options: {
   const welcome = () => {
     const signedIn = account?.current();
     if (!signedIn) return;
+    options.onSignedIn?.(signedIn.id);
     if (profile.tutorial && !signedIn.tutorial) void account!.finishTutorial();
     void save?.signedIn(signedIn.id);
   };
@@ -164,6 +167,7 @@ export function createOnlineHub(options: {
   const finishSigningOut = async (force: boolean) => {
     if (!save) {
       owesSignOut(!(await account!.signOut()));
+      options.onSignedOut?.();
       return;
     }
     const { sent } = await save.signOut({ force });
@@ -172,6 +176,7 @@ export function createOnlineHub(options: {
       return;
     }
     owesSignOut(!(await account!.signOut()));
+    options.onSignedOut?.();
     guestAccepted = false;
     profile = readProfile(store);
     writeProfile(store, profile);

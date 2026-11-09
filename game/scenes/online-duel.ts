@@ -1,3 +1,4 @@
+import { teachingKeys } from "../core/key-labels.ts";
 import { drawText, drawTextCentered, measureText } from "../art/font.ts";
 import { FULL_GEAR } from "../art/kendoka.ts";
 import { PALETTE, UI } from "../art/palette.ts";
@@ -213,7 +214,7 @@ export function createOnlineDuelScene(): Scene {
       const hudSwapped = duel.crossed;
       const names: [string, string] = hudSwapped ? [originalNames[1], originalNames[0]] : originalNames;
       const help = duel.lock ? lockHelp(faceDir(duel, side) > 0) : helpLine(view.walkTick, true);
-      drawDuelHud(ctx, displayed, names, help, side, undefined, hudSwapped);
+      drawDuelHud(ctx, displayed, names, teachingKeys(game.input, help), side, undefined, game.input, hudSwapped);
 
       // There's nothing else to say which one you are.
       {
