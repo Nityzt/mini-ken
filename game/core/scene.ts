@@ -24,8 +24,8 @@ export type Game = {
   after: string[];
   /** Somewhere you've chosen to walk to. The map takes you there. */
   autoTo: NodeId | null;
-  /** You've just come back from a match, so you're still standing where you were. */
-  fromFight: boolean;
+  /** You've just come back from a drill or a match to the room you started it in, so you're still standing where you were. */
+  returning: boolean;
   /** You've just been knocked out, so you come round by the front door. */
   wokeUp: boolean;
   /** Who the training scene should run next. */

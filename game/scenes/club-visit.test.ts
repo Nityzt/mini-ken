@@ -21,7 +21,7 @@ function fakeGame(run: RunState) {
     reducedMotion: false,
     message: null,
     after: [],
-    fromFight: false,
+    returning: false,
     wokeUp: false,
     versus: null,
     go: (scene: SceneName) => went.push(scene),
@@ -55,7 +55,7 @@ test("after Ren's one point, nobody has moved and Ren just carries on talking", 
   const you = { ...(game.debug.walker as { x: number; y: number }) };
 
   game.run = renPointOutcome(game.run, true);
-  game.fromFight = true;
+  game.returning = true;
   scene.enter!(game);
   assert.deepEqual(spot(game), before, "Ren should still be where the fight began");
   const walker = game.debug.walker as { x: number; y: number };
@@ -89,7 +89,7 @@ test("backing out of the fight's follow-up leaves Ren standing somewhere, not va
   press(false);
   // A forfeit: no result, so nothing new to say. Ren goes back to their spot from where they are.
   const before = spot(game);
-  game.fromFight = true;
+  game.returning = true;
   scene.enter!(game);
   assert.deepEqual(spot(game), before);
   scene.update(game);

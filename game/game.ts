@@ -1,6 +1,7 @@
 import { createAudio } from "./core/audio.ts";
 import { createDungeonScene } from './scenes/dungeon.ts';
 import { discoverDungeon, enterDungeon } from './dungeon-story.ts';
+import { stepSpot, type Spot } from "./core/return-spot.ts";
 import { createFlow, FADE_TICKS, startFade, stepFlow } from "./core/flow.ts";
 import { createInput } from "./core/input.ts";
 import type { BindingsUi } from "./BindingsOverlay.tsx";
@@ -185,10 +186,14 @@ export function createGame(
   let waitingItems: ItemId[] = [];
   let card: { kind: "item"; reveal: Reveal } | { kind: "insignia"; editor: InsigniaEditor } | { kind: "name"; entry: NameEntry } | null = null;
   let afterCards: (() => void) | null = null;
+  /** Where you stepped out of a room for a drill or a fight, so coming back puts you there again. */
+  let spot: Spot = null;
 
   const switchScene = (next: SceneName) => {
     scene().leave?.(game);
-    game.fromFight = sceneName === "duel";
+    const step = stepSpot(spot, sceneName, next, game.run.node);
+    spot = step.spot;
+    game.returning = step.returning;
     if (game.after.length) {
       game.message = [...(game.message ?? []), ...game.after];
       game.after = [];
@@ -245,7 +250,7 @@ export function createGame(
     message: null,
     after: [],
     autoTo: null,
-    fromFight: false,
+    returning: false,
     wokeUp: false,
     session: null,
     versus: versusFromUrl,
@@ -296,6 +301,7 @@ export function createGame(
   };
 
   const startFresh = (next: RunState) => {
+    spot = null;
     game.autoTo = null;
     game.after = [];
     waitingItems = [];

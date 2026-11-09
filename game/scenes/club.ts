@@ -319,10 +319,10 @@ export function createClubScene(nameOf: () => string): Scene {
       worn ??= walkingGear(game.run);
       // Home's where you get your strength back, however you got here.
       game.run = rest(game.run);
-      if (game.wokeUp) {
-        game.wokeUp = false;
-        walker = newWalker();
-      }
+      // Back from a drill or a match started here, you're standing (and facing) where you were. Arriving any other way,
+      // or coming round after a knockout, starts you back near the door.
+      if (game.wokeUp || !game.returning) walker = newWalker();
+      game.wokeUp = false;
       // Nobody ends up standing inside someone who's just dropped by.
       const visitorSpot = findTiles(rowsFor(game), "V")[0];
       if (visitorSpot && touchesTile(walker, visitorSpot.col, visitorSpot.row)) walker = newWalker();
@@ -330,7 +330,7 @@ export function createClubScene(nameOf: () => string): Scene {
       // Coming back from Momo's fight, there's something to say and you're still standing there.
       const arrival = homeArrival(game.run);
       // Whoever's just fought you is still right where they were, and picks up from there.
-      const fought = game.fromFight ? foughtFrom : null;
+      const fought = game.returning ? foughtFrom : null;
       foughtFrom = null;
       if (fought) visit = createVisit({ rows: rowsFor(game).map((row) => row.replace("V", ".")), solid: CLUB_SOLID, start: fought, door: place("D"), player: walker, alreadyHere: true });
       // Anyone else comes in by the door.
@@ -348,7 +348,7 @@ export function createClubScene(nameOf: () => string): Scene {
         };
         dialogue.open(game.message, arrival ? greet : undefined, arrival ? waits : undefined);
         game.message = null;
-      } else if ((!game.run.metSenpai || game.run.trained) && !game.fromFight) {
+      } else if ((!game.run.metSenpai || game.run.trained) && !game.returning) {
         walker = newWalker();
         entrance = createEntrance(walker, place("D"), place("@"), { rows: CLUB_MAP, solid: "", tile: TILE });
         afterEntrance = () => {
@@ -363,6 +363,7 @@ export function createClubScene(nameOf: () => string): Scene {
       game.debug.visitorStanding = visitorHere(game) !== null;
       game.debug.club = { screenBroken: game.run.screenBroken };
       game.debug.walker = walker.box;
+      game.debug.facing = walker.facing;
     },
     update(game) {
       tick++;
@@ -441,6 +442,7 @@ export function createClubScene(nameOf: () => string): Scene {
       }
       updateWalker(walker, game.input, mapFor(game));
       game.debug.walker = walker.box;
+      game.debug.facing = walker.facing;
 
       if (!game.run.gi && touchesTile(walker, gi.col, gi.row)) {
         walker.moving = false;
