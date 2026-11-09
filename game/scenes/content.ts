@@ -60,6 +60,8 @@ export const GEN_LINES = [
   "Old Gen: A visitor! Fine armor, but where's your spirit? Come into my hut.",
   "Old Gen: Seme is pressing with your ki until the other one flinches. Flinch too often, and we start over.",
 ];
+/** Coming back after being sent away. Gen remembers you, and what the first stage was. */
+export const GEN_AGAIN = ["Old Gen: Back? Good. Fed? Good. From the top, then: hold I until I flinch."];
 export const GEN_FAIL = "Old Gen: You flinched, or you flailed. Go and eat something. Then we start again from the top.";
 export const GEN_DONE = ["Old Gen: That's it, <name>. That's seme, and now it's yours."];
 export const GEN_DONE_AFTER = [
@@ -258,8 +260,8 @@ export const LESSON_PROMPTS = {
   kote: "Sensei: See my hands rising? My wrist is open. K and Space, then slide through!",
   launch: "Sensei: From far, tap D twice to launch. No opening needed: J and Space as you land, then slide through!",
   semeHold: "Old Gen: Hold I, or my spirit folds yours. Press until I flinch. Space shouts, for a harder push.",
-  semePunish: "Old Gen: A flinch is an opening. Press until I flinch, then J and Space, and slide through.",
-  semeRead: "Old Gen: Press me, and I'll lose patience. When my arms go up, let go! L and Space, and slide through.",
+  semePunish: "Old Gen: A flinch is your chance. Press until I flinch, then let go, hold E, then J and Space, and slide through.",
+  semeRead: "Old Gen: Press me, and I'll lose patience. When my arms go up, let go, hold W, then L and Space, and slide through.",
 };
 const NEEDS_FOLLOW = "Then slide through!";
 /** Each senpai's way of being, and their own take on each level's drill. */
@@ -676,6 +678,7 @@ export function allContentLines(): string[] {
     MOMO_LOSE_NO_SEME,
     MOMO_LOSE_SEME,
     ...GEN_LINES,
+    ...GEN_AGAIN,
     ...GEN_DONE,
     ...GEN_DONE_AFTER,
     ...SENSEI_RAIKO_LINES,
