@@ -1,4 +1,6 @@
-import { isCharacter } from "./characters.ts";
+import { equipmentHeld, equipmentInfo, isEquipment, isMod, MODS, EQUIPMENT_SLOTS } from "./equipment.ts";
+import { createDungeonTrial, parseDungeonTrial } from "./dungeon-story.ts";
+import { cleanPlayerName, isCharacter } from "./characters.ts";
 import type { SceneName } from "./core/scene.ts";
 import { isInsignia } from "./insignia.ts";
 import { impliedDan } from "./ranks.ts";
@@ -24,10 +26,19 @@ export function parseRun(raw: unknown): RunState | null {
     const value = raw[key];
     if (value === undefined) continue;
     const start = run[key];
-    if (key === "node") {
+    if (key === 'dungeon') {
+      const dungeon = parseDungeonTrial(value, escrow => parseRun({ ...createRunState(), ...escrow, dungeon: createDungeonTrial() }) !== null);
+      if (!dungeon) return null;
+      out.dungeon = dungeon;
+      continue;
+    } else if (key === "node") {
       if (typeof value !== "string" || !Object.hasOwn(NODES, value)) return null;
     } else if (key === "character") {
       if (!isCharacter(value)) return null;
+    } else if (key === "name") {
+      if (typeof value !== "string") return null;
+      out.name = cleanPlayerName(value);
+      continue;
     } else if (key === "insignia") {
       if (!isInsignia(value)) return null;
     } else if (key === "cups") {
@@ -42,11 +53,13 @@ export function parseRun(raw: unknown): RunState | null {
       }
       out.gear = gear;
       continue;
+    } else if (key === "equipped" || key === "mods") {
+      if (!isRecord(value) || !Object.values(value).every(v => typeof v === "string")) return null;
     } else if (key === "hp") {
       if (!isCount(value)) return null;
       out.hp = Math.min(value, run.hp);
       continue;
-    } else if (key === "losses" || key === "held" || key === "talked") {
+    } else if (key === "losses" || key === "held" || key === "talked" || key === "durability") {
       if (!isRecord(value) || !Object.values(value).every(isCount)) return null;
     } else if (Array.isArray(start)) {
       if (!isStringList(value)) return null;
@@ -58,6 +71,17 @@ export function parseRun(raw: unknown): RunState | null {
     out[key] = value;
   }
   const parsed = out as RunState;
+  if (parsed.shinaiQuest === "returned" && parsed.equipped.shinai === "shinai") {
+    parsed.equipped = { ...parsed.equipped };
+    delete parsed.equipped.shinai;
+  }
+  const held = equipmentHeld(parsed);
+  for (const [slot,id] of Object.entries(parsed.equipped)) {
+    if (!EQUIPMENT_SLOTS.includes(slot as typeof EQUIPMENT_SLOTS[number]) || !isEquipment(id) || equipmentInfo(id).slot !== slot || !held.includes(id)) return null;
+  }
+  for (const [id,mod] of Object.entries(parsed.mods)) {
+    if (!isEquipment(id) || !isMod(mod) || (!held.includes(id) && !(id === "shinai" && parsed.shinaiQuest === "returned" && parsed.gear.shinai)) || !MODS[mod].slots.includes(equipmentInfo(id).slot)) return null;
+  }
   // Saved before gradings existed, so nobody's locked out of what they'd already reached.
   return raw.dan === undefined ? { ...parsed, dan: impliedDan(parsed) } : parsed;
 }
@@ -92,4 +116,4 @@ export function clearSave(store: SaveStore | null): void {
 }
 
 /** Fights aren't saved partway through. You pick up from wherever you'd walked to. */
-export const resumeScene = (run: RunState): SceneName => (run.node === "pinecone" ? "club" : "map");
+export const resumeScene = (run: RunState): SceneName => (run.dungeon.stage === 'caught' || run.dungeon.stage === 'active' ? 'dungeon' : run.node === "pinecone" ? "club" : "map");

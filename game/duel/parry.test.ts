@@ -1,7 +1,10 @@
 import test from "node:test";
+import { directDuel as createDuel } from "./test-support.ts";
 import assert from "node:assert/strict";
 import { COUNTER_TICKS, COUNTER_WINDUP, DEFLECT_TICKS, PARRY_COOLDOWN, PARRY_WINDOW, RING_MAX, RING_MIN } from "./constants.ts";
-import { createDuel, exposedTargets, skipBow, step, type DuelState, type FighterInput } from "./rules.ts";
+import { parryShine } from "./poses.ts";
+import { rivalConfig, type RivalStyle } from "./rival.ts";
+import { exposedTargets, skipBow, ruleTick as step, type AttackKind, type DuelState, type FighterInput } from "./rules.ts";
 
 const IDLE: FighterInput = { move: 0, block: false, attack: null };
 const TAP: FighterInput = { ...IDLE, block: true, parry: true };
@@ -106,4 +109,71 @@ test("lessons don't parry: the drills stay as they are", () => {
   while (s.fighters[1].stance === "windup") s = step(s, TAP, { ...IDLE, stomp: true });
   assert.ok(!s.events.some((e) => e.type === "parry"));
   assert.ok(s.events.some((e) => e.type === "blocked"), "the tap was a plain block");
+});
+
+// The shine on their tip is how anyone gets to parry on reaction, so these play out the fight from what the player can see.
+const REAL_STYLES: RivalStyle[] = ["steady", "fierce", "sneaky", "patient", "relentless", "master", "sensei", "fury", "torrent", "shadow", "iron", "jodan", "nito", "restless", "wall", "exact"];
+
+/** Waits for the shine, reacts this many ticks after seeing it, and returns whatever happened. */
+function reactToShine(reaction: number, attack: AttackKind, windup: number): DuelState {
+  let s = fightAt(40, { windups: [{}, { [attack]: windup }] });
+  s = step(s, IDLE, { ...IDLE, attack, stomp: true });
+  let seen = 0;
+  while (s.fighters[1].stance === "windup") {
+    if (parryShine(s, 1) > 0) seen++;
+    s = step(s, seen === reaction ? TAP : IDLE, { ...IDLE, stomp: s.fighters[1].stanceTicks <= 3 });
+    if (s.events.some((e) => e.type === "parry" || e.type === "hit" || e.type === "blocked")) return s;
+  }
+  return s;
+}
+
+test("anyone reacting to the shine in good time parries every rival's every strike", () => {
+  for (const style of REAL_STYLES) {
+    const { tell } = rivalConfig(0, style);
+    for (const attack of ["men", "kote", "bigMen"] as const) {
+      // Seeing it on the first tick counts as a reaction of one. A tick is 25ms at the duel's tempo, so 9 to 17 is 225 to 425ms.
+      for (let reaction = 9; reaction <= 17; reaction++) {
+        const s = reactToShine(reaction, attack, tell[attack]);
+        assert.ok(s.events.some((e) => e.type === "parry"), `${style} ${attack} reacting after ${reaction} ticks`);
+      }
+    }
+  }
+});
+
+test("reacting far too late to the shine gets hit", () => {
+  assert.ok(reactToShine(24, "men", 30).events.some((e) => e.type === "hit"));
+});
+
+test("the shine reaches full brightness on the first tick a tap would work", () => {
+  let s = fightAt(40, { windups: [{}, { men: 30 }] });
+  s = step(s, IDLE, SWING);
+  let last = 0;
+  while (s.fighters[1].stance === "windup") {
+    const left = s.fighters[1].stanceTicks;
+    const shine = parryShine(s, 1);
+    assert.ok(shine >= last, "it never dims on the way in");
+    last = shine;
+    const works = swingAtPlayer(left).events.some((e) => e.type === "parry");
+    assert.equal(shine === 1, works, `${left} ticks left`);
+    s = step(s, IDLE, { ...IDLE, stomp: left <= 3 });
+  }
+});
+
+test("nothing shines unless a strike is coming that could be parried", () => {
+  const standing = fightAt(40);
+  assert.equal(parryShine(standing, 1), 0);
+
+  // Long before it lands, it's only the tell.
+  const early = step(fightAt(40, { windups: [{}, { men: 40 }] }), IDLE, SWING);
+  assert.equal(parryShine(early, 1), 0);
+
+  // A pull out of a lock is answered by holding, and a basic lesson has no parry to teach.
+  const pulling = step(fightAt(40, { windups: [{}, { men: 8 }] }), IDLE, SWING);
+  pulling.fighters[1].hiki = true;
+  assert.equal(parryShine(pulling, 1), 0);
+  assert.equal(parryShine(step(fightAt(40, { basics: true, windups: [{}, { men: 8 }] }), IDLE, SWING), 1), 0);
+
+  const paused = step(fightAt(40, { windups: [{}, { men: 8 }] }), IDLE, SWING);
+  paused.phase = "point";
+  assert.equal(parryShine(paused, 1), 0);
 });

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { cupOffer, doorResponse, finishSession, interactionLabel, lineOutcome, lineOffer, pendingChallenge, senseiMenu, sparOutcome, talkToMomo, talkToSenpai, talkToSensei } from "./club-story.ts";
+import { answerOffer, cupOffer, doorResponse, finishSession, interactionLabel, kirikaeshiOutcome, lineOutcome, lineOffer, pendingChallenge, senseiMenu, sparOutcome, talkToMomo, talkToSenpai, talkToSensei } from "./club-story.ts";
 import { recordLinePass, recordWin } from "../run-state.ts";
 import { isOpen, LINE_PASSES_TO_UNLOCK } from "../progress.ts";
 import { DIALOGUE_LINES, DIALOGUE_WIDTH, DRILL_PRAISE, GEAR_LINES, GEN_DONE, GEN_DONE_AFTER, KOTE_DONE, SENPAI_LINES, SENSEI_ROUND_DONE } from "./content.ts";
@@ -17,15 +17,19 @@ test("a new player has street clothes and nothing else", () => {
   assert.equal(Object.values(run.gear).some(Boolean), false);
 });
 
-test("Momo's first talk unlocks the storage room", () => {
-  const { run } = talkToMomo(createRunState());
-  assert.equal(run.metSenpai, true);
-  assert.equal(run.gi, false);
+test("Momo's first talk leads to a walk to storage, and the walk is what unlocks it", () => {
+  const first = talkToMomo(createRunState());
+  assert.equal(first.escort, true);
+  assert.equal(first.run.metSenpai, false);
+  assert.equal(first.run.gi, false);
+  // Walking away without the walk means she offers again.
+  assert.equal(talkToMomo(first.run).escort, true);
 });
 
 test("Momo keeps pointing at storage until you have the gi", () => {
   const first = talkToMomo(createRunState());
-  const second = talkToMomo(first.run);
+  const second = talkToMomo({ ...first.run, metSenpai: true });
+  assert.equal(second.escort, undefined);
   assert.notDeepEqual(second.lines, first.lines);
   assert.ok(second.lines.join(" ").includes("storage"));
 });
@@ -42,8 +46,8 @@ test("Sensei won't see you in street clothes", () => {
   assert.deepEqual(reply.run, start);
 });
 
-test("Sensei gives their old shinai and starts the first round", () => {
-  const reply = talkToSensei(withGi());
+test("Sensei lends their old shinai and starts the first round, once you've earned it", () => {
+  const reply = answerOffer({ ...withGi(), whyKendo: "cool" }, "yes");
   assert.equal(reply.run.gear.shinai, true);
   assert.deepEqual(reply.session, { kind: "sensei", round: 0 });
   assert.equal(reply.run.gear.tare, false);
@@ -178,14 +182,14 @@ test("the do and men have nothing to say after they're handed over", () => {
 });
 
 test("Sensei hands over the shinai, and only then asks for drills", () => {
-  const reply = talkToSensei(withGi());
-  assert.match(reply.lines.at(-1)!, /It's yours/);
+  const reply = answerOffer({ ...withGi(), whyKendo: "cool" }, "yes");
+  assert.match(reply.lines.at(-1)!, /loan/);
   assert.equal(reply.after?.length, 1);
   assert.match(reply.after![0], /Show me some drills/);
 });
 
 test("the shinai's own card explains it, so Sensei doesn't read it out as well", () => {
-  const reply = talkToSensei(withGi());
+  const reply = answerOffer({ ...withGi(), whyKendo: "cool" }, "yes");
   assert.ok(![...reply.lines, ...reply.after!].includes(GEAR_LINES.shinai));
 });
 
@@ -324,4 +328,35 @@ test("finishing the waza lesson is recorded and pays, once", () => {
 test("the short tutorial changes nothing about a story run", () => {
   const start = createRunState();
   assert.equal(finishSession(start, { kind: "quick" }).run, start);
+});
+
+test("kirikaeshi is on Sensei's menu", () => {
+  assert.ok(senseiMenu(createRunState()).some((o) => o.id === "kirikaeshi"));
+});
+
+test("the first three kirikaeshi passes grow your ki, and later ones only count as practice", () => {
+  let run = createRunState();
+  const kiAt: number[] = [];
+  for (let i = 0; i < 4; i++) {
+    run = kirikaeshiOutcome(run, { outcome: "passed", misses: 0 }).run;
+    kiAt.push(run.bonusKi);
+  }
+  assert.deepEqual(kiAt, [5, 10, 15, 15]);
+  assert.equal(run.kirikaeshiPasses, 4);
+  assert.ok(run.xp > 0);
+});
+
+test("a failed kirikaeshi costs nothing and earns nothing", () => {
+  const run = createRunState();
+  for (const outcome of ["winded", "lost", "noFollow"] as const) {
+    const reply = kirikaeshiOutcome(run, { outcome, misses: 2 });
+    assert.equal(reply.run, run);
+    assert.equal(reply.lines.length, 1);
+  }
+});
+
+test("each way of failing kirikaeshi gets its own advice", () => {
+  const run = createRunState();
+  const lines = (["winded", "lost", "noFollow"] as const).map((outcome) => kirikaeshiOutcome(run, { outcome, misses: 2 }).lines[0]);
+  assert.equal(new Set(lines).size, 3);
 });

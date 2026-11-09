@@ -1,5 +1,5 @@
-import { RANGE_MAX, RANGE_MIN, TSUBA_BREAK } from "./constants.ts";
-import { distance, KAMAE, type AttackKind, type DuelState, type FighterInput, type Target } from "./rules.ts";
+import { OPENING_MIN, OPENING_START_KI, RANGE_MAX, RANGE_MIN, TSUBA_BREAK } from "./constants.ts";
+import { ATTACKS, distance, exposedTargets, exposes, KAMAE, ticksNext, type AttackKind, type DuelState, type Fighter, type FighterInput, type Opening, type Target } from "./rules.ts";
 
 /**
  * Ren waits and picks a moment. Hana can't wait, and loves the big swing. Momo can't be touched without seme.
@@ -26,7 +26,15 @@ export type RivalConfig = {
   meets?: number;
   /** How good they are hilt to hilt, from 0 to 1: reading your pull, and getting out before you shove them. */
   lockSkill?: number;
+  /** How often an opening they show is only bait, which turns into a parry if you bite. */
+  bait?: number;
+  /** How often they go for an opening you show them. */
+  bites?: number;
+  /** How often their opening isn't the one their habit would show, so it says even less about what's coming. */
+  openingMix?: number;
 };
+/** A strike they've decided on, with the opening they're showing first. Online, it takes a few frames for what they've pressed to take effect, so it's `waiting` until it shows. */
+type Plan = { attack: AttackKind; opening: Opening; hold: number; bait: boolean; waiting: number };
 export type RivalState = {
   config: RivalConfig;
   rng: number;
@@ -49,34 +57,44 @@ export type RivalState = {
   lockIn: number;
   /** Whether they've noticed you pulling back for a strike. Null when you aren't. */
   readsPull: boolean | null;
+  /** What they're holding down, which carries on through the frames when nothing's being decided. */
+  held: FighterInput;
+  /** What they're showing, and what's behind it. */
+  plan: Plan | null;
+  /** How long you've been showing them an opening. */
+  openingSeen: number;
+  /** Whether they've decided about this opening of yours yet. */
+  biteDecided: boolean;
 };
 type LockPlan = "push" | "hold" | "pull" | "out";
 
 const STYLES: Record<RivalStyle, Omit<RivalConfig, "tell"> & { baseTell: RivalConfig["tell"] }> = {
-  steady: { baseTell: { men: 30, kote: 30, bigMen: 46 }, habits: ["men", "kote", "bigMen"], habitMin: 60, habitSpread: 50, parry: 0.1, lockSkill: 0.5, meets: 0.65 },
-  fierce: { baseTell: { men: 28, kote: 28, bigMen: 44 }, habits: ["bigMen", "men", "bigMen", "kote", "bigMen"], habitMin: 26, habitSpread: 30, parry: 0.05, charges: 0.15, lockSkill: 0.3, meets: 0.75 },
+  steady: { baseTell: { men: 30, kote: 30, bigMen: 46 }, habits: ["men", "kote", "bigMen"], habitMin: 60, habitSpread: 50, parry: 0.1, lockSkill: 0.5, meets: 0.65, bait: 0.15, bites: 0.3, openingMix: 0.5 },
+  fierce: { baseTell: { men: 28, kote: 28, bigMen: 44 }, habits: ["bigMen", "men", "bigMen", "kote", "bigMen"], habitMin: 34, habitSpread: 30, parry: 0.05, charges: 0.15, lockSkill: 0.3, meets: 0.75, bait: 0.05, bites: 0.5, openingMix: 0.3 },
   rigged: { baseTell: { men: 30, kote: 30, bigMen: 46 }, habits: ["bigMen"], habitMin: 70, habitSpread: 50, rigged: true },
   demonstration: { baseTell: { men: 30, kote: 30, bigMen: 46 }, habits: ["bigMen"], habitMin: 70, habitSpread: 50, rigged: true, walksIn: true },
-  sneaky: { baseTell: { men: 42, kote: 42, bigMen: 56 }, habits: ["kote", "kote", "men"], habitMin: 50, habitSpread: 40, parry: 0.15, lockSkill: 0.5, meets: 0.55 },
-  patient: { baseTell: { men: 30, kote: 30, bigMen: 46 }, habits: ["men", "bigMen"], habitMin: 90, habitSpread: 60, parry: 0.25, lockSkill: 0.6, meets: 0.55 },
-  relentless: { baseTell: { men: 28, kote: 28, bigMen: 42 }, habits: ["men", "kote", "men"], habitMin: 20, habitSpread: 20, parry: 0.1, charges: 0.15, lockSkill: 0.4, meets: 0.75 },
-  master: { baseTell: { men: 30, kote: 30, bigMen: 46 }, habits: ["men", "kote", "bigMen", "kote"], habitMin: 44, habitSpread: 40, pressesGuard: true, parry: 0.3, lockSkill: 1, meets: 0.6 },
+  sneaky: { baseTell: { men: 42, kote: 42, bigMen: 56 }, habits: ["kote", "kote", "men"], habitMin: 50, habitSpread: 40, parry: 0.15, lockSkill: 0.5, meets: 0.55, bait: 0.1, bites: 0.1, openingMix: 0.5 },
+  patient: { baseTell: { men: 30, kote: 30, bigMen: 46 }, habits: ["men", "bigMen"], habitMin: 90, habitSpread: 60, parry: 0.25, lockSkill: 0.6, meets: 0.55, bait: 0.25, bites: 0.3, openingMix: 0.5 },
+  relentless: { baseTell: { men: 28, kote: 28, bigMen: 42 }, habits: ["men", "kote", "men"], habitMin: 36, habitSpread: 24, parry: 0.1, charges: 0.15, lockSkill: 0.4, meets: 0.75, bait: 0.1, bites: 0.4, openingMix: 0.3 },
+  master: { baseTell: { men: 30, kote: 30, bigMen: 46 }, habits: ["men", "kote", "bigMen", "kote"], habitMin: 44, habitSpread: 40, pressesGuard: true, parry: 0.3, lockSkill: 1, meets: 0.6, bait: 0.2, bites: 0.4, openingMix: 0.7 },
   // Sensei has no favourite and doesn't wait long, and won't let you hide. They've seen everything you've got, because they taught it.
-  sensei: { baseTell: { men: 28, kote: 28, bigMen: 44 }, habits: ["men", "kote", "bigMen", "men"], habitMin: 50, habitSpread: 40, pressesGuard: true, parry: 0.35, lockSkill: 1, meets: 0.6 },
+  sensei: { baseTell: { men: 28, kote: 28, bigMen: 44 }, habits: ["men", "kote", "bigMen", "men"], habitMin: 50, habitSpread: 40, pressesGuard: true, parry: 0.35, lockSkill: 1, meets: 0.6, bait: 0.2, bites: 0.4, openingMix: 0.7 },
   // The senseis of other dojos: what their students do, only they leave you time to feel it. Nobody hides from any of them.
-  fury: { baseTell: { men: 28, kote: 28, bigMen: 42 }, habits: ["bigMen", "men", "bigMen", "kote"], habitMin: 50, habitSpread: 30, pressesGuard: true, parry: 0.15, charges: 0.2, lockSkill: 0.9, meets: 0.7 },
-  torrent: { baseTell: { men: 28, kote: 28, bigMen: 42 }, habits: ["men", "kote", "men", "kote"], habitMin: 50, habitSpread: 20, pressesGuard: true, parry: 0.2, lockSkill: 0.9, meets: 0.65 },
+  fury: { baseTell: { men: 28, kote: 28, bigMen: 42 }, habits: ["bigMen", "men", "bigMen", "kote", "bigMen"], habitMin: 50, habitSpread: 30, pressesGuard: true, parry: 0.3, charges: 0.2, lockSkill: 0.9, meets: 0.7, bait: 0.2, bites: 0.5, openingMix: 0.5 },
+  torrent: { baseTell: { men: 28, kote: 28, bigMen: 42 }, habits: ["men", "kote", "men", "kote"], habitMin: 50, habitSpread: 20, pressesGuard: true, parry: 0.2, lockSkill: 0.9, meets: 0.65, bait: 0.2, bites: 0.4, openingMix: 0.5 },
   // What Sora does, from someone who's been doing it for forty years and doesn't get caught at close quarters.
-  shadow: { baseTell: { men: 42, kote: 42, bigMen: 56 }, habits: ["kote", "kote", "men"], habitMin: 50, habitSpread: 40, parry: 0.25, lockSkill: 0.9, meets: 0.55 },
-  iron: { baseTell: { men: 26, kote: 26, bigMen: 40 }, habits: ["men", "bigMen"], habitMin: 70, habitSpread: 50, pressesGuard: true, parry: 0.35, lockSkill: 1, meets: 0.55 },
+  shadow: { baseTell: { men: 42, kote: 42, bigMen: 56 }, habits: ["kote", "kote", "men"], habitMin: 50, habitSpread: 40, parry: 0.25, lockSkill: 0.9, meets: 0.55, bait: 0.1, bites: 0.2, openingMix: 0.7 },
+  iron: { baseTell: { men: 26, kote: 26, bigMen: 40 }, habits: ["men", "bigMen"], habitMin: 70, habitSpread: 50, pressesGuard: true, parry: 0.5, lockSkill: 1, meets: 0.55, bait: 0.2, bites: 0.4, openingMix: 0.7 },
   // Strikes come quicker from up there, and they favour the men.
-  jodan: { baseTell: { men: 26, kote: 26, bigMen: 40 }, habits: ["men", "men", "kote"], habitMin: 50, habitSpread: 40, parry: 0.1, lockSkill: 0.6, meets: 0.55 },
+  jodan: { baseTell: { men: 26, kote: 26, bigMen: 40 }, habits: ["men", "men", "kote"], habitMin: 50, habitSpread: 40, parry: 0.1, lockSkill: 0.6, meets: 0.55, bait: 0.15, bites: 0.3, openingMix: 0.3 },
   // Two swords take longer to bring round, so their tells last longer than anyone's at this level.
-  nito: { baseTell: { men: 34, kote: 34, bigMen: 48 }, habits: ["men", "kote", "men"], habitMin: 60, habitSpread: 40, parry: 0.2, lockSkill: 0.6, meets: 0.55 },
-  restless: { baseTell: { men: 46, kote: 46, bigMen: 60 }, habits: ["men", "kote", "bigMen"], habitMin: 36, habitSpread: 40, lockSkill: 0.1, meets: 0.55 },
-  wall: { baseTell: { men: 50, kote: 50, bigMen: 66 }, habits: ["bigMen", "men"], habitMin: 110, habitSpread: 70, parry: 0.1, lockSkill: 0.3, meets: 0.4 },
-  exact: { baseTell: { men: 46, kote: 46, bigMen: 60 }, habits: ["kote", "men", "kote", "bigMen"], habitMin: 70, habitSpread: 40, parry: 0.1, lockSkill: 0.3, meets: 0.45 },
+  nito: { baseTell: { men: 34, kote: 34, bigMen: 48 }, habits: ["men", "kote", "men"], habitMin: 60, habitSpread: 40, parry: 0.2, lockSkill: 0.6, meets: 0.55, bait: 0.15, bites: 0.3, openingMix: 0.3 },
+  restless: { baseTell: { men: 46, kote: 46, bigMen: 60 }, habits: ["men", "kote", "bigMen"], habitMin: 36, habitSpread: 40, lockSkill: 0.1, meets: 0.55, bites: 0.2 },
+  wall: { baseTell: { men: 50, kote: 50, bigMen: 66 }, habits: ["bigMen", "men"], habitMin: 110, habitSpread: 70, parry: 0.1, lockSkill: 0.3, meets: 0.4, bites: 0.1 },
+  exact: { baseTell: { men: 46, kote: 46, bigMen: 60 }, habits: ["kote", "men", "kote", "bigMen"], habitMin: 70, habitSpread: 40, parry: 0.1, lockSkill: 0.3, meets: 0.45, bites: 0.2 },
 };
+/** The table above is in the old tells. These run a quarter longer, so there's time to answer now strikes are slower to land. */
+const TELL_STRETCH = 1.25;
 const EASE_PER_LOSS = 4;
 const EASE_CAP = 16;
 const PUNISH_REACTION = 6;
@@ -95,13 +113,17 @@ export const PRESS_GIVES_UP_AT = 3;
 const PARRY_EASE_PER_LOSS = 0.25;
 const PARRY_EASE_FLOOR = 0.25;
 
+const stretched = (ticks: number) => Math.round(ticks * TELL_STRETCH);
+
 /** The rival is at full strength on the first try, and its tells last longer after each loss. */
 export function rivalConfig(losses: number, style: RivalStyle = "steady"): RivalConfig {
   const { baseTell, ...habits } = STYLES[style];
   const ease = Math.min(EASE_CAP, losses * EASE_PER_LOSS);
   const pressing = habits.pressesGuard ? { pressesGuard: losses < PRESS_GIVES_UP_AT } : {};
-  const parrying = habits.parry ? { parry: habits.parry * Math.max(PARRY_EASE_FLOOR, 1 - losses * PARRY_EASE_PER_LOSS) } : {};
-  return { ...habits, ...pressing, ...parrying, tell: { men: baseTell.men + ease, kote: baseTell.kote + ease, bigMen: baseTell.bigMen + ease } };
+  const easing = Math.max(PARRY_EASE_FLOOR, 1 - losses * PARRY_EASE_PER_LOSS);
+  const parrying = habits.parry ? { parry: habits.parry * easing } : {};
+  const baiting = habits.bait ? { bait: habits.bait * easing } : {};
+  return { ...habits, ...pressing, ...parrying, ...baiting, tell: { men: stretched(baseTell.men) + ease, kote: stretched(baseTell.kote) + ease, bigMen: stretched(baseTell.bigMen) + ease } };
 }
 
 const MOOD_SLOWEST = 1.25;
@@ -154,11 +176,55 @@ export function createRival(seed: number, config: RivalConfig): RivalState {
     lockPlan: null,
     lockIn: 0,
     readsPull: null,
+    held: IDLE,
+    plan: null,
+    openingSeen: 0,
+    biteDecided: false,
   };
 }
 
 const IDLE: FighterInput = { move: 0, block: false, attack: null };
 const STOMP_AT = 3;
+/** How long you have to show them an opening before they make up their mind about it. */
+const BITE_REACTION = 8;
+/** How long to keep asking for an opening before giving up on it. It's more than lockstep's delay, in ticks. */
+const PLAN_PATIENCE = 8;
+/** On top of the tell itself: the shortest opening, plus enough that answering from plain guard stays as easy as it was. */
+const TELL_EXTRA = OPENING_MIN + 2;
+/** Someone about to strike has their mind made up, which is why answering a real tell in time usually works. So they only sometimes change it. */
+const COMMITTED_PARRY = 0.5;
+const COMMITTED_BLOCK = 0.2;
+const OPENINGS: Opening[] = ["raise", "wrist", "drop"];
+/** The opening that shows this target, and the strike that hits it. */
+const OPENING_FOR: Record<Target, Opening> = { do: "raise", kote: "wrist", men: "drop" };
+
+/** A planned attack's opening lasts its tell, less the strike, plus the shortest opening anyone can show. So it can be read and answered as well as it ever could. */
+function holdFor(config: RivalConfig, attack: AttackKind): number {
+  const tell = attack === "bigMen" ? config.tell.bigMen : attack === "kote" ? config.tell.kote : config.tell.men;
+  return Math.max(OPENING_MIN, tell - ATTACKS[attack].windup + TELL_EXTRA);
+}
+
+/** Which opening to show. A big swing starts from overhead, and otherwise it's a matter of habit, or of hiding one. */
+function pickOpening(me: Fighter, attack: AttackKind, next: RivalState): Opening {
+  if (me.stance === "opening" && me.opening) return me.opening;
+  if (attack === "bigMen") return "raise";
+  if (rollLuck(next) < (next.config.openingMix ?? 0)) return OPENINGS[Math.floor(rollLuck(next) * OPENINGS.length)];
+  return OPENING_FOR[exposes(attack, me.kamae)];
+}
+
+/** A strike they mean to do, starting with what they show first. */
+function startPlan(me: Fighter, attack: AttackKind, next: RivalState): { input: FighterInput; rival: RivalState } {
+  const opening = pickOpening(me, attack, next);
+  next.plan = { attack, opening, hold: holdFor(next.config, attack), bait: !next.config.rigged && rollLuck(next) < (next.config.bait ?? 0), waiting: 0 };
+  return { input: { ...IDLE, opening }, rival: next };
+}
+
+/** A strike in answer to something: as quick as the rules let anyone go, from whatever they're showing. */
+function strikeNow(me: Fighter, attack: AttackKind, next: RivalState): { input: FighterInput; rival: RivalState } {
+  const opening = pickOpening(me, attack, next);
+  next.plan = { attack, opening, hold: 0, bait: false, waiting: 0 };
+  return { input: { ...IDLE, opening, attack }, rival: next };
+}
 /** How close a strike has to be before they try to parry it. */
 const PARRY_AT = 6;
 /** Someone swinging again and again gets blocked and punished. Only a swing they've been building up to gets met. */
@@ -228,8 +294,16 @@ function lockAct(duel: DuelState, rival: RivalState, next: RivalState): { input:
   }
 }
 
-/** Decides the rival's input for this tick. The rival plays by the same rules as the player. */
+/** The rival's input for this frame. They only make up their mind when the rules are about to move, so their timing is counted in ticks like everything else's. */
 export function rivalAct(duel: DuelState, rival: RivalState): { input: FighterInput; rival: RivalState } {
+  if (!ticksNext(duel)) return { input: rival.held, rival };
+  const act = decide(duel, rival);
+  const { move, block, seme, opening } = act.input;
+  return { input: act.input, rival: { ...act.rival, held: { move, block, seme, opening, attack: null } } };
+}
+
+/** Decides the rival's input for this tick. The rival plays by the same rules as the player. */
+function decide(duel: DuelState, rival: RivalState): { input: FighterInput; rival: RivalState } {
   if (duel.phase === "zanshin" && duel.zanshin?.by === 1) return { input: { ...IDLE, move: duel.zanshin.dir }, rival };
   if (duel.phase !== "fight") return { input: IDLE, rival };
 
@@ -243,6 +317,8 @@ export function rivalAct(duel: DuelState, rival: RivalState): { input: FighterIn
   if (duel.lock) return lockAct(duel, rival, next);
   next.lockPlan = null;
   next.readsPull = null;
+  // Struck, or knocked out of it. Plain guard or a block may only mean what they pressed hasn't arrived yet.
+  if (next.plan && me.stance !== "opening" && ((me.stance !== "guard" && me.stance !== "block") || next.plan.waiting > PLAN_PATIENCE)) next.plan = null;
 
   // Deciding once per strike whether to go for the parry, then doing it right as it arrives.
   const swinging = opponent.stance === "windup" && dist >= RANGE_MIN && dist <= RANGE_MAX + KAMAE[opponent.kamae].reach;
@@ -251,10 +327,17 @@ export function rivalAct(duel: DuelState, rival: RivalState): { input: FighterIn
     next.parryPlanned = null;
     next.meetPlanned = false;
   } else if (rival.parryPlanned === null) {
-    next.parryPlanned = rollLuck(next) < (rival.config.parry ?? 0);
-    next.meetPlanned = !next.parryPlanned && rival.sinceSwing >= MEET_PATIENCE && rollLuck(next) < (rival.config.meets ?? 0);
+    // Mid-attack and seeing yours coming, anyone with any experience may think better of it. Rigged fights and the senpai keep to the drill.
+    if (next.plan && !next.plan.bait && rival.config.bait !== undefined && rollLuck(next) < COMMITTED_BLOCK) {
+      next.plan = null;
+      next.parryPlanned = false;
+      return { input: { ...IDLE, block: true }, rival: next };
+    }
+    // Bait is there to be bitten, so this is the one strike they've been waiting for.
+    next.parryPlanned = !!next.plan?.bait || rollLuck(next) < (rival.config.parry ?? 0) * (next.plan ? COMMITTED_PARRY : 1);
+    next.meetPlanned = !next.parryPlanned && !next.plan && rival.sinceSwing >= MEET_PATIENCE && rollLuck(next) < (rival.config.meets ?? 0);
   }
-  const ready = me.stance === "guard" || me.stance === "block";
+  const ready = me.stance === "guard" || me.stance === "block" || me.stance === "opening";
   if (next.parryPlanned && opponent.stanceTicks <= PARRY_AT && me.parryCooldown === 0 && ready) {
     next.parryPlanned = false;
     return { input: { ...IDLE, block: true, parry: true }, rival: next };
@@ -262,7 +345,7 @@ export function rivalAct(duel: DuelState, rival: RivalState): { input: FighterIn
   // Going for it at the same moment, so you pass each other.
   if (next.meetPlanned && ready) {
     next.meetPlanned = false;
-    return { input: { ...IDLE, attack: "quickMen" }, rival: next };
+    return strikeNow(me, "quickMen", next);
   }
 
   const vulnerable = opponent.stance === "recovery" || opponent.stance === "broken" || opponent.stance === "shaken" || opponent.stance === "deflected" || opponent.stance === "stumble";
@@ -280,13 +363,49 @@ export function rivalAct(duel: DuelState, rival: RivalState): { input: FighterIn
 
   // A rival stomps as each strike comes down.
   if (me.stance === "windup") return { input: { ...IDLE, stomp: me.stanceTicks <= STOMP_AT }, rival: next };
-  if (me.stance !== "guard" && me.stance !== "block") return { input: IDLE, rival: next };
+  if (me.stance !== "guard" && me.stance !== "block" && me.stance !== "opening") return { input: IDLE, rival: next };
 
   if (vulnerable && next.punishSeen >= PUNISH_REACTION) {
     next.punishSeen = 0;
-    return { input: { move: 0, block: false, attack: "quickMen" }, rival: next };
+    return strikeNow(me, "quickMen", next);
   }
-  if (vulnerable && !inRange) return { input: { move: dist > myRange ? -1 : 1, block: false, attack: null }, rival: next };
+  if (vulnerable && !inRange) return { input: { move: dist > myRange ? -1 : 1, block: false, attack: null, opening: me.stance === "opening" ? me.opening : null }, rival: next };
+
+  // Asked to open, and waiting for it to arrive.
+  if (next.plan && me.stance !== "opening") {
+    next.plan = { ...next.plan, waiting: next.plan.waiting + 1 };
+    return { input: { ...IDLE, opening: next.plan.opening, attack: next.plan.hold === 0 ? next.plan.attack : null }, rival: next };
+  }
+
+  // Showing something: hold it until it's time, then either go through with it or let it drop.
+  if (me.stance === "opening") {
+    if (!next.plan) return { input: { ...IDLE, opening: me.queued ? me.opening : null }, rival: next };
+    if (next.catchingBreath) {
+      next.plan = null;
+      return { input: IDLE, rival: next };
+    }
+    const hold = next.plan.hold - 1;
+    if (hold > 0 || (me.queued && next.plan.hold <= 0 && me.openingTicks < OPENING_MIN)) {
+      next.plan = { ...next.plan, hold: Math.max(0, hold) };
+      return { input: { ...IDLE, opening: next.plan.opening, move: dist > myRange - PREFERRED_GAP ? -1 : 0 }, rival: next };
+    }
+    const { attack, opening, bait } = next.plan;
+    // It stays until the strike's seen to have started, in case this takes a moment to arrive.
+    if (bait) next.plan = null;
+    else next.plan = { ...next.plan, hold: 0 };
+    if (bait) return { input: { ...IDLE, block: true }, rival: next };
+    // Any opening leads to any strike, so if you're showing them something, that's what they go for. A big swing's already too big to change.
+    return { input: { ...IDLE, opening, attack: opponent.stance === "opening" && attack !== "bigMen" ? exposedTargets(opponent)[0] : attack }, rival: next };
+  }
+
+  // Going for an opening you're showing them, if they're that sort of person.
+  const showing = opponent.stance === "opening" && inRange && !rival.config.rigged && !next.catchingBreath;
+  next.openingSeen = showing ? rival.openingSeen + 1 : 0;
+  if (!showing) next.biteDecided = false;
+  else if (next.openingSeen >= BITE_REACTION && !rival.biteDecided) {
+    next.biteDecided = true;
+    if (rollLuck(next) < (rival.config.bites ?? 0) && me.ki >= OPENING_START_KI) return strikeNow(me, exposedTargets(opponent)[0], next);
+  }
 
   if (rival.config.rigged) {
     next.semeSeen = opponent.stance === "seme" ? rival.semeSeen + 1 : 0;
@@ -296,7 +415,7 @@ export function rivalAct(duel: DuelState, rival: RivalState): { input: FighterIn
       next.rng = roll.seed;
       next.semeSeen = 0;
       next.habitIn = rival.config.habitMin + Math.floor(roll.value * rival.config.habitSpread);
-      return { input: { move: 0, block: false, attack: "bigMen" }, rival: next };
+      return startPlan(me, "bigMen", next);
     }
     return { input: { move: 0, block: true, attack: null }, rival: next };
   }
@@ -315,7 +434,7 @@ export function rivalAct(duel: DuelState, rival: RivalState): { input: FighterIn
     const { habits, habitMin, habitSpread } = rival.config;
     next.habitIn = habitMin + Math.floor(roll.value * habitSpread);
     if (rollLuck(next) < (rival.config.charges ?? 0)) return { input: { ...IDLE, dash: -1 }, rival: next };
-    return { input: { move: 0, block: false, attack: habits[Math.floor(pick.value * habits.length)] }, rival: next };
+    return startPlan(me, habits[Math.floor(pick.value * habits.length)], next);
   }
   return { input: { move: 0, block: true, attack: null }, rival: next };
 }

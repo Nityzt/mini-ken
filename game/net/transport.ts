@@ -48,8 +48,11 @@ export type SocketLike = {
 };
 const SOCKET_OPEN = 1;
 
-/** A Link over a socket. Whatever's sent before it opens goes as soon as it does. Anything `parse` refuses is dropped. */
-export function createSocketLink<Out, In>(socket: SocketLike, parse: (text: string) => In | null): Link<Out, In> {
+/**
+ * A Link over a socket. Whatever's sent before it opens goes as soon as it does. Anything `parse` refuses is dropped.
+ * `onArrive` hears about each message as it comes in, even with the game loop stopped in a hidden tab, and whatever it returns true for is kept out of `receive`.
+ */
+export function createSocketLink<Out, In>(socket: SocketLike, parse: (text: string) => In | null, hooks: { onArrive?(message: In): boolean; onClosed?(): void } = {}): Link<Out, In> {
   const inbox: In[] = [];
   const waiting: string[] = [];
   let closed = false;
@@ -59,14 +62,15 @@ export function createSocketLink<Out, In>(socket: SocketLike, parse: (text: stri
   socket.onmessage = (event) => {
     if (typeof event.data !== "string") return;
     const message = parse(event.data);
-    if (message) inbox.push(message);
+    if (message && !hooks.onArrive?.(message)) inbox.push(message);
   };
-  socket.onclose = () => {
+  const onClosed = () => {
+    if (closed) return;
     closed = true;
+    hooks.onClosed?.();
   };
-  socket.onerror = () => {
-    closed = true;
-  };
+  socket.onclose = onClosed;
+  socket.onerror = onClosed;
   return {
     send(message) {
       if (closed) return;
@@ -76,8 +80,8 @@ export function createSocketLink<Out, In>(socket: SocketLike, parse: (text: stri
     },
     receive: () => inbox.splice(0),
     close() {
-      closed = true;
       socket.close();
+      onClosed();
     },
     get closed() {
       return closed;

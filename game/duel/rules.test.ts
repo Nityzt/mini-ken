@@ -1,6 +1,7 @@
 import test from "node:test";
+import { directDuel as createDuel } from "./test-support.ts";
 import assert from "node:assert/strict";
-import { createDuel, distance, exposedTargets, skipBow, skipClosing, step, type AttackKind, type DuelEvent, type DuelState, type Fighter, type FighterInput, type Stance } from "./rules.ts";
+import { distance, exposedTargets, skipBow, skipClosing, ruleTick as step, type AttackKind, type DuelEvent, type DuelState, type Fighter, type FighterInput, type Stance } from "./rules.ts";
 import { ABSORB_COST, BROKEN_TICKS, KI_AFTER_BREAK, KI_MAX, KI_RECOVERY, LOCK_DISTANCE, RECOVERY_TICKS, RING_MAX, RING_MIN, SWING_COST, WALK, STOMP_WINDOW, ZANSHIN_PASS, LAUNCH_COST, MIN_DISTANCE, KIAI_COOLDOWN, KIAI_COST, KIAI_PRESS, SEME_DRAIN, SEME_RANGE, SEME_TICKS, SHAKEN_KI_LOSS, SHAKEN_TICKS, CLOSING_TICKS, RETURN_SETTLE, RETURN_WALK } from "./constants.ts";
 
 const IDLE: FighterInput = { move: 0, block: false, attack: null };
@@ -9,7 +10,7 @@ const attack = (a: AttackKind): FighterInput => ({ move: 0, block: false, attack
 
 const fighter = (stance: Stance, attackKind: AttackKind | null = null): Fighter => ({
   kamae: "chudan",
-  x: 100, ki: 100, kiMax: 100, stance, stanceTicks: 5, attack: attackKind, points: 0, stompAge: 9999, launchTicks: 0, launchDir: 0, pressure: 0, kiaiTicks: 0, parryCooldown: 0, counterTicks: 0, hiki: false,
+  x: 100, ki: 100, kiMax: 100, stance, stanceTicks: 5, attack: attackKind, points: 0, stompAge: 9999, launchTicks: 0, launchDir: 0, pressure: 0, kiaiTicks: 0, parryCooldown: 0, counterTicks: 0, hiki: false, opening: null, openingTicks: 0, queued: null, countering: false, reparryTicks: 0, reparryUsed: false,
 });
 
 /** A duel in the fight phase with fighters this far apart. */
@@ -90,7 +91,7 @@ test("right target during a tell scores", () => {
 });
 
 test("strike on a blocker scores nothing and costs the blocker 25 ki", () => {
-  let s = step(fightAt(40), IDLE, BLOCK);
+  let s = step(fightAt(40, { steadyGuard: [false, true] }), IDLE, BLOCK);
   const before = s.fighters[1].ki;
   s = until(s, attack("men"), BLOCK, ["blocked"]);
   assert.equal(s.fighters[0].points, 0);
@@ -112,7 +113,7 @@ test("no ki recovery while blocking; recovers in guard", () => {
   s.fighters[1].ki = 50;
   s = step(s, IDLE, BLOCK);
   s = step(s, IDLE, BLOCK);
-  assert.equal(s.fighters[1].ki, 50);
+  assert.ok(s.fighters[1].ki < 50);
   assert.equal(s.fighters[0].ki, 50 + KI_RECOVERY * 2);
 });
 
@@ -549,7 +550,7 @@ test("a fighter's custom windup replaces the default length", () => {
 });
 
 test("a commanding presence makes you flinch without spending ki", () => {
-  let d = fightAt(40, { presence: [0, 3] });
+  let d = fightAt(40, { presence: [0, 3], steadyGuard: [false, true] });
   const ki = d.fighters[1].ki;
   let flinched = -1;
   for (let t = 0; t < 120 && flinched < 0; t++) {

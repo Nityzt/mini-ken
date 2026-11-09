@@ -1,5 +1,5 @@
 import { step, type DuelEvent, type DuelState, type FighterInput } from "../duel/rules.ts";
-import { decodeInput, encodeInput, type LinkMessage } from "./protocol.ts";
+import { decodeInput, encodeInput, type LinkMessage, type MatchReport } from "./protocol.ts";
 import type { Link } from "./transport.ts";
 
 /** How many frames ahead your own input is scheduled, which hides ordinary lag. It's about 50ms. */
@@ -16,13 +16,24 @@ export type LockstepStatus = "running" | "finished" | "left" | "desynced";
 
 /** A cheap fingerprint of everything that matters, to notice if two players' games ever disagree. */
 export function hashDuel(state: DuelState): number {
-  const text = JSON.stringify([state.phase, state.phaseTicks, state.fighters, state.winner, state.lock, state.crossed, state.zanshin]);
+  const text = JSON.stringify([state.phase, state.phaseTicks, state.fighters, state.winner, state.lock, state.crossed, state.zanshin, state.clock, state.encho, state.firstPoint]);
   let hash = 0x811c9dc5;
   for (let i = 0; i < text.length; i++) {
     hash ^= text.charCodeAt(i);
     hash = Math.imul(hash, 0x01000193);
   }
   return hash >>> 0;
+}
+
+/**
+ * What to tell the server when a live match ends, if anything. Someone having left isn't for a client to report:
+ * the server saw it first, and decides.
+ */
+export function liveResult(status: LockstepStatus, winner: number | null, side: 0 | 1): MatchReport | null {
+  if (status === "desynced") return "void";
+  if (status !== "finished") return null;
+  if (winner === null) return "void";
+  return winner === side ? "won" : "lost";
 }
 
 export type Lockstep = {

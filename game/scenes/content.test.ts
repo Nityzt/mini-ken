@@ -14,7 +14,7 @@ test("the gear lines match the design", () => {
   assert.equal(GEAR_LINES.do, "Do: the chest armor. The strike to its side is also called do.");
   assert.equal(GEAR_LINES.men, "Men: the helmet and face grille. Also the top-of-head target.");
   assert.equal(GEAR_LINES.kote, "Kote: padded gloves for hands and wrists.");
-  assert.equal(GEAR_LINES.shinai, "Shinai: four bamboo slats tied together. Never step over one!");
+  assert.equal(GEAR_LINES.shinai, "Shinai: four bamboo slats tied together, on loan from Sensei. Never step over one!");
 });
 
 test("the story's lines are part of the checked content", () => {

@@ -29,6 +29,8 @@ const CHALLENGERS: Record<ChallengerId, Challenger> = {
   kan: { name: "Sensei Kan", needs: 2, grants: 0, home: "rival-dojo", intro: KAN_INTRO, again: KAN_AGAIN, win: KAN_WIN },
   mizu: { name: "Sensei Mizu", needs: 3, grants: 0, home: "rival-dojo", intro: MIZU_INTRO, again: MIZU_AGAIN, win: MIZU_WIN },
   hagane: { name: "Sensei Hagane", needs: 3, grants: 0, home: "rival-dojo", intro: HAGANE_INTRO, again: HAGANE_AGAIN, win: HAGANE_WIN },
+  tama: { name: "Sensei Tama", needs: 1, grants: 0, home: "rival-dojo", intro: ["Sensei Tama: Let the tide come to you. Rei!"], again: ["Sensei Tama: Again, then. Rei!"], win: ["Sensei Tama: Well timed. Well fought."] },
+  hoshi: { name: "Sensei Hoshi", needs: 1, grants: 0, home: "rival-dojo", intro: ["Sensei Hoshi: Stand tall and bend when you must. Rei!"], again: ["Sensei Hoshi: We can try again. Rei!"], win: ["Sensei Hoshi: Nicely done. You listened."] },
   raiko: { name: "Sensei Raiko", needs: 3, grants: 0, home: "rival-dojo", intro: RAIKO_INTRO, again: RAIKO_AGAIN, win: RAIKO_WIN },
 };
 

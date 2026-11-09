@@ -21,6 +21,8 @@ import { recordGangWin, playerKiMax } from "../run-state.ts";
 import { BRAWL_HELP, COWER, FORFEIT_GANG, GANG_FLED, HP_LABEL, KIAI_SHOUT, GANG_STORIES, HELP_BUBBLE, NO_STOMP, NO_ZANSHIN, reclaimedFromGang, SAFE_BUBBLE } from "./content.ts";
 import { createPlayerControl, drawKeyPrompt, drawZanshinMeter, helpLine, KIAI, playSemeHum } from "./duel.ts";
 import { goDown } from "./knockout.ts";
+import { createTeachCards } from "./teach-card.ts";
+import { BRAWL_CARD, teachOnce } from "./teaching.ts";
 import { drawHpBar, drawTag } from "./ui.ts";
 
 const GROUND = 126;
@@ -36,8 +38,9 @@ const STREETS: Record<string, StreetPlace> = { market: "market", bridge: "bridge
 type Floater = { text: string; x: number; y: number; ticks: number; color: string };
 
 export function createBrawlScene(): Scene {
+  const cards = createTeachCards();
   let state: BrawlState;
-  let control = createPlayerControl();
+  let control = createPlayerControl({ openings: false });
   let tick = 0;
   let finishing = 0;
   let camX = 0;
@@ -124,7 +127,7 @@ export function createBrawlScene(): Scene {
     },
     enter(game) {
       state = createBrawl({ bullies: GANGS[game.run.node] ?? [], seed: Math.floor(Math.random() * 2 ** 31), kiMax: playerKiMax(game.run), hp: game.run.hp });
-      control = createPlayerControl();
+      control = createPlayerControl({ openings: false });
       tick = 0;
       finishing = 0;
       camX = 0;
@@ -134,8 +137,14 @@ export function createBrawlScene(): Scene {
       strikeTicks = 0;
       lastX = state.player.x;
       game.debug.brawl = state;
+      cards.clear(game);
+      teachOnce(game, cards, "brawl", BRAWL_CARD);
     },
     update(game) {
+      if (cards.active) {
+        cards.update(game);
+        return;
+      }
       tick++;
       for (const f of floaters) {
         f.ticks--;
@@ -221,7 +230,7 @@ export function createBrawlScene(): Scene {
       // Your first street fight shows which key answers a raised fist or stick.
       if (game.run.cleared.length === 0) {
         for (const b of state.bullies) {
-          if (b.state === "tell") drawKeyPrompt(ctx, b.x - cx, GROUND, targetPrompt(OPEN_DURING_TELL[b.kind]), b.ticks / TELL_TICKS[b.kind]);
+          if (b.state === "tell") drawKeyPrompt(ctx, b.x - cx, GROUND, targetPrompt(OPEN_DURING_TELL[b.kind], game.input), b.ticks / TELL_TICKS[b.kind]);
         }
       }
       for (const s of sparks) {
@@ -261,6 +270,7 @@ export function createBrawlScene(): Scene {
         ctx.fillRect(0, viewH - 11, viewW, 11);
         drawTextCentered(ctx, tick < HELP_TICKS ? BRAWL_HELP : helpLine(tick, game.run.seme), viewW / 2, viewH - 10, UI.dim);
       });
+      cards.render(ctx);
     },
   };
 }

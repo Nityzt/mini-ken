@@ -1,12 +1,12 @@
 // Legend: # roof, W wall, w window, D front door, r rack, . floor, @ start, M Momo, X Sensei,
-// A, B and Y the other senpai, N the notice board, Q storage door, G the spare gi, C cracked bamboo screen, U lucky tsuba, V whoever's visiting,
+// A, B and Y the other senpai, Z Nao at the door, N the notice board, Q storage door, G the spare gi, C cracked bamboo screen, U lucky tsuba, V whoever's visiting,
 // s someone doing suburi, k someone in keiko, $ the merch table.
-export const CLUB_SOLID = "#WwDrpMXABYCQNVsk$";
+export const CLUB_SOLID = "#WwDrpMXABYZCQNVsk$";
 
 export const CLUB_MAP = [
   "##################",
   "#WwWNWWWDWWWWWwWr#",
-  "#.$.....@........#",
+  "#.$...Z.@........#",
   "#...........X..s.#",
   "#..............s.#",
   "#..M.......A...s.#",
@@ -115,6 +115,14 @@ export const GOOSE_MAP = [
   "#.kk..E....J..s#",
   "#......@.......#",
   "#######D########",
+];
+
+// Optional neighborhood dojos have no cup noticeboard.
+export const LANTERN_MAP = [
+  "################", "#WwWWWWrWWWWwWW#", "#$.....X.......#", "#...G.......E.s#", "#......R......s#", "#.............s#", "#.kk..........s#", "#......@.......#", "#######D########",
+];
+export const BAMBOO_MAP = [
+  "################", "#WpWWwWWWWwWWpW#", "#$.....X.......#", "#...G.........s#", "#...........E.s#", "#......R......s#", "#.........kk..s#", "#......@.......#", "#######D########",
 ];
 
 // The grading hall: P the three examiners at the far end, with candidates warming up along the wall, and D the way out.

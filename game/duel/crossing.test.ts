@@ -1,7 +1,8 @@
 import test from "node:test";
+import { directDuel as createDuel } from "./test-support.ts";
 import assert from "node:assert/strict";
-import { CROSS_CLEAN_WINDOW, CROSS_GAP, CROSS_SETTLE, CROSS_WRONG_WINDOW, RING_MAX, RING_MIN } from "./constants.ts";
-import { createDuel, distance, faceDir, screenX, skipBow, startX, step, type AttackKind, type DuelState, type FighterInput } from "./rules.ts";
+import { CROSS_CLEAN_WINDOW, CROSS_GAP, CROSS_LOCK_WITHIN, CROSS_SETTLE, CROSS_WRONG_WINDOW, RANGE_MAX, RANGE_MIN, RING_MAX, RING_MIN, TSUBA_GAP } from "./constants.ts";
+import { distance, faceDir, screenX, skipBow, startX, ruleTick as step, type AttackKind, type DuelState, type FighterInput } from "./rules.ts";
 
 const IDLE: FighterInput = { move: 0, block: false, attack: null };
 const swing = (attack: AttackKind): FighterInput => ({ ...IDLE, attack, stomp: true });
@@ -112,7 +113,7 @@ test("it can happen again and again, and two crossings put them back", () => {
   let s = afterCross();
   s.fighters[0].x = 110;
   s.fighters[1].x = 150;
-  s = step({ ...s, options: { windups: [{ men: 8 }, { men: 8 }] } }, swing("men"), swing("men"));
+  s = step({ ...s, options: { direct: [true, true], windups: [{ men: 8 }, { men: 8 }] } }, swing("men"), swing("men"));
   for (let i = 0; i < 20 && s.phase === "fight"; i++) s = step(s, STOMP, STOMP);
   assert.equal(s.phase, "crossing");
   s = afterCross(s);
@@ -186,4 +187,61 @@ test("lessons don't cross: both just recover", () => {
   for (let i = 0; i < 20 && s.fighters[0].stance === "windup"; i++) s = step(s, STOMP, STOMP);
   assert.equal(s.phase, "fight");
   assert.equal(s.crossed, false);
+});
+
+/** Both swing a men from this far apart, landing together. */
+function meetAt(dist: number, options: Parameters<typeof createDuel>[0] = {}): DuelState {
+  let s = step(fightAt(dist, { windups: [{ men: 8 }, { men: 8 }], ...options }), swing("men"), swing("men"));
+  for (let i = 0; i < 20 && s.fighters[0].stance === "windup"; i++) s = step(s, STOMP, STOMP);
+  return s;
+}
+
+test("cuts that meet up close don't pass: they bind and close hilt to hilt", () => {
+  const s = meetAt(CROSS_LOCK_WITHIN);
+  assert.ok(s.lock);
+  assert.ok(has(s, "lock"));
+  assert.ok(!has(s, "cross"));
+  assert.equal(s.phase, "fight");
+  assert.equal(s.crossed, false);
+  assert.deepEqual(s.fighters.map((f) => f.stance), ["tsuba", "tsuba"]);
+  assert.deepEqual(s.fighters.map((f) => f.points), [0, 0]);
+  assert.deepEqual(s.events.filter((e) => e.type === "kiai").map((e) => e.by).sort(), [0, 1]);
+});
+
+test("from any further out, cuts that meet still pass", () => {
+  for (let dist = CROSS_LOCK_WITHIN + 1; dist <= RANGE_MAX; dist++) {
+    const s = meetAt(dist);
+    assert.equal(s.phase, "crossing", `${dist}`);
+    assert.equal(s.lock, null, `${dist}`);
+  }
+});
+
+test("rivals' usual distance is a crossing, so stepping in is what makes it a lock", () => {
+  assert.ok(RANGE_MAX - 6 > CROSS_LOCK_WITHIN);
+  assert.ok(RANGE_MIN < CROSS_LOCK_WITHIN);
+});
+
+test("a strike landing up close as theirs is about to binds as well, and cancels theirs", () => {
+  let s = fightAt(CROSS_LOCK_WITHIN, { windups: [{ kote: 8 }, { men: 8 + CROSS_CLEAN_WINDOW }] });
+  s = step(s, IDLE, swing("men"));
+  for (let i = 0; i < CROSS_CLEAN_WINDOW - 1; i++) s = step(s, STOMP, STOMP);
+  s = step(s, swing("kote"), STOMP);
+  for (let i = 0; i < 12 && !s.lock && !has(s, "hit"); i++) s = step(s, STOMP, STOMP);
+  assert.ok(s.lock);
+  assert.equal(s.fighters[1].attack, null);
+});
+
+test("once bound, they close up to the usual lock, and it plays like any other", () => {
+  let s = meetAt(CROSS_LOCK_WITHIN);
+  for (let i = 0; i < 30 && distance(s) > TSUBA_GAP; i++) s = step(s, IDLE, IDLE);
+  assert.equal(distance(s), TSUBA_GAP);
+  assert.ok(s.lock);
+  for (let i = 0; i < 400 && !has(s, "shove"); i++) s = step(s, { ...IDLE, move: 1 }, { ...IDLE, block: true });
+  assert.ok(has(s, "shove"));
+});
+
+test("lessons don't bind either: both just recover", () => {
+  const s = meetAt(CROSS_LOCK_WITHIN, { basics: true });
+  assert.equal(s.lock, null);
+  assert.equal(s.phase, "fight");
 });

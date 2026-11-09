@@ -6,6 +6,7 @@ import { NODES, routesFrom } from "../world/map.ts";
 import { resumeScene } from "../save.ts";
 import { createHallTrip, createTrip, stepTrip, tripProgress, type Trip } from "../world/trip.ts";
 import { GRADING_HALL_NAME, HEADING_BACK, NEXT_STOP, TRAVELLING } from "./content.ts";
+import { walkingGear } from "../run-state.ts";
 
 const ROAD_Y = 112;
 const WIRE_Y = 44;
@@ -208,7 +209,7 @@ export function createTravelScene(): Scene {
       const riding = trip;
       const eastbound = riding.east;
       const train = riding.mode === "train";
-      drawRide(ctx, { train, eastbound, tick, still: game.reducedMotion, hair: game.run.gear.men ? PALETTE.I : PALETTE.K });
+      drawRide(ctx, { train, eastbound, tick, still: game.reducedMotion, hair: walkingGear(game.run).men ? PALETTE.I : PALETTE.K });
       const fill: Paint = (x, y, w, h, color) => {
         ctx.fillStyle = color;
         ctx.fillRect(Math.round(x), Math.round(y), w, h);

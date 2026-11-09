@@ -9,7 +9,7 @@ import type { GameAudio } from "./audio.ts";
 import type { Input } from "./input.ts";
 import type { OnlineHub } from "../net/hub.ts";
 
-export type SceneName = "art" | "title" | "character" | "club" | "training" | "line" | "map" | "travel" | "brawl" | "rival-dojo" | "duel" | "tournament" | "grading-hall" | "online" | "online-bracket" | "online-duel";
+export type SceneName = "art" | "title" | "character" | "club" | "training" | "line" | "kirikaeshi" | "map" | "travel" | "brawl" | "rival-dojo" | "duel" | "tournament" | "grading-hall" | "online" | "online-appearance" | "online-bracket" | "online-duel" | "online-lobby" | "online-history" | "dungeon";
 
 export type Game = {
   input: Input;
@@ -51,11 +51,12 @@ export type Game = {
   hasSave(): boolean;
   continueGame(): void;
   /** Erases any save and starts from the beginning, as this character. */
-  newGame(character: CharacterId): void;
-  overlay(overlay: "win" | null): void;
+  newGame(character: CharacterId, name?: string): void;
 };
 
 export type Scene = {
+  /** Keys should be read as text for now, rather than as controls. */
+  typing?(): boolean;
   enter?(game: Game): void;
   leave?(game: Game): void;
   /** What the pause menu calls giving up on this, or null if there's nothing to give up on right now. */
@@ -65,6 +66,12 @@ export type Scene = {
   outsideStory?(game: Game): boolean;
   /** True while something's mid-flow here, like a conversation, and a new item should wait its turn. */
   busy?(game: Game): boolean;
+  /** Real people are waiting on this, so it keeps going behind the pause menu and when the tab loses focus. */
+  keepsRunning?(game: Game): boolean;
+  /** One tick while the pause menu's open, when `keepsRunning` says so. */
+  liveTick?(game: Game): void;
+  /** There's no pausing here at all, because something could happen at any moment. */
+  neverPauses?(game: Game): boolean;
   update(game: Game): void;
   render(ctx: CanvasRenderingContext2D, game: Game): void;
 };

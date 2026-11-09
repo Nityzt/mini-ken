@@ -8,19 +8,38 @@ export const GEAR_LINES: Record<keyof Gear, string> = {
   do: "Do: the chest armor. The strike to its side is also called do.",
   men: "Men: the helmet and face grille. Also the top-of-head target.",
   kote: "Kote: padded gloves for hands and wrists.",
-  shinai: "Shinai: four bamboo slats tied together. Never step over one!",
+  shinai: "Shinai: four bamboo slats tied together, on loan from Sensei. Never step over one!",
 };
 
 export const GI_LINE = "A spare gi and hakama. A little big, a little musty, and yours to borrow.";
+export const DOOR_WELCOME = [
+  "Nao: Welcome to Pinecone Dojo, <name>! I am Nao. This is where we practice kendo together.",
+  "Nao: Walk with the movement keys and press E near someone to talk. You can explore, practice and challenge other dojos as you grow.",
+  "Nao: Look for Momo on the left side of the hall. Her name appears when you get close. She will help you get started!",
+];
 export const MOMO_WELCOME = [
-  "Senpai Momo: Welcome! First practice? You can't train in those clothes.",
-  "Senpai Momo: We keep a spare gi in storage. I've unlocked it. The door's in the back wall.",
+  "Senpai Momo: Welcome to Pinecone Dojo! You must be <name>, the new one. I'm Momo. I've been here longer than the paint.",
+  "Senpai Momo: Kendo is bamboo sword practice. We learn posture, footwork and timing.",
+  "Senpai Momo: We treat our partners with respect, too. A bow starts and ends every practice.",
+  "Senpai Momo: Practice with Sensei, earn your armor, and challenge people here and beyond the dojo.",
+  "Senpai Momo: Take it one step at a time.",
+  "Senpai Momo: First practice? Lovely. Kendo starts with manners, and that means the right clothes. Not those ones.",
+  "Senpai Momo: Sensei likes everyone in a proper gi. Even the beginners. Especially the beginners.",
+  "Senpai Momo: We keep a spare in storage. It's a little big and a little musty, but it's clean enough. Come on, I'll show you.",
+];
+export const MOMO_AT_DOOR = [
+  "Senpai Momo: Here we are. This is the storage room.",
+  "Senpai Momo: The door sticks, so stand back a little. It likes to be asked nicely.",
+];
+export const MOMO_STORAGE_OPEN = [
+  "Senpai Momo: There! The spare gi is just inside. Go and collect it.",
+  "Senpai Momo: Then change into it and come and find Sensei. Bow when you do. Always bow.",
 ];
 export const GI_REMINDER = ["Senpai Momo: The spare gi is in storage, through the door in the back wall."];
-export const MOMO_GOT_GI = ["Senpai Momo: Looking sharp! Now go and greet Sensei. Bow first."];
-export const SHINAI_WAITING = ["Senpai Momo: Sensei gave you the old shinai? You must be lucky. Don't step over it!"];
+export const MOMO_GOT_GI = ["Senpai Momo: Looking sharp, <name>! Now go and greet Sensei. Bow first."];
+export const SHINAI_WAITING = ["Senpai Momo: Sensei lent you the old shinai? You must be lucky. Don't step over it, and don't lose it!"];
 export const MOMO_PRACTICE = ["Senpai Momo: Aki, Bo and Yui will each test you in their own way. You only need to pass one of them."];
-export const MOMO_AFTER = ["Senpai Momo: You pushed me right back! Go on, the screen's all yours. And say hello to Ren for me."];
+export const MOMO_AFTER = ["Senpai Momo: You pushed me right back, <name>! Go on, the screen's all yours. And say hello to Ren for me."];
 export const MOMO_GUARD = [
   "Senpai Momo: Full bogu already? Then you've found me out. Sensei's keepsake is behind this screen.",
   "Senpai Momo: Nobody gets to it without beating me. Show me that spirit of yours!",
@@ -34,7 +53,7 @@ export const MOMO_CRUSHED = [
   "Senpai Momo: Old Gen lives on Ravine Trail, and doesn't teach just anyone. Earn your seme, then come back.",
 ];
 export const MOMO_KEEP_TRYING = ["Senpai Momo: Better! Hold your seme, and watch for my big swing when I run out of patience."];
-export const MOMO_BEATEN = ["Senpai Momo: Ha! I felt that one. The screen's all yours."];
+export const MOMO_BEATEN = ["Senpai Momo: Ha! I felt that one, <name>. The screen's all yours."];
 export const MOMO_LOSE_NO_SEME = "Your spirit folds under Momo's aura.";
 export const MOMO_LOSE_SEME = "Hold I to push back. Answer the big swing.";
 export const GEN_LINES = [
@@ -42,17 +61,101 @@ export const GEN_LINES = [
   "Old Gen: Seme is pressing with your ki until the other one flinches. Flinch too often, and we start over.",
 ];
 export const GEN_FAIL = "Old Gen: You flinched, or you flailed. Go and eat something. Then we start again from the top.";
-export const GEN_DONE = ["Old Gen: That's it. That's seme, and now it's yours."];
+export const GEN_DONE = ["Old Gen: That's it, <name>. That's seme, and now it's yours."];
 export const GEN_DONE_AFTER = [
   "Old Gen: Holding it costs ki and leaves you open, so let go when they move.",
   "Old Gen: And while you hold it, stomp with Space and shout. That's kiai. It pushes hard, but it costs you.",
 ];
 export const GEN_AFTER = ["Old Gen: Press with your ki. Let go when they move. That's all I know, and it took me fifty years."];
 export const SENSEI_NO_GI = "Sensei Kuma: Not in those clothes. Go and see Momo first.";
-export const SENSEI_SHINAI = [
-  "Sensei Kuma: So you're the new one. You're in luck.",
-  "Sensei Kuma: My old shinai has been gathering dust for years. It's yours.",
+export const SENSEI_WHY = ["Sensei Kuma: So you're <name>. Momo says you're joining us. Why kendo?"];
+export const WHY_OPTIONS = [
+  { id: "hit", label: "I want to hit people" },
+  { id: "cool", label: "It looked cool" },
+  { id: "fun", label: "Seems like fun exercise" },
+  { id: "zoro", label: "I want to be like Zoro" },
 ];
+export const WHY_REPLY: Record<string, string> = {
+  hit: "Sensei Kuma: Honest, at least. You'll be hit back, and you'll bow afterward.",
+  cool: "Sensei Kuma: It does look cool. It looks less cool at six in the morning.",
+  fun: "Sensei Kuma: Fun. Ask me again once your feet have blisters.",
+  zoro: "Sensei Kuma: Three swords? Let's see what you do with one.",
+};
+export const SENSEI_OFFER = [
+  "Sensei Kuma: No shinai yet, I see. I can lend you my old one. It's half worn out.",
+  "Sensei Kuma: It comes back to me once you're stronger. Deal?",
+];
+export const OFFER_OPTIONS = [
+  { id: "yes", label: "Deal. I'll bring it back" },
+  { id: "no", label: "Not yet" },
+];
+export const SENSEI_NOT_YET = ["Sensei Kuma: It's not going anywhere. Neither are you, without it."];
+export const SENSEI_SHINAI = ["Sensei Kuma: Good. It's a loan, so don't get attached."];
+export const SENSEI_WANTS_IT_BACK = [
+  "Sensei Kuma: A dan grade, and still carrying my old shinai. It's time you had your own, <name>.",
+  "Sensei Kuma: Ask at the Bogu Shop. And mine comes back in one piece, so you'd better learn how to fix it.",
+];
+export const SENSEI_STILL_WAITING = "Sensei Kuma: Still owe me a shinai. Ask at the Bogu Shop.";
+export const SENSEI_MINE_STILL_CRACKED = "Sensei Kuma: Mine's still cracked. Fix it at Fumi's bench, then bring it back.";
+const RETURN_REASON: Record<string, string> = {
+  hit: "Sensei Kuma: You came here to hit people, and here you are mending bamboo. Good as new. Let me look at you.",
+  cool: "Sensei Kuma: You said it looked cool. There's nothing cool about fixing an old shinai, and you did it anyway.",
+  fun: "Sensei Kuma: Fun exercise, you said. Good as new, this. I hope it's still fun.",
+  zoro: "Sensei Kuma: Still after three swords? You've looked after one properly. That's a start.",
+};
+const RETURN_PLAIN = "Sensei Kuma: Good as new. I didn't think I'd see this one looking like that again.";
+export const returnLines = (why: string): string[] => [
+  RETURN_REASON[why] ?? RETURN_PLAIN,
+  "Sensei Kuma: It goes back on the rack, for the next beginner.",
+  "Sensei Kuma: Take this bag, and this for your trouble. Your spirit grows: ki +10, and 100 kensen.",
+];
+export const FUMI_OFFER = [
+  "Fumi: Your first shinai of your own? There's a fine one on my shelf. It's good to swing, and it won't teach you a thing.",
+  "Fumi: To fix your Sensei's, you have to know how they're made. Bring me bamboo from Ravine Trail, and I'll show you.",
+];
+export const FUMI_WAITING = "Fumi: The fine one's on the shelf. Bring me bamboo from Ravine Trail, and I'll teach you to make and mend your own.";
+export const GEN_BAMBOO = [
+  "Old Gen: Fumi sent you for bamboo? Hm. Not that one. Not that one. Four winters old, no younger.",
+  "Old Gen: This one. Cut it clean, and don't thank me. Thank the bamboo.",
+];
+export const FUMI_BUILD_START = ["Fumi: That's good bamboo. Gen must like you. Split it, shave it, and we'll put it together. I'll ask, you answer."];
+export const SHINAI_STEPS: { question: string; options: { id: string; label: string }[]; right: string; wrong: string }[] = [
+  {
+    question: "Fumi: First. How many slats make a shinai?",
+    options: [{ id: "two", label: "Two" }, { id: "four", label: "Four" }, { id: "eight", label: "Eight" }],
+    right: "four",
+    wrong: "Fumi: Count the ones on my shelf. Four. Try again.",
+  },
+  {
+    question: "Fumi: Next, the string that holds them under tension. Which side does it run along?",
+    options: [{ id: "back", label: "The back, away from the strike" }, { id: "front", label: "The striking edge" }, { id: "spiral", label: "Wound around it all" }],
+    right: "back",
+    wrong: "Fumi: The string marks the back. You hit with the other side. Try again.",
+  },
+  {
+    question: "Fumi: Last, the little leather tie, the nakayui. Where does it sit?",
+    options: [{ id: "quarter", label: "A quarter of the way from the tip" }, { id: "grip", label: "Up by the grip" }, { id: "tip", label: "Right on the tip" }],
+    right: "quarter",
+    wrong: "Fumi: Too far off. It goes a quarter of the way down from the tip. Try again.",
+  },
+];
+export const FUMI_BUILD_DONE = [
+  "Fumi: There. It's not pretty, but it's yours.",
+  "Fumi: Now you know how, your Sensei's old one needs the same care. My bench is yours. Fix it before you take it back.",
+];
+export const BENCH_BROWSE = "See the shelves";
+export const benchLabel = (name: string, left: number, cost: number) => `${name}: ${left}/100, ${cost ? `${cost} kensen` : "free"}`;
+export const BENCH_TOO_DEAR = "Fumi: That's more kensen than you've got on you. It'll keep.";
+export const BENCH_FIXED_SELF = (name: string) => `You split, shave and retie it at Fumi's bench. ${name} is as good as new.`;
+export const BENCH_FIXED_FUMI = (name: string) => `Fumi: Leave it with me. ...There. ${name} is as good as new.`;
+export const wornOutLine = (name: string) => `${name} is wearing thin, and it's costing you ki. Fumi's bench at the Bogu Shop can sort that out.`;
+export const SHINAI_BAG_LINE = "A shinai carried in it wears half as fast.";
+export const ITEM_IN_HAND = "In hand";
+export const ITEM_PUT_AWAY = "Put away";
+export const HINT_WIELD = "Use this";
+export const DURABILITY_LABEL = "Durability";
+export const BAMBOO_LINE = "Four winters old, from Old Gen's stand. Fumi at the Bogu Shop is waiting for it.";
+export const OWN_SHINAI_LINE = "You split, shaved and tied this one yourself. Never step over it.";
 export const SENSEI_SHINAI_AFTER = ["Sensei Kuma: Armor is earned. Show me some drills."];
 export const SENSEI_AGAIN = ["Sensei Kuma: From the top, then."];
 export const SENSEI_ALL_OPEN = "Sensei Kuma: There's nothing left I can point you at. Keep your back straight.";
@@ -70,6 +173,28 @@ export const lineRunDone = (cleans: number, count: number, run: number, needed: 
   `Sensei Kuma: ${cleans} of ${count} clean. That's good run ${run} of ${needed}. Your spirit grows: ki +5.`;
 export const lineExtraRun = (cleans: number, count: number) => `Sensei Kuma: ${cleans} of ${count} clean. Your feet are starting to know the way.`;
 export const lineFailed = (cleans: number, count: number) => `Sensei Kuma: ${cleans} of ${count} clean. Read their hands, and go again when you're ready.`;
+export const KIRIKAESHI_FIRST = [
+  "Sensei Kuma: Kirikaeshi builds stamina, and Bo will receive. Big men with a stomp, four sayu men forward, five back.",
+  "Sensei Kuma: The same again, then one last big men, all the way through. Call every men, and watch your breath.",
+];
+export const KIRIKAESHI_BIG_KEYS = "Space + J";
+export const KIRIKAESHI_AGAIN = "Sensei Kuma: Kirikaeshi again, and closer to full speed. Call every men, and spend your breath carefully.";
+export const KIRIKAESHI_READY = "Sensei Kuma: Ready? E to begin, X to leave.";
+export const KIRIKAESHI_LEFT = "Sensei Kuma: Catch your breath. Bo isn't going anywhere.";
+export const kirikaeshiGrew = (misses: number) => `Sensei Kuma: All the way through. Slips: ${misses}. Your spirit grows: ki +5.`;
+export const kirikaeshiDone = (misses: number) => `Sensei Kuma: All the way through. Slips: ${misses}. Your breath is getting steadier.`;
+export const KIRIKAESHI_WINDED = "Sensei Kuma: Out of breath. Slips cost ki, and none comes back until the chain is done. Go again when you're ready.";
+export const KIRIKAESHI_LOST = "Sensei Kuma: You lost the rhythm. Left, right, left, right. Keep your hands going and your feet will follow.";
+export const KIRIKAESHI_NO_FOLLOW = "Sensei Kuma: You stopped at the end. The last men goes through Bo, hands up, all the way past.";
+export const KIRIKAESHI_TITLE = "Kirikaeshi";
+export const KIRIKAESHI_HELP = "Space + J big men  A D sayu men  Hold D follow through";
+export const KIRIKAESHI_EARLY = "Too soon!";
+export const KIRIKAESHI_WRONG = "Other side!";
+export const KIRIKAESHI_LATE = "Too late!";
+export const KIRIKAESHI_NOW = "NOW";
+export const KIRIKAESHI_LOW = "Low ki!";
+export const SAYU_CALL = "Men!";
+export const MENU_KIRIKAESHI = "Kirikaeshi";
 export const LINE_TITLE = "Line drill";
 export const LINE_WRONG = "Wrong opening!";
 export const LINE_SLOW = "Too slow!";
@@ -97,22 +222,25 @@ export const DRILL_PRAISE: Partial<Record<keyof Gear, string>> = {
 };
 
 export const LESSON_PROMPTS = {
-  parry: "Sensei: Tap S just as my strike arrives, not before. Holding it is only a block. Parry me twice.",
+  parry: "Sensei: Watch my tip. When it shines, tap S. Holding it is only a block. Parry me twice.",
   parryCounter: "Sensei: A parry leaves me open, and your next strike comes out fast. Parry, then J and Space, then hold D.",
   lockPush: "Sensei: Hilts together: tsuba-zeriai. I'm only holding my guard, so push through it. Hold D. A steps out.",
   lockHiki: "Sensei: Now I'm leaning on you. J and Space: you'll draw back, then cut. Then hold A to carry on backwards.",
   lockHold: "Sensei: When my hands drop, I'm about to pull back and cut. Hold S as soon as you see it.",
   cross: "Sensei: Go for men just as I do: J and Space. Neither lands, and we pass. That's ai-uchi. It happens a lot.",
   crossTurn: "Sensei: Again, then keep going. You'll be on my other side, so walk in with A, strike, and hold A to finish.",
-  quickStrike: "Coach: Slide in with D. Then J and Space together for men, and hold D to slide through. No slide, no point.",
-  quickTell: "Coach: My hands rising means men, and that opens my wrist. K and Space for kote, then hold D.",
-  quickParry: "Coach: Tap S just as my strike arrives, and it's knocked aside for free. Holding S is only a block.",
+  opening: "Sensei: Every strike starts from an opening. Hold W to raise your shinai, Q to open your wrist, E to drop your tip.",
+  quickOpening: "Coach: Every strike starts from an opening. Hold W, Q and E in turn. What's showing is what's open.",
+  quickSeme: "Coach: Hold I to press me until I flinch. Space shouts, for a harder push. You're open while you do it.",
+  quickStrike: "Coach: Slide in with D. Hold W, then J and Space together for men, and hold D to slide through. No slide, no point.",
+  quickTell: "Coach: My hands are rising, so my wrist is open. Hold an opening of your own, K and Space for kote, then hold D.",
+  quickParry: "Coach: When my tip shines, tap S, and the strike's knocked aside for free. Holding S is only a block.",
   quickPush: "Coach: Hilts locked: tsuba-zeriai. Pushing beats a held guard. Hold D until I'm off balance.",
   quickHiki: "Coach: A held guard beats a pull, and a pull beats a push. I'm pushing, so J and Space, then hold A.",
   quickCross: "Coach: Swing as I do: J and Space. Nobody scores, you pass, and you fight on from there.",
   suriashi: "Sensei: Footwork first. Slide in with D until it says In range, back out with A, then slide in again.",
-  fumikomi: "Sensei: Strike and foot as one. Press J and Space together: men with fumikomi!",
-  zanshin: "Sensei: Now finish it. J and Space, then hold D to slide through. That's zanshin.",
+  fumikomi: "Sensei: Strike and foot as one. Hold W, then press J and Space together: men with fumikomi!",
+  zanshin: "Sensei: Now finish it. Open up, J and Space, then hold D to slide through. That's zanshin.",
   block: "Sensei: You wear a do now, so I can really hit it. See my tip dip? Hold S to block!",
   do: "Sensei: Hands up high leaves my side open. I'll stop short of your head. L and Space, then slide through!",
   kote: "Sensei: See my hands rising? My wrist is open. K and Space, then slide through!",
@@ -193,6 +321,12 @@ export const OBJECTIVES = {
   meetMomo: "Talk to Senpai Momo",
   getGi: "Get the spare gi from storage",
   greetSensei: "Greet Sensei Kuma",
+  shinaiSeeSensei: "See Sensei Kuma at home",
+  shinaiAskShop: "Ask at the Bogu Shop about a shinai",
+  shinaiChoose: "Learn to fix a shinai: get bamboo on Ravine Trail",
+  shinaiFix: "Fix Sensei's shinai at Fumi's bench",
+  shinaiBamboo: "Take the bamboo to Fumi at the Bogu Shop",
+  shinaiReturn: "Return Sensei's old shinai",
   firstDrill: "Finish Sensei's first drill",
   senpaiChallenge: "Pass any one senpai's challenge",
   nextLesson: "See Sensei for your next lesson",
@@ -208,20 +342,21 @@ export const CONTROL_ROWS: { keys: string; does: string; needsSeme?: boolean }[]
   { keys: "Arrows WASD", does: "Move" },
   { keys: "E Space", does: "Talk, choose" },
   { keys: "X", does: "Back out" },
-  { keys: "J K L", does: "Men, kote, do" },
+  { keys: "Hold W Q E", does: "Show do, kote, men" },
+  { keys: "J K L", does: "Men, kote, do, from one" },
   { keys: "Space", does: "Stomp with a strike" },
   { keys: "S", does: "Block. Tap it: parry" },
   { keys: "Tap D D", does: "Long launch" },
   { keys: "I", does: "Hold for seme", needsSeme: true },
   { keys: "Esc P", does: "Menu" },
-  { keys: "M", does: "Mute" },
-  { keys: "F", does: "Fullscreen" },
+  { keys: "M F", does: "Mute, fullscreen" },
 ];
 export const CHARACTER_TITLE = "Who are you?";
 export const INSIGNIA_TITLE = "Your tare";
 export const INSIGNIA_NOTE = "Design the cloth on its front. Optional.";
 export const INSIGNIA_ROWS = ["Symbol", "Cloth", "Mark"];
 export const SCREEN_LOOK = "An old bamboo screen, cracked right down the middle.";
+export const SCREEN_NO_SHINAI = "You've got nothing to hit it with anyway. Sensei hasn't let you near a shinai yet.";
 export const SCREEN_NEEDS_TRAINING = "Better not swing at the furniture on your first day. Not yet, anyway.";
 export const SCREEN_HINT = "It's only cracked. A good strike might do it. J, K or L.";
 export const ARRIVAL = ["Thunder Radish Dojo. The whole place smells of pickles."];
@@ -332,12 +467,12 @@ export const HANA_WIN_LINES = ["Rei. Hana bows, and the goose looks away."];
 export const TRAVELLING = "Travelling";
 export const NEXT_STOP = "Next stop:";
 export const REN_LINES = [
-  "Ren: So you're the one going around beating everybody. I've been expecting you.",
+  "Ren: So you're <name>, the one going around beating everybody. I've been expecting you.",
   "Ren: First to two points. Mind my stare, and press back. Rei, and then we begin.",
 ];
 /** Ren's first visit, while you're still in your first bits of armor. The line about your tare goes after the first. */
 export const REN_FIRST = [
-  "Someone you don't know has been watching your drills from across the hall. They wave you over.",
+  "Someone you don't know has been watching your drills from across the hall. Now they've walked over.",
   "Ren: Don't stop on my account. I'm Ren, from Thunder Radish. I used to sweep this floor.",
   "Ren: Go on, a senpai's waiting to test you. Maybe I'll still be around when you've earned the rest.",
 ];
@@ -360,7 +495,7 @@ export const REN_POINT_LESSON = [
 ];
 export const REN_POINT_LESSON_AFTER = ["Ren: Take that with you. You'll want it at Thunder Radish, the last door in the city. I'll be waiting."];
 export const REN_FINAL_GAZE = [
-  "Ren: There you are. Are you still looking at that far mountain?",
+  "Ren: There you are, <name>. Are you still looking at that far mountain?",
   "Ren: First to two points, and no favours this time. Rei, and then we begin.",
 ];
 export const GAZE_ITEM_LINE = "You can see Ren's strikes coming, and their stare takes longer to shake you.";
@@ -435,12 +570,46 @@ export function allContentLines(): string[] {
     ...Object.values(GEAR_LINES),
     GI_LINE,
     ...MOMO_WELCOME,
+    ...MOMO_AT_DOOR,
+    ...MOMO_STORAGE_OPEN,
     ...GI_REMINDER,
     ...MOMO_GOT_GI,
     ...SHINAI_WAITING,
     ...MOMO_AFTER,
     SENSEI_NO_GI,
     ...SENSEI_SHINAI,
+    ...SENSEI_WHY,
+    ...WHY_OPTIONS.map((option) => option.label),
+    ...Object.values(WHY_REPLY),
+    ...SENSEI_OFFER,
+    ...OFFER_OPTIONS.map((option) => option.label),
+    ...SENSEI_NOT_YET,
+    SENSEI_MINE_STILL_CRACKED,
+    ...Object.keys(RETURN_REASON).flatMap(returnLines),
+    ...returnLines(""),
+    BENCH_BROWSE,
+    benchLabel("Sensei's old shinai", 50, 0),
+    benchLabel("Your men", 20, 40),
+    BENCH_TOO_DEAR,
+    BENCH_FIXED_SELF("Sensei's old shinai"),
+    BENCH_FIXED_FUMI("Sensei's old shinai"),
+    wornOutLine("Sensei's old shinai"),
+    SHINAI_BAG_LINE,
+    ITEM_IN_HAND,
+    ITEM_PUT_AWAY,
+    HINT_WIELD,
+    DURABILITY_LABEL,
+    SCREEN_NO_SHINAI,
+    ...SENSEI_WANTS_IT_BACK,
+    SENSEI_STILL_WAITING,
+    ...FUMI_OFFER,
+    FUMI_WAITING,
+    ...GEN_BAMBOO,
+    ...FUMI_BUILD_START,
+    ...SHINAI_STEPS.flatMap((step) => [step.question, step.wrong, ...step.options.map((option) => option.label)]),
+    ...FUMI_BUILD_DONE,
+    BAMBOO_LINE,
+    OWN_SHINAI_LINE,
     ...SENSEI_SHINAI_AFTER,
     ...SENSEI_AGAIN,
     SENSEI_ALL_OPEN,
@@ -454,6 +623,25 @@ export function allContentLines(): string[] {
     LINE_READY,
     LINE_LEFT,
     LINE_STREETS_OPEN,
+    ...KIRIKAESHI_FIRST,
+    KIRIKAESHI_BIG_KEYS,
+    KIRIKAESHI_AGAIN,
+    KIRIKAESHI_READY,
+    KIRIKAESHI_LEFT,
+    kirikaeshiGrew(4),
+    kirikaeshiDone(4),
+    KIRIKAESHI_WINDED,
+    KIRIKAESHI_LOST,
+    KIRIKAESHI_NO_FOLLOW,
+    KIRIKAESHI_TITLE,
+    KIRIKAESHI_HELP,
+    KIRIKAESHI_EARLY,
+    KIRIKAESHI_WRONG,
+    KIRIKAESHI_LATE,
+    KIRIKAESHI_NOW,
+    KIRIKAESHI_LOW,
+    SAYU_CALL,
+    MENU_KIRIKAESHI,
     LINE_TITLE,
     LINE_WRONG,
     LINE_SLOW,
@@ -542,6 +730,7 @@ export function allContentLines(): string[] {
     PROGRESS_OPEN,
     PROGRESS_NONE,
     PROGRESS_CHAMPION,
+    HINT_MOVE, HINT_PAGE, HINT_PICK, HINT_BACK, HINT_USE, HINT_WEAR, HINT_TAKE_OFF, ITEM_WORN, ITEM_NOT_WORN, ITEM_FIGHTS_ONLY, NAME_TITLE, HINT_KEEP_NAME, HINT_NAME_BACK, ITEM_READY, RANK_LEVEL, RANK_XP_LEFT, ...RANK_STATS, MAP_NEXT, MAP_OPEN, MAP_LOCKED, MAP_NOTHING_NEEDED, TECHNIQUES_TITLE,
     FORFEIT_MATCH,
     FORFEIT_GANG,
     FORFEIT_TRAINING,
@@ -678,6 +867,33 @@ export const INVENTORY_EMPTY = "Nothing yet.";
 export const INVENTORY_USE = "E use   X back";
 export const INVENTORY_WEAR = "E wear or take off   X back";
 export const PROGRESS_OPEN_DONE = "Done";
+export const HINT_MOVE = "Move";
+export const HINT_PAGE = "Page";
+export const HINT_PICK = "Pick";
+export const HINT_BACK = "Back";
+export const HINT_USE = "Use";
+export const HINT_WEAR = "Wear";
+export const HINT_TAKE_OFF = "Take off";
+export const ITEM_WORN = "Worn";
+export const ITEM_NOT_WORN = "Not worn";
+export const ITEM_FIGHTS_ONLY = "Fights only";
+/** Where your name goes in anything someone says. */
+export const NAME_TOKEN = "<name>";
+export const fillName = (line: string, name: string): string => line.replaceAll(NAME_TOKEN, name);
+export const NAME_TITLE = "What's your name?";
+export const nameNote = (fallback: string) => `Type your own, or just go by ${fallback}.`;
+export const nameMenuLabel = (name: string) => `Name: ${name}`;
+export const HINT_KEEP_NAME = "Keep";
+export const HINT_NAME_BACK = "Back";
+export const ITEM_READY = "Ready to use";
+export const RANK_LEVEL = "Level";
+export const RANK_XP_LEFT = "xp to next level";
+export const RANK_STATS = ["Beaten", "Cups", "Dojos"];
+export const MAP_NEXT = "Next";
+export const MAP_OPEN = "Open";
+export const MAP_LOCKED = "Locked";
+export const MAP_NOTHING_NEEDED = "Nothing needed";
+export const TECHNIQUES_TITLE = "Techniques";
 
 export const GRADING_HALL_NAME = "Grading Hall";
 export const HEADING_BACK = "Heading back";
@@ -696,7 +912,7 @@ export const KIHON_LEFT = "Examiner Ono: You stepped out. Your ticket's still go
 export const KIHON_TITLE = "Demonstration";
 export const TACHIAI_READY = ["Examiner Ono: Now one bout, against another candidate. Win it cleanly."];
 export const GRADING_FAILED = ["Examiner Ono: Not today. There's no shame in that, and most people fail a few. Your ticket's still good."];
-export const gradingPassed = (rank: string) => [`Examiner Ono: You've shown us enough. You're ${rank}. Your ride home is at the door.`];
+export const gradingPassed = (rank: string) => [`Examiner Ono: You've shown us enough, <name>. You're ${rank}. Your ride home is at the door.`];
 export const GRADING_DONE = ["Three dan is as far as anyone here can send you. Above that, you'd need a bigger table."];
 export const GRADING_WALKED = "Examiner Ono: You stepped out. Your ticket's still good.";
 export const GRADING_BOW = "Grading. The panel is watching";
@@ -742,7 +958,7 @@ export const HELP_TITLE = "Helping out";
 export const helpPaid = (amount: number) => `Sensei Kuma: That helps. Here's ${amount} kensen for your trouble.`;
 export const HELP_FAILED = "Sensei Kuma: They learned what not to do, at least. Try again when you like.";
 export const MENU_MERCH = "Merch";
-export const SHOP_TITLES: Record<string, string> = { store: "Bogu Shop", cup: "Tournament stall", pinecone: "Pinecone merch", raccoon: "Raccoon merch", goose: "Goose merch", heron: "Heron merch", otter: "Otter merch", radish: "Radish merch" };
+export const SHOP_TITLES: Record<string, string> = { store: "Bogu Shop", beachShop: "Shell Market", parkShop: "Blossom Shop", steelShop: "Forge Shop", fallsShop: "Falls Outfitters", lantern: "Lantern merch", bamboo: "Bamboo merch", cup: "Tournament stall", pinecone: "Pinecone merch", raccoon: "Raccoon merch", goose: "Goose merch", heron: "Heron merch", otter: "Otter merch", radish: "Radish merch" };
 export const SHOP_HELP = "E buy or wear   X leave";
 export const SHOP_OWNED = "Owned";
 export const SHOP_WORN = "Worn";
@@ -761,9 +977,24 @@ export const CALL_HAJIME = "Hajime!";
 export const CALL_NIHONME = "Nihon-me!";
 export const CALL_SHOBU = "Shobu!";
 export const CALL_WAKARE = "Wakare!";
+export const CALL_TIME = "Time!";
+export const CALL_ENCHO = "Encho!";
+export const NEEDS_OPENING = "Hold W, Q or E first";
+export const STATUS_SHOWS_MEN = "Men open";
+export const STATUS_SHOWS_KOTE = "Kote open";
+export const STATUS_SHOWS_DO = "Do open";
 export const LOCK_CALL = "Tsuba-zeriai!";
 export const TSUBA_LABEL = "Tsuba-zeriai";
 export const PARRIED = "Parry!";
+export const STATUS_OPEN = "Open";
+export const STATUS_WIDE_OPEN = "Wide open";
+export const STATUS_STUNNED = "Stunned";
+export const STATUS_STUMBLING = "Stumbling";
+export const STATUS_PARRYING = "Parrying";
+export const STATUS_COUNTER = "Counter!";
+export const STATUS_PUSH = "Push";
+export const STATUS_HOLD = "Hold";
+export const STATUS_PULL = "Pull!";
 export const SHOVED = "Off balance!";
 export const CLOSING_LINE = "Sonkyo. Sheathe, step back, and bow";
 
@@ -781,6 +1012,12 @@ export const ONLINE_TITLE = "Multiplayer";
 export const ONLINE_DUEL = "Duel";
 export const ONLINE_TOURNAMENT = "Tournament";
 export const ONLINE_TUTORIAL = "Short tutorial (about two minutes)";
+export const ONLINE_PRIMER_YES = "Show me (under a minute)";
+export const ONLINE_PRIMER_NO = "Not now, go on";
+export const onlinePrimerNote = (needs: readonly string[]): string => {
+  const missing = needs.map((n) => (n === "opening" ? "openings" : "seme")).join(" or ");
+  return `You don't know ${missing} yet, and the other player will use them. Want a quick tutorial first?`;
+};
 export const ONLINE_TUTORIAL_AGAIN = "Short tutorial again";
 export const ONLINE_BACK = "Back";
 export const ONLINE_GATE = "Multiplayer is for 1st dan and up. Earn it in the story, with Sensei's waza lesson, or take the short tutorial and go straight in.";

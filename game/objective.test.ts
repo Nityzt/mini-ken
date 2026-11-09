@@ -28,7 +28,7 @@ test("once you're armored and Ren's had their one point, it follows the ladder",
 
 test("with everything open, it points at the Grand Taikai, and then there's nothing left to chase", () => {
   const everything: RunState = {
-    ...start, metSenpai: true, gi: true, senseiRounds: 3, trained: true, gear: FULL_GEAR, seme: true, linePasses: 3, bonusKi: 200, dan: 3,
+    ...start, metSenpai: true, gi: true, senseiRounds: 3, trained: true, gear: FULL_GEAR, seme: true, linePasses: 3, bonusKi: 200, dan: 3, shinaiQuest: "returned",
     beaten: ["aki", "raccoon", "goose", "heron", "otter", "radish"],
   };
   assert.match(currentObjective(everything), /Grand Taikai/);

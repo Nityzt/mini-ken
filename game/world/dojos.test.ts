@@ -67,8 +67,8 @@ test("the rival's helpers hint at habits without spelling out the counters", () 
   }
 });
 
-test("there are five rival dojos", () => {
-  assert.equal(IDS.length, 5);
+test("there are seven rival dojos", () => {
+  assert.equal(IDS.length, 7);
 });
 
 test("a duel's dojo follows where you're standing", () => {

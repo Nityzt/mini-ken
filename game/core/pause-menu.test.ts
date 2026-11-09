@@ -104,7 +104,7 @@ test("the inventory is a page of its own: arrows move through it, and only a usa
   const open = stepPauseMenu({ page: "main", choice: items.findIndex((i) => i.id === "inventory") }, items, keys({ confirm: true }));
   assert.equal(open.menu.page, "inventory");
   const held = ["ticket", "gi", "tare"] as const;
-  const moved = stepPauseMenu(open.menu, items, keys({ down: true }), [...held]);
+  const moved = stepPauseMenu(open.menu, items, keys({ right: true }), [...held]);
   assert.equal(moved.menu.choice, 1);
   assert.equal(stepPauseMenu(moved.menu, items, keys({ confirm: true }), [...held]).action, null);
   assert.equal(stepPauseMenu(open.menu, items, keys({ confirm: true }), [...held]).action, "use-ticket");
@@ -142,4 +142,51 @@ test("outside any story there's nothing to restart, but a match can still be con
 test("multiplayer shows up in the story menu only once it's open", () => {
   assert.ok(menuItems({ forfeit: null, inGame: true, hasTare: true, multiplayer: true }).some((i) => i.id === "multiplayer"));
   assert.ok(!menuItems({ forfeit: null, inGame: true, hasTare: true }).some((i) => i.id === "multiplayer"));
+});
+
+test("the inventory is a grid: arrows move across it and between its groups, and nothing wraps", () => {
+  const items = menuItems({ forfeit: null, inGame: true, hasTare: false });
+  const groups = [["ticket", "letter"], ["gi", null, "shinai"], ["shop:inkColors"]];
+  const held = groups.flat().filter((slot): slot is string => slot !== null);
+  const go = (choice: number, pressed: Partial<MenuKeys>) => stepPauseMenu({ page: "inventory", choice }, items, keys(pressed), held, undefined, groups).menu.choice;
+  assert.equal(go(0, { right: true }), 1);
+  assert.equal(go(1, { right: true }), 2, "on into the next group");
+  assert.equal(go(0, { left: true }), 0, "no wrapping off the start");
+  assert.equal(go(0, { down: true }), 2, "straight down is the gear row");
+  assert.equal(go(3, { down: true }), 4, "then the colors");
+  assert.equal(go(4, { down: true }), 4, "and that's the bottom");
+  assert.equal(go(3, { up: true }), 1);
+});
+
+test("the progress page opens on the map at what's next, and the arrows switch pages", () => {
+  const items = menuItems({ forfeit: null, inGame: true, hasTare: false });
+  const at = items.findIndex((i) => i.id === "progress");
+  const open = stepPauseMenu({ page: "main", choice: at }, items, keys({ confirm: true }), [], undefined, undefined, { goal: 4, rows: 20 });
+  assert.deepEqual(open.menu, { page: "progress", choice: 4, tab: 2 });
+  const left = stepPauseMenu(open.menu, items, keys({ left: true })).menu;
+  assert.equal(left.tab, 1);
+  assert.equal(stepPauseMenu(left, items, keys({ left: true })).menu.tab, 0);
+  assert.equal(stepPauseMenu({ ...left, tab: 0 }, items, keys({ left: true })).menu.tab, 2, "pages wrap");
+  assert.equal(stepPauseMenu({ ...left, tab: 2 }, items, keys({ right: true })).menu.tab, 0);
+  assert.equal(stepPauseMenu(left, items, keys({ cancel: true })).menu.page, "main");
+});
+
+test("up and down walk the map and stop at both ends; on the other pages they leave the row alone", () => {
+  const items = menuItems({ forfeit: null, inGame: true, hasTare: false });
+  const progress = { goal: 0, rows: 5 };
+  const map = (choice: number, pressed: Partial<MenuKeys>, tab = 2) => stepPauseMenu({ page: "progress", choice, tab }, items, keys(pressed), [], undefined, undefined, progress).menu.choice;
+  assert.equal(map(2, { down: true }), 3);
+  assert.equal(map(4, { down: true }), 4);
+  assert.equal(map(0, { up: true }), 0);
+  assert.equal(map(2, { down: true }, 0), 2);
+});
+
+test("a guest can sign in from the story menu, and it's an action the game handles", () => {
+  const items = menuItems({ forfeit: null, inGame: true, hasTare: false, multiplayer: true, signIn: true });
+  const index = items.findIndex((i) => i.id === "sign-in");
+  assert.ok(index >= 0);
+  assert.ok(index < items.findIndex((i) => i.id === "restart"));
+  assert.equal(stepPauseMenu({ page: "main", choice: index }, items, { up: false, down: false, confirm: true, cancel: false }).action, "sign-in");
+  assert.ok(!menuItems({ forfeit: null, inGame: true, hasTare: false }).some((i) => i.id === "sign-in"));
+  assert.ok(!menuItems({ forfeit: null, inGame: false, hasTare: false, signIn: true }).some((i) => i.id === "sign-in"));
 });

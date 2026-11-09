@@ -1,10 +1,11 @@
 # Tiny Kendo
 
-A cute 8-bit kendo game in the browser, made for fun by the York University Kendo Club. It runs on a keyboard, and all the game's art is drawn by code.
+A cute 8-bit kendo game in the browser, made for fun. It runs on a keyboard, and all the game's art is drawn by code.
 
 ```
 pnpm install
 pnpm dev         # http://127.0.0.1:3210
+pnpm dev:online  # the same, with the real server, accounts and lobbies
 pnpm test
 pnpm typecheck
 pnpm build

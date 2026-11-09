@@ -1,24 +1,31 @@
-import { playerColors } from "../characters.ts";
-import { drawTextCentered, LINE_HEIGHT, wrapText } from "../art/font.ts";
+import { instructionText, keyLabel, teachingKeys } from "../core/key-labels.ts";
+import { playerColors, playerName } from "../characters.ts";
+import { drawText, LINE_HEIGHT, wrapText } from "../art/font.ts";
 import { FULL_GEAR } from "../art/kendoka.ts";
 import { PALETTE, UI } from "../art/palette.ts";
-import { onGui, onStage, viewW } from "../core/scale.ts";
+import { onGui, onStage, stageX, stageY, viewW } from "../core/scale.ts";
 import type { Game, Scene } from "../core/scene.ts";
-import { PARRY_WINDOW } from "../duel/constants.ts";
+import { parryShine } from "../duel/poses.ts";
 import { screenX, skipBow, step } from "../duel/rules.ts";
 import { finishSession } from "./club-story.ts";
 import { FORFEIT_TRAINING, GEN_FAIL, LESSON_GOOD, LESSON_WRONG, PARRY_NOW } from "./content.ts";
+import { wasTaught } from "./teaching.ts";
 import { createLessonDuel, judge, lessonsFor, partnerColors, partnerName, SENPAI, sessionPartner, sessionPlace, type Lesson, type Session } from "./curriculum.ts";
+import { figureAt } from "./bubble.ts";
 import { createDialogue } from "./dialogue.ts";
-import { applyEvents, createDuelView, createPlayerControl, drawDuelHud, drawDuelStage, drawKeyPrompt, helpLine, lockHelp, playDuelSounds, playSemeHum, tickView, WIDE_TEXT, type DuelView } from "./duel.ts";
+import { applyEvents, createDuelView, createPlayerControl, drawDuelHud, drawDuelStage, drawKeyPrompt, playDuelSounds, playSemeHum, playShineTing, tickView, WIDE_TEXT, type DuelView } from "./duel.ts";
+import { createTeachCards, keysLine } from "./teach-card.ts";
 
 const GROUND = 128;
+/** How far above the floor the top of a fighter's head is. */
+const FIGHTER_TOP = 42;
 
 const PAUSE_TICKS = 70;
 
 /** One session with one partner: Sensei's drills, a senpai's challenge, or Old Gen's seme. */
-export function createTrainingScene(): Scene {
-  const dialogue = createDialogue();
+export function createTrainingScene(nameOf: () => string): Scene {
+  const dialogue = createDialogue(nameOf);
+  const cards = createTeachCards();
   let session: Session = { kind: "sensei", round: 0 };
   let lessons: Lesson[] = [];
   let lessonIndex = 0;
@@ -51,9 +58,13 @@ export function createTrainingScene(): Scene {
 
   const startLesson = (game: Game, index: number) => {
     lessonIndex = index;
+    // Sensei's teaching it right now, so nobody needs the card that explains it to older saves.
+    if (lesson().id === "opening" && !wasTaught(game.run, "openings")) game.run = { ...game.run, seen: [...game.run.seen, "taught:openings"] };
     reps = 0;
     misses = 0;
     startRep(game);
+    // Nothing moves until you've read what this one's about and said you're ready.
+    cards.show(game, { title: lesson().title, text: lesson().prompt, keys: lesson().keys });
   };
 
   /** Back to wherever this session started. */
@@ -95,15 +106,20 @@ export function createTrainingScene(): Scene {
       game.session = null;
       lessons = lessonsFor(session);
       ended = false;
+      cards.clear(game);
       startLesson(game, 0);
     },
     update(game) {
       game.debug.talking = dialogue.active;
       if (dialogue.active) {
-        dialogue.update(game.input);
+        dialogue.update(game.input, game.audio);
         return;
       }
       if (ended) return;
+      if (cards.active) {
+        cards.update(game);
+        return;
+      }
       tick++;
       if (pause > 0) {
         tickView(view);
@@ -121,6 +137,7 @@ export function createTrainingScene(): Scene {
       game.debug.duel = view.duel;
       applyEvents(view, view.duel.events, game.reducedMotion, gearFor(game));
       playDuelSounds(game.audio, view.duel.events);
+      playShineTing(game.audio, view);
       playSemeHum(game.audio, view.duel.fighters[0].stance === "seme", view.walkTick);
       tickView(view);
 
@@ -150,29 +167,41 @@ export function createTrainingScene(): Scene {
       });
       const current = lesson();
       const { duel } = view;
-      drawDuelHud(ctx, view, ["You", partnerName(session)], duel.lock ? lockHelp(!duel.crossed) : helpLine(view.walkTick, canSeme(game)));
+      drawDuelHud(ctx, view, [playerName(game.run), partnerName(session)], keysLine(current.keys.map(([key, does]) => [teachingKeys(game.input, key), does]), view.walkTick), 0, undefined, game.input);
       // When to tap: nobody learns a parry's timing from a sentence.
       const them = duel.fighters[1];
       if (current.cue && duel.phase === "fight" && them.stance === "windup") {
         const windup = duel.options.windups?.[1]?.[them.attack!] ?? 1;
-        onStage(ctx, () => drawKeyPrompt(ctx, screenX(duel, them.x), GROUND, them.stanceTicks <= PARRY_WINDOW ? PARRY_NOW : null, them.stanceTicks / windup));
+        onStage(ctx, () => drawKeyPrompt(ctx, screenX(duel, them.x), GROUND, parryShine(duel, 1) > 0 ? PARRY_NOW.replace("S", keyLabel(game.input, "down", "s")) : null, them.stanceTicks / windup));
       }
+      // Whoever's teaching says it from where they're standing.
+      const figureOf = (i: 0 | 1) => figureAt(ctx, stageX() + screenX(duel, duel.fighters[i].x), stageY() + GROUND - FIGHTER_TOP, stageY() + GROUND);
+      const you = figureOf(0);
+      const partner = figureOf(1);
       onGui(ctx, () => {
-        const text = message ?? current.prompt;
-        const lines = wrapText(text, Math.min(viewW - 16, WIDE_TEXT));
+        const text = instructionText(game.input, message ?? current.prompt);
+        const width = Math.min(viewW - 16, WIDE_TEXT);
+        const lines = wrapText(text, width - 12);
         if (current.misses !== undefined) {
           lines.push(`Clean ${reps}/${current.reps ?? 1}   Misses ${misses}/${current.misses}`);
         }
         // During the follow-through, the zanshin meter is the only prompt that matters.
         if (!view.duel.zanshin) {
+          const x = Math.floor((viewW - width) / 2);
+          const height = lines.length * LINE_HEIGHT + 8;
+          ctx.fillStyle = PALETTE.g;
+          ctx.fillRect(x, 20, width, height);
           ctx.fillStyle = UI.panel;
-          ctx.fillRect(0, 20, viewW, lines.length * LINE_HEIGHT + 4);
+          ctx.fillRect(x + 1, 21, width - 2, height - 2);
+          ctx.fillStyle = PALETTE.G;
+          for (let i = 4; i < width - 4; i += 8) ctx.fillRect(x + i, 21, 3, 1);
           lines.forEach((line, i) => {
-            drawTextCentered(ctx, line, viewW / 2, 22 + i * LINE_HEIGHT, message === LESSON_GOOD ? UI.good : UI.accent);
+            drawText(ctx, line, x + 6, 24 + i * LINE_HEIGHT, message === LESSON_GOOD ? UI.good : UI.text);
           });
         }
-        dialogue.render(ctx);
+        dialogue.render(ctx, { at: (name) => (name ? partner : you), avoid: [you] });
       });
+      cards.render(ctx);
     },
   };
 }

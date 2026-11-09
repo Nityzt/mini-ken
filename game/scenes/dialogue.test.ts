@@ -1,9 +1,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import type { Action, Input } from "../core/input.ts";
+import type { Syllable } from "../core/babble.ts";
 import { createDialogue } from "./dialogue.ts";
 
 const pressing = (action?: Action): Input => ({
+  typing: false,
+  setTyping() {},
+  typed: () => [],
   isDown: () => false,
   wasPressed: (a) => a === action,
   endTick() {},
@@ -62,4 +66,89 @@ test("X does nothing when no dialogue is open", () => {
   const d = createDialogue();
   d.update(pressing("cancel"));
   assert.equal(d.active, false);
+});
+
+/** Types a whole page, and writes down what got said along the way. */
+function listen(d: ReturnType<typeof createDialogue>, ticks = 200) {
+  const heard: Syllable[] = [];
+  for (let i = 0; i < ticks; i++) d.update(pressing(), { say: (s) => heard.push(s) });
+  return heard;
+}
+
+test("someone with a voice talks as their words get typed", () => {
+  const d = createDialogue();
+  d.open(["Aki: I talk a lot and I never stand still, so keep up!"]);
+  assert.ok(listen(d).length >= 5);
+});
+
+test("each syllable comes out on the tick its letter appears", () => {
+  const d = createDialogue();
+  d.open(["Aki: Yes"]);
+  const when: number[] = [];
+  for (let tick = 1; tick <= 12; tick++) d.update(pressing(), { say: () => when.push(tick) });
+  assert.deepEqual(when, ["Aki: Y".length]);
+});
+
+test("the speaker's name is a label, so it isn't read out", () => {
+  const d = createDialogue();
+  d.open(["Aki: ..."]);
+  assert.equal(listen(d).length, 0);
+});
+
+test("two people saying the same words don't sound the same", () => {
+  const say = (who: string) => {
+    const d = createDialogue();
+    d.open([`${who}: Wash your gi alone.`]);
+    return listen(d)[0].freq;
+  };
+  assert.notEqual(say("Aki"), say("Bo"));
+});
+
+test("narration is silent", () => {
+  const d = createDialogue();
+  d.open(["A spare gi and hakama. A little big."]);
+  assert.equal(listen(d).length, 0);
+});
+
+test("a label that happens to have a colon is silent", () => {
+  const d = createDialogue();
+  d.open(["Rested: your spirit is back to full, and so is your health."]);
+  assert.equal(listen(d).length, 0);
+});
+
+test("finishing the typing stops the talking", () => {
+  const d = createDialogue();
+  d.open(["Aki: I talk a lot and I never stand still, so keep up!"]);
+  const heard: Syllable[] = [];
+  d.update(pressing("confirm"), { say: (s) => heard.push(s) });
+  const before = heard.length;
+  for (let i = 0; i < 100; i++) d.update(pressing(), { say: (s) => heard.push(s) });
+  assert.equal(heard.length, before);
+});
+
+test("each page talks from its own start, and a different speaker takes over", () => {
+  const d = createDialogue();
+  d.open(["Aki: Yes indeed.", "Bo: Yes indeed."]);
+  const first = listen(d);
+  d.update(pressing("confirm"));
+  const second = listen(d);
+  assert.equal(first.length > 0, true);
+  assert.equal(second.length > 0, true);
+  assert.notEqual(first[0].freq, second[0].freq);
+});
+
+test("a dialogue with no audio given types along in silence", () => {
+  const d = createDialogue();
+  d.open(["Aki: Yes indeed."]);
+  assert.doesNotThrow(() => d.update(pressing()));
+});
+
+test("a page after a long line still lines up with what's being typed", () => {
+  const d = createDialogue();
+  d.open(["Aki: " + "word ".repeat(30), "Aki: Yes"]);
+  listen(d);
+  d.update(pressing("confirm"));
+  const when: number[] = [];
+  for (let tick = 1; tick <= 12; tick++) d.update(pressing(), { say: () => when.push(tick) });
+  assert.deepEqual(when, ["Aki: Y".length]);
 });

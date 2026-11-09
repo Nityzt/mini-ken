@@ -2,8 +2,9 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { measureText, wrapText } from "./art/font.ts";
 import { STAGE_W } from "./core/scale.ts";
-import { PINECONE_COLORS } from "./art/palette.ts";
-import { CHARACTERS, characterById, DEFAULT_CHARACTER, playerColors } from "./characters.ts";
+import { PALETTE, PINECONE_COLORS } from "./art/palette.ts";
+import { colorOf } from "./art/sprite.ts";
+import { CHARACTERS, characterById, DEFAULT_CHARACTER, playerColors, type CharacterId } from "./characters.ts";
 import { LOOKS } from "./shop.ts";
 import { DEFAULT_INSIGNIA } from "./insignia.ts";
 
@@ -72,4 +73,44 @@ test("your own tare design stays on, whatever you're wearing", () => {
 
 test("colors from a save that's since gone off sale just leave you in your dojo's", () => {
   assert.equal(playerColors(look({ look: "pineconeColors" })).I, PINECONE_COLORS.I);
+});
+
+test("everyone's men is their own, whatever colors it's in", () => {
+  const details = (c: { id: CharacterId }, worn = "") => {
+    const colors = playerColors(look({ character: c.id, look: worn }));
+    return ["M", "T", "t", "A", "E", "U"].map((key) => colors[key] ?? "").join();
+  };
+  assert.equal(new Set(CHARACTERS.map((c) => details(c))).size, CHARACTERS.length);
+  assert.equal(new Set(CHARACTERS.map((c) => playerColors(look({ character: c.id })).M)).size, CHARACTERS.length, "you can tell by the grille alone");
+  assert.equal(new Set(CHARACTERS.map((c) => playerColors(look({ character: c.id })).T)).size, CHARACTERS.length, "and by the cords alone");
+  for (const c of CHARACTERS) assert.equal(details(c, "gooseColors"), details(c), c.id);
+});
+
+test("a men's details never show on someone who doesn't set them", () => {
+  const npc = { I: "#123456", w: "#ABCDEF", R: "#FEDCBA" };
+  assert.equal(colorOf("A", npc), "#123456");
+  assert.equal(colorOf("E", npc), "#123456");
+  assert.equal(colorOf("U", npc), "#123456");
+  assert.equal(colorOf("M", npc), "#ABCDEF");
+  assert.equal(colorOf("T", npc), "#FEDCBA");
+  assert.equal(colorOf("A"), PALETTE.I);
+  assert.equal(colorOf("M"), PALETTE.w);
+  assert.equal(colorOf("T"), PALETTE.R);
+});
+
+test("equipped gear colors reach the player while packed gear stays invisible", async () => {
+  const { EQUIPMENT, equip } = await import('./equipment.ts');
+  const { createRunState } = await import('./run-state.ts');
+  const entry = Object.entries(EQUIPMENT).find(([, gear]) => gear.slot === 'do' && gear.colors);
+  assert.ok(entry, 'a cosmetic do variant exists');
+  const [id, gear] = entry;
+  const run = { ...createRunState(), gi: true, gear: { shinai: true, tare: true, do: true, men: true, kote: true }, owned: [id] };
+  const before = playerColors(run);
+  const equipped = equip(run, id as keyof typeof EQUIPMENT);
+  const after = playerColors(equipped);
+  for (const [channel, color] of Object.entries(gear.colors!)) assert.equal(after[`do:${channel}`], color);
+  assert.notDeepEqual(after, before);
+  assert.equal(playerColors(equipped), after, 'sprite cache stays stable');
+  assert.equal(after.Z, before.Z, 'personal insignia stays intact');
+  assert.deepEqual(playerColors(equip(equipped, 'do')), before);
 });

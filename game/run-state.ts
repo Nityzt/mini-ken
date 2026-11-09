@@ -1,3 +1,6 @@
+import type { EquipmentId, EquipmentSlot, ModId } from "./equipment.ts";
+import { createDungeonTrial, type DungeonTrial } from "./dungeon-story.ts";
+import { wornKi } from "./durability.ts";
 import { NO_GEAR, type Gear } from "./art/kendoka.ts";
 import { DEFAULT_CHARACTER, type CharacterId } from "./characters.ts";
 import { KI_MAX, TSUBA_KI_MAX } from "./duel/constants.ts";
@@ -16,6 +19,9 @@ const TOWER_REWARD = 10;
 const LINE_REWARD = 5;
 /** Only this many passes of the line drill pay out in ki. */
 const LINE_REWARDED_PASSES = 3;
+/** The first few kirikaeshi passes grow your ki, as the line drill's do, so practice can't stand in for the ladder. */
+const KIRIKAESHI_REWARD = 5;
+const KIRIKAESHI_REWARDED_PASSES = 3;
 const SENPAI_WIN_REWARD = 5;
 const RIVAL_WIN_REWARD = 10;
 const CHAMPION_REWARD = 20;
@@ -52,8 +58,11 @@ const SEME_WITH_GAZE = 0.75;
 
 /** Everything one playthrough remembers. It's saved as it changes, so a refresh picks up where you left off. */
 export type RunState = {
+  dungeon: DungeonTrial;
   /** Who you chose to play as. */
   character: CharacterId;
+  /** The name you gave yourself, or empty to go by your character's. See `playerName`. */
+  name: string;
   /** The design on the front of your tare. */
   insignia: Insignia;
   metSenpai: boolean;
@@ -65,6 +74,8 @@ export type RunState = {
   trained: boolean;
   /** How many times the line drill has been passed. */
   linePasses: number;
+  /** How many times kirikaeshi has been passed. */
+  kirikaeshiPasses: number;
   /** Sensei has taught the parry, the lock and crossing. */
   waza: boolean;
   /** Everyone you've ever beaten in a match. */
@@ -104,6 +115,20 @@ export type RunState = {
   owned: string[];
   /** The armor colors you're wearing, or empty for your own. */
   look: string;
+  /** Whether you keep your men on when you aren't fighting. In a fight, you always wear it if you've got it. */
+  menOn: boolean;
+  /** What you told Sensei when they asked why you'd come. */
+  whyKendo: string;
+  /** How much use each piece of gear has left, where it's different from what it started with. See `durability.ts`. */
+  durability: Record<string, number>;
+  /** The shinai you've chosen to carry, or empty for the best you've got. */
+  wielded: string;
+  equipped: Partial<Record<EquipmentSlot, EquipmentId>>;
+  mods: Partial<Record<EquipmentId, ModId>>;
+  /** How far along getting your own shinai you are. See `shinai-story.ts`. */
+  shinaiQuest: string;
+  /** You made one with your own hands, rather than buying it. */
+  madeShinai: boolean;
   /** Your health, which carries from one fight to the next. */
   hp: number;
   /** Everywhere you've set foot on the map. */
@@ -115,7 +140,9 @@ export type RunState = {
 };
 
 export const createRunState = (): RunState => ({
+  dungeon: createDungeonTrial(),
   character: DEFAULT_CHARACTER,
+  name: "",
   insignia: DEFAULT_INSIGNIA,
   metSenpai: false,
   gi: false,
@@ -123,6 +150,7 @@ export const createRunState = (): RunState => ({
   senseiRounds: 0,
   trained: false,
   linePasses: 0,
+  kirikaeshiPasses: 0,
   waza: false,
   beaten: [],
   seme: false,
@@ -146,6 +174,14 @@ export const createRunState = (): RunState => ({
   money: 0,
   owned: [],
   look: "",
+  menOn: false,
+  whyKendo: "",
+  durability: {},
+  wielded: "",
+  equipped: {},
+  mods: {},
+  shinaiQuest: "",
+  madeShinai: false,
   hp: 100,
   visited: [],
   held: {},
@@ -196,7 +232,12 @@ export const recordLinePass = (run: RunState): RunState => ({
   linePasses: run.linePasses + 1,
   bonusKi: run.bonusKi + (run.linePasses < LINE_REWARDED_PASSES ? LINE_REWARD : 0),
 });
-export const playerKiMax = (run: RunState): number => (run.hasTsuba ? TSUBA_KI_MAX : KI_MAX) + run.bonusKi + levelKi(run.xp) + shopKi(run);
+export const recordKirikaeshiPass = (run: RunState): RunState => ({
+  ...earn(gainXp(run, XP_DRILL), PAY_DRILL),
+  kirikaeshiPasses: run.kirikaeshiPasses + 1,
+  bonusKi: run.bonusKi + (run.kirikaeshiPasses < KIRIKAESHI_REWARDED_PASSES ? KIRIKAESHI_REWARD : 0),
+});
+export const playerKiMax = (run: RunState): number => (run.hasTsuba ? TSUBA_KI_MAX : KI_MAX) + run.bonusKi + levelKi(run.xp) + shopKi(run) - wornKi(run);
 
 export function duelOptionsFor(run: RunState, versus?: OpponentId | null, atFullStrength = false): DuelOptions {
   const opponent = opponentFor(run.node, versus);
@@ -212,5 +253,10 @@ export function duelOptionsFor(run: RunState, versus?: OpponentId | null, atFull
     ...(opponent.points ? { pointsToWin: opponent.points } : {}),
     ...(gazing ? { semeTaken: [SEME_WITH_GAZE, 1] as [number, number] } : {}),
     ...(opponent.kamae ? { kamae: ["chudan", opponent.kamae] as [Kamae, Kamae] } : {}),
+    // A rigged fight has a script, which a tired guard or the clock would walk straight around.
+    ...((opponent.style === "rigged" || opponent.style === "demonstration") ? { steadyGuard: [false, true] as [boolean, boolean], noClock: true } : {}),
   };
 }
+
+/** What you've got on when you're walking around, rather than what you own: the men stays off unless you've chosen otherwise. */
+export const walkingGear = (run: RunState): Gear => (run.gear.men && !run.menOn ? { ...run.gear, men: false } : run.gear);

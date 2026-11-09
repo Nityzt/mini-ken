@@ -1,15 +1,17 @@
+import { senseiOnShinai, senseiReminder } from "./shinai-story.ts";
+import type { KirikaeshiOutcome } from "../duel/kirikaeshi.ts";
 import { hasLetter, MAX_DAN } from "../ranks.ts";
 import { canChallengeSensei } from "./challengers.ts";
 import type { ChoiceOption } from "./choice.ts";
 import { isOpen, lockedLine, lockFor, LINE_PASSES_TO_UNLOCK, needsSentence, nextGoal } from "../progress.ts";
 import { CUPS, type CupId } from "../world/tournament.ts";
 import { earn, maybeTip, withFeat } from "../money.ts";
-import { gainXp, PAY_DRILL, PAY_HELPING, recordLinePass, recordWin, XP_DRILL, type RunState } from "../run-state.ts";
+import { gainXp, PAY_DRILL, PAY_HELPING, recordKirikaeshiPass, recordLinePass, recordWin, XP_DRILL, type RunState } from "../run-state.ts";
 import {
   CUP_ENTER, CUP_WON_BEFORE, cupNotice, DOOR_LOCKED, DOOR_NEEDS_SPAR, DRILL_PRAISE, GEN_DONE, GEN_DONE_AFTER, GI_REMINDER, KOTE_DONE, LINE_AGAIN, LINE_FIRST, LINE_NO_KEYS, LINE_READY, LINE_STREETS_OPEN,
   lineExtraRun, lineFailed, lineRunDone, MOMO_AFTER, MOMO_GOT_GI, MOMO_GUARD, MOMO_GUARD_SEME, MOMO_PRACTICE, MOMO_WELCOME, SENPAI_LINES, SENSEI_AGAIN, SENSEI_ALL_OPEN,
   helpPaid, HELP_FAILED, MENU_CHALLENGE, MENU_CHALLENGE_THEM, MENU_GRADE, MENU_HELP, MENU_LEAVE, MENU_LETTER, MENU_LINE, MENU_SPAR, MENU_TALK, MENU_WAZA, MENU_WAZA_AGAIN, QUICK_DONE, WAZA_AGAIN_DONE, WAZA_DONE, SENSEI_NEXT, SENSEI_NO_GI, SENSEI_ROUND_DONE, SENSEI_SHINAI, SENSEI_SHINAI_AFTER, SENSEI_WAITING, SHINAI_WAITING, SPAR_DOOR_OPEN, SPAR_KI,
-} from "./content.ts";
+  KIRIKAESHI_AGAIN, KIRIKAESHI_FIRST, KIRIKAESHI_LOST, KIRIKAESHI_NO_FOLLOW, KIRIKAESHI_READY, KIRIKAESHI_WINDED, kirikaeshiDone, kirikaeshiGrew, MENU_KIRIKAESHI, SENSEI_NOT_YET, SENSEI_OFFER, SENSEI_WHY, WHY_REPLY } from "./content.ts";
 import { CHALLENGE_REWARD, type SenpaiId, type Session } from "./curriculum.ts";
 
 /** What each person says depends only on how far through the armor loop the player is. */
@@ -21,14 +23,15 @@ export function pendingChallenge(run: RunState): number | null {
   return run.gear[CHALLENGE_REWARD[level]] ? null : level;
 }
 
-export function talkToMomo(run: RunState): { lines: string[]; run: RunState; fight: boolean; chats?: boolean } {
+/** `escort` means Momo walks you to the storage room afterwards, and it's the walk that unlocks it. */
+export function talkToMomo(run: RunState): { lines: string[]; run: RunState; fight: boolean; chats?: boolean; escort?: boolean } {
   if (run.momoBeaten) return { lines: MOMO_AFTER, run, fight: false, chats: true };
   if (run.trained) return { lines: run.seme ? MOMO_GUARD_SEME : MOMO_GUARD, run, fight: true };
   if (run.gear.tare) return { lines: MOMO_PRACTICE, run, fight: false };
   if (run.gear.shinai) return { lines: SHINAI_WAITING, run, fight: false };
   if (run.gi) return { lines: MOMO_GOT_GI, run, fight: false };
   if (run.metSenpai) return { lines: GI_REMINDER, run, fight: false };
-  return { lines: MOMO_WELCOME, run: { ...run, metSenpai: true }, fight: false };
+  return { lines: MOMO_WELCOME, run, fight: false, escort: true };
 }
 
 /** How Sensei sets up the line drill, depending on how far along you are. */
@@ -37,7 +40,7 @@ export function lineOffer(run: RunState): string[] {
   return [first, LINE_READY];
 }
 
-export type SenseiChoice = "line" | "waza" | "help" | "grade" | "challenge" | "talk" | "leave";
+export type SenseiChoice = "line" | "kirikaeshi" | "waza" | "help" | "grade" | "challenge" | "talk" | "leave";
 export type SenpaiChoice = "spar" | "talk" | "grade" | "leave";
 
 const gradeOption = (run: RunState) => (run.dan < MAX_DAN ? [{ id: "grade" as const, label: hasLetter(run) ? MENU_LETTER : MENU_GRADE }] : []);
@@ -46,6 +49,7 @@ const gradeOption = (run: RunState) => (run.dan < MAX_DAN ? [{ id: "grade" as co
 export function senseiMenu(run: RunState): ChoiceOption<SenseiChoice>[] {
   return [
     { id: "line", label: MENU_LINE },
+    { id: "kirikaeshi", label: MENU_KIRIKAESHI },
     { id: "waza", label: run.waza ? MENU_WAZA_AGAIN : MENU_WAZA },
     { id: "help", label: MENU_HELP },
     ...gradeOption(run),
@@ -91,19 +95,32 @@ export const challengerMenu = (): ChoiceOption<"challenge" | "talk" | "leave">[]
 ];
 
 /** `lines` lead up to anything you're given, and `after` is what gets said once you've seen it. */
-export function talkToSensei(run: RunState): { lines: string[]; after?: string[]; run: RunState; session: Session | null; menu?: boolean } {
+export function talkToSensei(run: RunState): { lines: string[]; after?: string[]; run: RunState; session: Session | null; menu?: boolean; ask?: "why" | "offer" } {
   if (run.trained) {
+    const onShinai = senseiOnShinai(run);
+    if (onShinai) return { ...onShinai, session: null };
+    const reminder = senseiReminder(run);
     const goal = nextGoal(run);
-    return { lines: [goal ? needsSentence(run, goal) : SENSEI_ALL_OPEN], run, session: null, menu: true };
+    return { lines: [...(reminder ? [reminder] : []), goal ? needsSentence(run, goal) : SENSEI_ALL_OPEN], run, session: null, menu: true };
   }
   if (!run.gi) return { lines: [SENSEI_NO_GI], run, session: null };
   if (!run.gear.shinai) {
-    return { lines: SENSEI_SHINAI, after: SENSEI_SHINAI_AFTER, run: { ...run, gear: { ...run.gear, shinai: true } }, session: { kind: "sensei", round: 0 } };
+    if (!run.whyKendo) return { lines: SENSEI_WHY, run, session: null, ask: "why" };
+    return { lines: SENSEI_OFFER, run, session: null, ask: "offer" };
   }
   if (run.senseiRounds === 0) return { lines: SENSEI_AGAIN, run, session: { kind: "sensei", round: 0 } };
   const pending = pendingChallenge(run);
   if (pending !== null) return { lines: [SENSEI_WAITING[pending]], run, session: null };
   return { lines: [SENSEI_NEXT[run.senseiRounds]], run, session: { kind: "sensei", round: run.senseiRounds } };
+}
+
+/** Why you've come. There's no wrong answer, and Sensei remembers it. The offer of the shinai comes straight after. */
+export const answerWhy = (run: RunState, why: string): { lines: string[]; run: RunState } => ({ lines: [WHY_REPLY[why], ...SENSEI_OFFER], run: { ...run, whyKendo: why } });
+
+/** Taking up the offer. `after` and `session` are only there once you've said yes. */
+export function answerOffer(run: RunState, answer: string): { lines: string[]; after?: string[]; run: RunState; session: Session | null } {
+  if (answer !== "yes") return { lines: SENSEI_NOT_YET, run, session: null };
+  return { lines: SENSEI_SHINAI, after: SENSEI_SHINAI_AFTER, run: { ...run, gear: { ...run.gear, shinai: true } }, session: { kind: "sensei", round: 0 } };
 }
 
 export function talkToSenpai(run: RunState, senpai: SenpaiId): { lines: string[]; session: Session | null; fight?: SenpaiId } {
@@ -169,6 +186,18 @@ export function lineOutcome(run: RunState, result: { passed: boolean; cleans: nu
   if (next.linePasses > LINE_PASSES_TO_UNLOCK) return { run: next, lines: [lineExtraRun(cleans, count)] };
   if (next.linePasses === LINE_PASSES_TO_UNLOCK) return { run: next, lines: [LINE_STREETS_OPEN] };
   return { run: next, lines: [lineRunDone(cleans, count, next.linePasses, LINE_PASSES_TO_UNLOCK)] };
+}
+
+/** How Sensei sets up kirikaeshi, depending on how far along you are. */
+export const kirikaeshiOffer = (run: RunState): string[] => [...(run.kirikaeshiPasses === 0 ? KIRIKAESHI_FIRST : [KIRIKAESHI_AGAIN]), KIRIKAESHI_READY];
+
+export function kirikaeshiOutcome(run: RunState, result: { outcome: KirikaeshiOutcome; misses: number }): { run: RunState; lines: string[] } {
+  const { outcome, misses } = result;
+  if (outcome === "winded") return { run, lines: [KIRIKAESHI_WINDED] };
+  if (outcome === "lost") return { run, lines: [KIRIKAESHI_LOST] };
+  if (outcome === "noFollow") return { run, lines: [KIRIKAESHI_NO_FOLLOW] };
+  const next = recordKirikaeshiPass(run);
+  return { run: next, lines: [next.bonusKi > run.bonusKi ? kirikaeshiGrew(misses) : kirikaeshiDone(misses)] };
 }
 
 export function doorResponse(run: RunState): { leaves: boolean; lines: string[] } {

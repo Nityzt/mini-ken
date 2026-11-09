@@ -2,7 +2,7 @@ import { drawDuelBackdrop } from "../art/backdrops.ts";
 import { drawEveryoneThere } from "../art/courtside-art.ts";
 import { drawText, drawTextCentered, measureText } from "../art/font.ts";
 import { PALETTE, UI } from "../art/palette.ts";
-import { characterById } from "../characters.ts";
+import { playerName } from "../characters.ts";
 import { onGui, onStage, STAGE_W, viewH, viewW } from "../core/scale.ts";
 import type { Game, Scene, SceneName } from "../core/scene.ts";
 import { recordCup } from "../run-state.ts";
@@ -63,7 +63,7 @@ export function createTournamentScene(): Scene {
 
   const start = (game: Game) => {
     const cup = cupAt(game.run.node) ?? "grand";
-    game.tournament = createTournament(cup, seed(), characterById(game.run.character).name);
+    game.tournament = createTournament(cup, seed(), playerName(game.run));
     game.debug.tournament = game.tournament;
     celebrated = false;
   };
@@ -88,12 +88,9 @@ export function createTournamentScene(): Scene {
         celebrated = true;
         game.run = recordCup(game.run, t.cup);
         game.audio.play("secret");
-        // The grandest win gets the same quiet line as the win screen.
-        if (t.cup === "grand") game.overlay("win");
       }
     },
     leave(game) {
-      game.overlay(null);
       celebrated = false;
     },
     update(game) {

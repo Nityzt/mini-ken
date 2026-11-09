@@ -1,36 +1,46 @@
 import { createAudio } from "./core/audio.ts";
+import { createDungeonScene } from './scenes/dungeon.ts';
+import { discoverDungeon, enterDungeon } from './dungeon-story.ts';
 import { createFlow, FADE_TICKS, startFade, stepFlow } from "./core/flow.ts";
 import { createInput } from "./core/input.ts";
+import type { BindingsUi } from "./BindingsOverlay.tsx";
+import { createKeybindingSync } from "./net/keybinding-sync.ts";
 import { createLoop } from "./core/loop.ts";
 import { createPauseMenu, menuItems, stepPauseMenu } from "./core/pause-menu.ts";
 import type { Game, Scene, SceneName } from "./core/scene.ts";
 import { drawTextCentered, measureText } from "./art/font.ts";
 import { PALETTE, UI } from "./art/palette.ts";
 import { onGui, setView, viewH, viewW, type CanvasFit } from "./core/scale.ts";
-import type { CharacterId } from "./characters.ts";
+import { characterById, cleanPlayerName, playerColors, playerName, type CharacterId } from "./characters.ts";
+import { createNameEntry, stepNameEntry, type NameEntry } from "./name-entry.ts";
 import { createInsigniaEditor, stepInsigniaEditor, type InsigniaEditor } from "./insignia.ts";
 import { canUseTicketIn } from "./grading.ts";
-import { createReveal, inventoryOf, isWearable, itemsGained, stepReveal, type ItemId, type Reveal } from "./items.ts";
+import { createReveal, inventoryGroups, inventoryOf, isWearable, itemsGained, stepReveal, toggleWorn, type ItemId, type Reveal } from "./items.ts";
 import { CHALLENGES, isClaimed, moneyText, settleChallenges } from "./money.ts";
-import { wear, type ShopItemId } from "./shop.ts";
-import { newlyOpened } from "./progress.ts";
+import { goalRow, LADDER, newlyOpened } from "./progress.ts";
 import { levelOf } from "./ranks.ts";
 import { createRunState, playerKiMax, type RunState } from "./run-state.ts";
 import { clearSave, readSave, resumeScene, writeSave, type SaveStore } from "./save.ts";
 import type { NodeId } from "./world/map.ts";
 import { createArtSheet } from "./scenes/art-sheet.ts";
 import { createCharacterScene } from "./scenes/character-select.ts";
-import { createOnlineHub } from "./net/hub.ts";
-import { isOpen } from "./progress.ts";
+import { createOnlineHub, type AccountUi } from "./net/hub.ts";
+import { clearInvite, inviteFromUrl } from "./net/invite.ts";
 import { HP_MAX, regen, REGEN_TICKS } from "./health.ts";
 import { createOnlineBracketScene } from "./scenes/online-bracket.ts";
 import { createOnlineDuelScene } from "./scenes/online-duel.ts";
+import { createOnlineHistoryScene } from "./scenes/online-history.ts";
+import { JOIN_ALERT_TITLE } from "./scenes/online-lines.ts";
+import { createOnlineLobbyScene } from "./scenes/online-lobby.ts";
 import { createOnlineScene } from "./scenes/online.ts";
+import { createOnlineAppearanceScene } from "./scenes/online-appearance.ts";
 import { createClubScene } from "./scenes/club.ts";
 import { drawInsigniaCard } from "./scenes/insignia-card.ts";
+import { drawNameCard } from "./scenes/name-card.ts";
 import { drawItemCard } from "./scenes/item-card.ts";
 import { createBrawlScene } from "./scenes/brawl.ts";
 import { createDuelScene } from "./scenes/duel.ts";
+import { createKirikaeshiScene } from "./scenes/kirikaeshi.ts";
 import { createLineScene } from "./scenes/line.ts";
 import { createMapScene } from "./scenes/map.ts";
 import { drawPauseMenu } from "./scenes/pause.ts";
@@ -39,14 +49,23 @@ import { createTournamentScene } from "./scenes/tournament.ts";
 import { createTitleScene } from "./scenes/title.ts";
 import { createTrainingScene } from "./scenes/training.ts";
 import { createGradingHallScene } from "./scenes/grading-hall.ts";
-import { CHALLENGE_DONE, TICKET_NOT_NOW, REST_NOTICE } from "./scenes/content.ts";
+import { CHALLENGE_DONE, TICKET_NOT_NOW, REST_NOTICE, nameMenuLabel } from "./scenes/content.ts";
 import { createTravelScene } from "./scenes/travel.ts";
 
-export type GameOverlay = "win" | null;
 
 const IS_DEV = process.env.NODE_ENV !== "production";
 const FADE_STEPS = 4;
 const NOTICE_TICKS = 170;
+
+let invitedTo: string | null | undefined;
+/** Read once per page, because the game can be started twice in development, and using it takes it out of the address. */
+function pageInvite(): string | null {
+  if (invitedTo === undefined) {
+    invitedTo = inviteFromUrl(location.search);
+    if (invitedTo) clearInvite(history, location);
+  }
+  return invitedTo;
+}
 
 function localStore(): SaveStore | null {
   try {
@@ -60,7 +79,7 @@ const HEALING_SCENES: SceneName[] = ["club", "rival-dojo", "map", "travel", "gra
 
 export function createGame(
   screen: HTMLCanvasElement,
-  options: { onOverlay(overlay: GameOverlay): void },
+  options: { onAccountUi?(ui: AccountUi | null): void; onBindingsUi?(ui: BindingsUi | null): void },
 ): { start(): void; dispose(): void; resize(fit: CanvasFit): void } {
   const ctx = screen.getContext("2d");
   if (!ctx) throw new Error("Canvas 2D is unavailable");
@@ -77,22 +96,28 @@ export function createGame(
     ctx.imageSmoothingEnabled = false;
   };
 
+  const nameOf = () => playerName(game.run);
   const scenes: Partial<Record<SceneName, Scene>> = {
     title: createTitleScene(),
     character: createCharacterScene(),
-    club: createClubScene(),
-    training: createTrainingScene(),
+    club: createClubScene(nameOf),
+    training: createTrainingScene(nameOf),
     line: createLineScene(),
-    map: createMapScene(),
+    kirikaeshi: createKirikaeshiScene(),
+    map: createMapScene(nameOf),
     travel: createTravelScene(),
     brawl: createBrawlScene(),
-    "rival-dojo": createRivalDojoScene(),
+    dungeon: createDungeonScene(nameOf),
+    "rival-dojo": createRivalDojoScene(nameOf),
     duel: createDuelScene(),
     tournament: createTournamentScene(),
-    "grading-hall": createGradingHallScene(),
+    "grading-hall": createGradingHallScene(nameOf),
     online: createOnlineScene(),
+    "online-appearance": createOnlineAppearanceScene(),
     "online-bracket": createOnlineBracketScene(),
     "online-duel": createOnlineDuelScene(),
+    "online-lobby": createOnlineLobbyScene(),
+    "online-history": createOnlineHistoryScene(),
   };
   let sceneName: SceneName = "title";
   const run = createRunState();
@@ -135,9 +160,18 @@ export function createGame(
       run.bonusKi = Number(params.get("ki") ?? run.bonusKi);
       run.hp = Number(params.get("hp") ?? run.hp);
       versusFromUrl = params.get("versus") as Game["versus"];
+      if (jump === 'dungeon') {
+        run.node = 'radish';
+        run.beaten = [...run.beaten, 'raiko'];
+        run.dungeon = enterDungeon(discoverDungeon(run)).dungeon;
+      }
     }
   }
   const scene = () => scenes[sceneName] ?? scenes.title!;
+  // Without a real save, as on development links, there's nothing to connect to an account.
+  const serverUrl = store ? process.env.NEXT_PUBLIC_TINY_KENDO_SERVER : undefined;
+  const invite = serverUrl ? pageInvite() : null;
+  if (invite) sceneName = "online";
 
   let flow = createFlow();
   let muted = false;
@@ -149,7 +183,7 @@ export function createGame(
   let noticeTicks = 0;
   // Things earned wait here for their moment, and any scene change waits for them.
   let waitingItems: ItemId[] = [];
-  let card: { kind: "item"; reveal: Reveal } | { kind: "insignia"; editor: InsigniaEditor } | null = null;
+  let card: { kind: "item"; reveal: Reveal } | { kind: "insignia"; editor: InsigniaEditor } | { kind: "name"; entry: NameEntry } | null = null;
   let afterCards: (() => void) | null = null;
 
   const switchScene = (next: SceneName) => {
@@ -163,10 +197,47 @@ export function createGame(
     game.debug.talking = false;
     game.input.clear();
     scene().enter?.(game);
+    game.online.save?.sceneChanged();
   };
 
+  // Picking a character counts: a story arriving then has to ask, or starting a new one would erase it unwarned.
+  const inStory = () => sceneName !== "title" && !scene().outsideStory?.(game);
+  /** The story's been replaced or removed from outside: another device, or signing out. */
+  const reloadRun = (next: RunState | null) => {
+    const wasInStory = inStory();
+    startFresh(next ?? createRunState());
+    if (!next) game.online.returnTo = "title";
+    if (wasInStory) {
+      flow = createFlow();
+      switchScene(next ? resumeScene(next) : "title");
+    }
+  };
+
+  const pageTitle = document.title;
+  let titleFlash = 0;
+  const stopTitleFlash = () => {
+    if (!titleFlash) return;
+    window.clearInterval(titleFlash);
+    titleFlash = 0;
+    document.title = pageTitle;
+  };
+  /** Someone's arrived in your lobby, and you may well be off sending someone else the link. */
+  const alertJoin = () => {
+    game.audio.play("secret");
+    if (titleFlash || (!document.hidden && document.hasFocus())) return;
+    titleFlash = window.setInterval(() => {
+      if (!document.hidden && document.hasFocus()) stopTitleFlash();
+      else document.title = document.title === JOIN_ALERT_TITLE ? pageTitle : JOIN_ALERT_TITLE;
+    }, 1000);
+    document.title = JOIN_ALERT_TITLE;
+  };
+
+  const input = createInput(window);
+  const keybindings = createKeybindingSync({ store, fetcher: (...args) => fetch(...args), onChange: (bindings) => input.setBindings(bindings) });
+  input.setBindings(keybindings.current());
+  let editingBindings = false;
   const game: Game = {
-    input: createInput(window),
+    input,
     reducedMotion: matchMedia("(prefers-reduced-motion: reduce)").matches,
     run,
     audio: createAudio(),
@@ -183,8 +254,7 @@ export function createGame(
     grading: null,
     helping: false,
     bet: 0,
-    // Whoever hosts this later sets the address, and swaps in their own sign-in where guests are made.
-    online: createOnlineHub({ store, readRun: () => readSave(store) ?? game.run, serverUrl: process.env.NEXT_PUBLIC_TINY_KENDO_SERVER }),
+    online: createOnlineHub({ store, readRun: () => readSave(store) ?? game.run, serverUrl, invite, alert: alertJoin, inStory, reloadRun, onSignedIn: (id) => void keybindings.signedIn(id), onSignedOut: () => keybindings.signedOut() }),
     go(next) {
       noticeChanges();
       // If there's something to say when you get there, it gets said first, and the cards wait their turn.
@@ -210,12 +280,11 @@ export function createGame(
       startFresh(saved);
       game.go(resumeScene(saved));
     },
-    newGame(character: CharacterId) {
+    newGame(character: CharacterId, name = "") {
       clearSave(store);
-      startFresh({ ...createRunState(), character });
+      startFresh({ ...createRunState(), character, name });
       game.go("club");
     },
-    overlay: options.onOverlay,
   };
 
   const goNow = (next: SceneName) => {
@@ -261,13 +330,16 @@ export function createGame(
     for (const unlock of newlyOpened(lastRun, game.run)) notices.push(`Now open: ${unlock.label}`);
     waitingItems.push(...itemsGained(lastRun, game.run));
     writeSave(store, game.run);
+    game.online.save?.changed();
     lastRun = game.run;
   };
 
+  /** Only offered where it'll actually happen, rather than closing the menu and doing nothing. */
+  const canLeaveStory = () => canUseTicketIn(sceneName) && !flow.fadingTo && !scene().busy?.(game);
   const pauseItems = () => {
     const away = sceneName === "title" || sceneName === "art" || !!scene().outsideStory?.(game);
     const forfeit = flow.fadingTo ? null : scene().forfeitLabel?.(game) ?? null;
-    return menuItems({ forfeit, inGame: !away, hasTare: game.run.gear.tare, multiplayer: isOpen(game.run, "online") && canUseTicketIn(sceneName) });
+    return menuItems({ forfeit, inGame: !away, hasTare: game.run.gear.tare, nameLabel: nameMenuLabel(playerName(game.run)), multiplayer: canLeaveStory(), signIn: canLeaveStory() && game.online.accountState() === "guest" });
   };
 
   const showNextCard = () => {
@@ -312,6 +384,13 @@ export function createGame(
         if (step.done === "keep") game.run = { ...game.run, insignia: step.editor.insignia };
         showNextCard();
       }
+    } else if (card?.kind === "name") {
+      const step = stepNameEntry(card.entry, input.typed());
+      if (!step.done) card = { kind: "name", entry: step.entry };
+      else {
+        if (step.done === "keep") game.run = { ...game.run, name: cleanPlayerName(step.entry.text) };
+        showNextCard();
+      }
     }
     game.debug.card = card;
   };
@@ -322,13 +401,20 @@ export function createGame(
     const step = stepPauseMenu(menu, items, {
       up: input.wasPressed("up"),
       down: input.wasPressed("down"),
+      left: input.wasPressed("left"),
+      right: input.wasPressed("right"),
       confirm: input.wasPressed("confirm"),
       cancel: input.wasPressed("cancel"),
-    }, inventoryOf(game.run), (item) => (item === "ticket" ? "use-ticket" : isWearable(item as ItemId) ? "wear" : null));
+    }, inventoryOf(game.run), (item) => (item === "ticket" ? "use-ticket" : isWearable(item as ItemId) ? "wear" : null), inventoryGroups(game.run).map((group) => group.slots), { goal: goalRow(game.run), rows: LADDER.length });
+    const openBindings = menu.page === "main" && step.menu.page === "controls";
     menu = step.menu;
+    if (openBindings) {
+      editingBindings = true;
+      const close = () => { editingBindings = false; menu = { page: "main", choice: pauseItems().findIndex((item) => item.id === "controls") }; options.onBindingsUi?.(null); input.clear(); };
+      options.onBindingsUi?.({ bindings: keybindings.current(), close, save: async (bindings) => { const saved = await keybindings.set(bindings); if (saved) close(); return saved; } });
+    }
     if (step.action === "wear") {
-      const item = inventoryOf(game.run)[menu.choice];
-      game.run = wear(game.run, item.slice("shop:".length) as ShopItemId);
+      game.run = toggleWorn(game.run, inventoryOf(game.run)[menu.choice]);
     }
     if (step.action === "resume") flow = { ...flow, paused: false };
     else if (step.action === "use-ticket") {
@@ -338,33 +424,65 @@ export function createGame(
         game.go("travel");
       } else notices.push(TICKET_NOT_NOW);
     }
+    else if (step.action === "name") {
+      flow = { ...flow, paused: false };
+      card = { kind: "name", entry: createNameEntry(characterById(game.run.character).name, game.run.name) };
+    }
     else if (step.action === "insignia") {
       flow = { ...flow, paused: false };
       card = { kind: "insignia", editor: createInsigniaEditor(game.run.insignia) };
     }
     else if (step.action === "multiplayer") {
       flow = { ...flow, paused: false };
-      if (canUseTicketIn(sceneName) && !flow.fadingTo && !scene().busy?.(game)) {
+      if (canLeaveStory()) {
         game.online.returnTo = "story";
         game.go("online");
       }
+    }
+    else if (step.action === "sign-in") {
+      flow = { ...flow, paused: false };
+      game.online.openAccountForm();
     }
     else if (step.action === "forfeit") {
       flow = { ...flow, paused: false };
       scene().forfeit?.(game);
     } else if (step.action === "restart") {
       clearSave(store);
+      game.online.save?.removeStory();
       startFresh(createRunState());
       flow = createFlow();
       switchScene("title");
     }
   };
 
+  let shownUi: AccountUi | null = null;
+  /** A form over the game, whose keys are its own. */
+  const showAccountUi = () => {
+    const ui = game.online.accountUi();
+    const same = ui?.kind === shownUi?.kind && (ui?.kind !== "choice" || shownUi?.kind !== "choice" || ui.choice === shownUi.choice);
+    if (!same) {
+      shownUi = ui;
+      options.onAccountUi?.(ui);
+    }
+    return ui;
+  };
+
   const update = () => {
+    const ui = showAccountUi();
+    if (editingBindings) {
+      input.clear();
+      if (scene().keepsRunning?.(game)) scene().liveTick?.(game);
+      return;
+    }
+    // Being paused hands the keys back, or nobody could work the menu.
+    game.input.setTyping(!!ui || (!flow.paused && (card?.kind === "name" || !!scene().typing?.())));
+    // A story waits for a form. Someone else's match can't.
+    if (ui && !scene().keepsRunning?.(game) && !scene().neverPauses?.(game)) return;
     if (game.input.wasPressed("mute")) muted = game.audio.toggleMute();
-    const result = stepFlow(flow, game.input.wasPressed("pause"));
+    const result = stepFlow(flow, game.input.wasPressed("pause") && !ui && !scene().neverPauses?.(game));
     flow = result.flow;
     if (flow.paused) {
+      if (scene().keepsRunning?.(game)) scene().liveTick?.(game);
       // Open on the tick it was paused, and start taking input on the next.
       if (!menuOpen) {
         menu = createPauseMenu();
@@ -420,7 +538,8 @@ export function createGame(
       }
       if (card?.kind === "item") drawItemCard(ctx, card.reveal, game.run, game.reducedMotion);
       if (card?.kind === "insignia") drawInsigniaCard(ctx, card.editor, game.run);
-      if (flow.paused) drawPauseMenu(ctx, menu, pauseItems(), game.run);
+      if (card?.kind === "name") drawNameCard(ctx, card.entry, playerColors(game.run));
+      if (flow.paused) drawPauseMenu(ctx, menu, pauseItems(), game.run, game.input);
     });
   };
 
@@ -434,6 +553,11 @@ export function createGame(
 
   // Losing focus stops the clock, so nobody loses a duel while looking away.
   const pauseIfAway = () => {
+    // Someone else is waiting on these, so walking away doesn't stop them.
+    if (scene().keepsRunning?.(game) || scene().neverPauses?.(game)) {
+      game.input.clear();
+      return;
+    }
     if (document.hidden || !document.hasFocus()) {
       flow = { ...flow, paused: true };
       game.input.clear();
@@ -442,10 +566,14 @@ export function createGame(
   const unlockAudio = () => game.audio.unlock();
   // It has to happen right here in the key press, or the browser refuses it.
   const toggleFullscreen = (event: KeyboardEvent) => {
-    if (event.key.toLowerCase() !== "f" || event.repeat || event.ctrlKey || event.metaKey || event.altKey) return;
+    if (editingBindings || game.input.typing || !input.matches("fullscreen", event.key, event.code) || event.repeat || event.ctrlKey || event.metaKey || event.altKey) return;
     if (document.fullscreenElement) void document.exitFullscreen();
     else void document.documentElement.requestFullscreen?.().catch(() => {});
   };
+  const flushSave = () => game.online.save?.flushOnClose();
+  const retryBindings = () => { void keybindings.retry(); };
+  window.addEventListener("online", retryBindings);
+  window.addEventListener("pagehide", flushSave);
   window.addEventListener("blur", pauseIfAway);
   document.addEventListener("visibilitychange", pauseIfAway);
   window.addEventListener("keydown", unlockAudio);
@@ -474,8 +602,14 @@ export function createGame(
       get club() {
         return game.debug.club;
       },
+      get teachCard() {
+        return game.debug.teachCard;
+      },
       get lesson() {
         return game.debug.lesson;
+      },
+      get kirikaeshi() {
+        return game.debug.kirikaeshi;
       },
       get talking() {
         return game.debug.talking;
@@ -485,6 +619,9 @@ export function createGame(
       },
       get brawl() {
         return game.debug.brawl;
+      },
+      get dungeon() {
+        return game.debug.dungeon;
       },
       get trip() {
         return game.debug.trip;
@@ -525,6 +662,10 @@ export function createGame(
     dispose() {
       loop.stop();
       game.input.dispose();
+      options.onBindingsUi?.(null);
+      stopTitleFlash();
+      window.removeEventListener("online", retryBindings);
+      window.removeEventListener("pagehide", flushSave);
       window.removeEventListener("blur", pauseIfAway);
       document.removeEventListener("visibilitychange", pauseIfAway);
       window.removeEventListener("keydown", unlockAudio);

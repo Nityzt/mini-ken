@@ -45,6 +45,7 @@ export function impliedDan(run: RunState): number {
 export type PersonId = OpponentId | "examiner";
 const PERSON_DAN: Partial<Record<PersonId, number>> = {
   examiner: 8,
+  lantern: 2, bamboo: 2, tama: 4, hoshi: 4, mina: 1, yori: 1, taro: 1, fuwa: 1,
   raiko: 7,
   sensei: 6,
   hagane: 6,
@@ -94,6 +95,11 @@ export function levelOf(xp: number): number {
   let level = 1;
   while (xpForLevel(level + 1) <= xp) level++;
   return level;
+}
+/** How far through your current level you are, from 0 to just under 1. */
+export function levelProgress(xp: number): number {
+  const level = levelOf(xp);
+  return (xp - xpForLevel(level)) / (xpForLevel(level + 1) - xpForLevel(level));
 }
 export const xpToNextLevel = (xp: number): number => xpForLevel(levelOf(xp) + 1) - xp;
 /** Every level past the first is worth 1 ki. */

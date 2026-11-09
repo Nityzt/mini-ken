@@ -17,6 +17,8 @@ import { kihonOutcome } from "../grading.ts";
 import { lineOutcome } from "./club-story.ts";
 import { FORFEIT_LINE, HELP_TITLE, KIHON_LEFT, KIHON_TITLE, LINE_HELP, LINE_LEFT, LINE_PASSED_BY, LINE_SLOW, LINE_TITLE, LINE_WRONG, NO_STOMP, NO_ZANSHIN } from "./content.ts";
 import { createPlayerControl, drawKeyPrompt, drawZanshinMeter, KIAI } from "./duel.ts";
+import { createTeachCards } from "./teach-card.ts";
+import { LINE_CARD, LINE_NO_KEYS_CARD, teachOnce } from "./teaching.ts";
 import { drawTag } from "./ui.ts";
 
 const GROUND = 128;
@@ -32,8 +34,9 @@ type Floater = { text: string; x: number; y: number; ticks: number; color: strin
 
 /** A row of senpai in bogu, each offering one opening. Hit it, slide through, and you're at the next one. */
 export function createLineScene(): Scene {
+  const cards = createTeachCards();
   let state: LineState;
-  let control = createPlayerControl();
+  let control = createPlayerControl({ openings: false });
   let tick = 0;
   let camX = 0;
   let finishing = 0;
@@ -111,11 +114,11 @@ export function createLineScene(): Scene {
   };
 
   /** What the active senpai is offering, how long is left, and on the early runs, which key answers it. */
-  const drawPrompt = (ctx: CanvasRenderingContext2D, cx: number) => {
+  const drawPrompt = (ctx: CanvasRenderingContext2D, cx: number, game: Game) => {
     if (state.active === null) return;
     const senpai = state.brawl.bullies[state.active];
     if (!senpai.opening) return;
-    drawKeyPrompt(ctx, senpai.x - cx, GROUND, state.spec.labels ? targetPrompt(senpai.opening) : null, state.windowLeft / state.spec.window);
+    drawKeyPrompt(ctx, senpai.x - cx, GROUND, state.spec.labels ? targetPrompt(senpai.opening, game.input) : null, state.windowLeft / state.spec.window);
   };
 
   return {
@@ -123,7 +126,7 @@ export function createLineScene(): Scene {
     forfeit: leave,
     enter(game) {
       state = createLine({ tier: examining(game) ? LINE_TIERS.length - 1 : game.helping ? 0 : lineTierFor(game.run.linePasses), seed: Math.floor(Math.random() * 2 ** 31), kiMax: playerKiMax(game.run) });
-      control = createPlayerControl();
+      control = createPlayerControl({ openings: false });
       tick = 0;
       camX = 0;
       finishing = FINISH_TICKS;
@@ -133,8 +136,15 @@ export function createLineScene(): Scene {
       sparks = [];
       lastX = state.brawl.player.x;
       game.debug.line = state;
+      cards.clear(game);
+      teachOnce(game, cards, "line", LINE_CARD);
+      if (!state.spec.labels) teachOnce(game, cards, "lineNoKeys", LINE_NO_KEYS_CARD);
     },
     update(game) {
+      if (cards.active) {
+        cards.update(game);
+        return;
+      }
       tick++;
       for (const f of floaters) {
         f.ticks--;
@@ -190,7 +200,7 @@ export function createLineScene(): Scene {
       const legs = legsFor(tick, moving);
       drawFighter(ctx, p.x - cx, GROUND, pose, "player", legs === "step" ? 1 : legs === "close" ? 2 : 0, game.run.gear, { flip: p.facing < 0, colors: playerColors(game.run) });
 
-      drawPrompt(ctx, cx);
+      drawPrompt(ctx, cx, game);
       for (const s of sparks) {
         const r = 10 - s.ticks;
         ctx.fillStyle = PALETTE.W;
@@ -220,6 +230,7 @@ export function createLineScene(): Scene {
         ctx.fillRect(0, viewH - 11, viewW, 11);
         drawTextCentered(ctx, LINE_HELP, viewW / 2, viewH - 10, UI.dim);
       });
+      cards.render(ctx);
     },
   };
 }

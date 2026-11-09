@@ -24,9 +24,9 @@ export const CHALLENGES: Challenge[] = [
   { id: "cups", label: "Win three cups", reward: 100, done: (run) => run.cups.length >= 3 },
   { id: "sensei", label: "Beat Sensei Kuma", reward: 100, done: (run) => run.beaten.includes("sensei") },
   { id: "styles", label: "Beat Tetsu and Shin", reward: 100, done: (run) => run.beaten.includes("tetsu") && run.beaten.includes("shin") },
-  { id: "eggs", label: "Find every hidden stash", reward: 100, done: (run) => eggsFound(run) >= Object.keys(EGG_LINES).length },
+  { id: "eggs", label: "Find every hidden dojo stash", reward: 100, done: (run) => eggsFound(run) >= Object.keys(EGG_LINES).length },
   { id: "heads", label: "Beat all five dojo heads", reward: 150, done: (run) => HEADS.every((id) => run.beaten.includes(id)) },
-  { id: "senseis", label: "Beat every other dojo's sensei", reward: 250, done: (run) => (["nemu", "kan", "mizu", "hagane", "raiko"] as OpponentId[]).every((id) => run.beaten.includes(id)) },
+  { id: "senseis", label: "Beat all five main dojo senseis", reward: 250, done: (run) => (["nemu", "kan", "mizu", "hagane", "raiko"] as OpponentId[]).every((id) => run.beaten.includes(id)) },
 ];
 
 const claimKey = (id: string) => `challenge:${id}`;

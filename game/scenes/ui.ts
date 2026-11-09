@@ -23,9 +23,9 @@ export function drawKeycap(ctx: CanvasRenderingContext2D, label: string, x: numb
 
 const hintsWidth = (hints: [string, string][]) => hints.reduce((sum, [key, does]) => sum + measureText(key) + 5 + 3 + measureText(does) + 9, -9);
 
-/** A row of keys and what they do, centered. */
-export function drawHints(ctx: CanvasRenderingContext2D, hints: [string, string][], y: number): void {
-  let x = Math.round((viewW - hintsWidth(hints)) / 2);
+/** A row of keys and what they do, centered in `width`, which is the whole view unless you're drawing on the stage. */
+export function drawHints(ctx: CanvasRenderingContext2D, hints: [string, string][], y: number, width = viewW): void {
+  let x = Math.round((width - hintsWidth(hints)) / 2);
   for (const [key, does] of hints) {
     x += drawKeycap(ctx, key, x, y) + 3;
     drawText(ctx, does, x, y + 1, UI.text);
@@ -144,17 +144,17 @@ const PROMPT_UNDER_FEET = 10;
 const BARS_BOTTOM = STRIP_TOP + STRIP_HEIGHT + 2;
 
 /** "E Talk" floating over your head when there's something in front of you. */
-export function drawInteractPrompt(ctx: CanvasRenderingContext2D, label: string, centerX: number, feetY: number): void {
+export function drawInteractPrompt(ctx: CanvasRenderingContext2D, label: string, centerX: number, feetY: number, key = "E"): void {
   const overHead = guiPoint(ctx, centerX, feetY + PROMPT_OVER_HEAD);
   const underFeet = guiPoint(ctx, centerX, feetY + PROMPT_UNDER_FEET);
   onGui(ctx, () => {
-    const width = measureText("E") + 5 + 3 + measureText(label) + 4;
+    const width = measureText(key) + 5 + 3 + measureText(label) + 4;
     const x = Math.round(Math.max(2, Math.min(viewW - width - 2, overHead.x - width / 2)));
     const above = overHead.y - PROMPT_HEIGHT;
     const y = Math.round(above < BARS_BOTTOM ? Math.min(viewH - PROMPT_HEIGHT, underFeet.y) : above);
     ctx.fillStyle = UI.panel;
     ctx.fillRect(x - 1, y - 1, width + 2, PROMPT_HEIGHT);
-    const cap = drawKeycap(ctx, "E", x + 1, y);
+    const cap = drawKeycap(ctx, key, x + 1, y);
     drawText(ctx, label, x + 1 + cap + 3, y + 1, UI.text);
   });
 }
@@ -165,4 +165,31 @@ export function dimScreen(ctx: CanvasRenderingContext2D, amount: number): void {
   ctx.fillStyle = UI.panel;
   ctx.fillRect(0, 0, viewW, viewH);
   ctx.globalAlpha = 1;
+}
+
+/** A bar that fills from the left. */
+export function drawMeter(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, fraction: number, color: string): void {
+  ctx.fillStyle = UI.track;
+  ctx.fillRect(x, y, width, height);
+  ctx.fillStyle = color;
+  ctx.fillRect(x, y, Math.round(width * Math.min(1, Math.max(0, fraction))), height);
+}
+
+/** A tick, 5 pixels wide. */
+export function drawCheck(ctx: CanvasRenderingContext2D, x: number, y: number, color: string): void {
+  ctx.fillStyle = color;
+  ctx.fillRect(x, y + 3, 1, 1);
+  ctx.fillRect(x + 1, y + 4, 1, 1);
+  ctx.fillRect(x + 2, y + 3, 1, 1);
+  ctx.fillRect(x + 3, y + 2, 1, 1);
+  ctx.fillRect(x + 4, y + 1, 1, 1);
+}
+
+/** A cross, 5 pixels wide. */
+export function drawCross(ctx: CanvasRenderingContext2D, x: number, y: number, color: string): void {
+  ctx.fillStyle = color;
+  for (let i = 0; i < 5; i++) {
+    ctx.fillRect(x + i, y + i, 1, 1);
+    ctx.fillRect(x + 4 - i, y + i, 1, 1);
+  }
 }
