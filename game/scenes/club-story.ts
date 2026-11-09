@@ -1,5 +1,5 @@
 import { senseiOnShinai, senseiReminder } from "./shinai-story.ts";
-import type { KirikaeshiOutcome } from "../duel/kirikaeshi.ts";
+import { SAYU_COUNT, type KirikaeshiOutcome } from "../duel/kirikaeshi.ts";
 import { hasLetter, MAX_DAN } from "../ranks.ts";
 import { canChallengeSensei } from "./challengers.ts";
 import type { ChoiceOption } from "./choice.ts";
@@ -11,7 +11,7 @@ import {
   CUP_ENTER, CUP_WON_BEFORE, cupNotice, DOOR_LOCKED, DOOR_NEEDS_SPAR, DRILL_PRAISE, GEN_DONE, GEN_DONE_AFTER, GI_REMINDER, KOTE_DONE, LINE_AGAIN, LINE_FIRST, LINE_NO_KEYS, LINE_READY, LINE_STREETS_OPEN,
   lineExtraRun, lineFailed, lineRunDone, MOMO_AFTER, MOMO_GOT_GI, MOMO_GUARD, MOMO_GUARD_SEME, MOMO_PRACTICE, MOMO_WELCOME, SENPAI_LINES, SENSEI_AGAIN, SENSEI_ALL_OPEN,
   helpPaid, HELP_FAILED, MENU_CHALLENGE, MENU_CHALLENGE_THEM, MENU_GRADE, MENU_HELP, MENU_LEAVE, MENU_LETTER, MENU_LINE, MENU_SPAR, MENU_TALK, MENU_WAZA, MENU_WAZA_AGAIN, QUICK_DONE, WAZA_AGAIN_DONE, WAZA_DONE, SENSEI_NEXT, SENSEI_NO_GI, SENSEI_ROUND_DONE, SENSEI_SHINAI, SENSEI_SHINAI_AFTER, SENSEI_WAITING, SHINAI_WAITING, SPAR_DOOR_OPEN, SPAR_KI,
-  eitherOf, KIRIKAESHI_AGAIN, KIRIKAESHI_FIRST, KIRIKAESHI_LOST, KIRIKAESHI_NO_FOLLOW, KIRIKAESHI_READY, KIRIKAESHI_WINDED, kirikaeshiDone, kirikaeshiGrew, MENU_KIRIKAESHI, SENSEI_NOT_YET, SENSEI_OFFER, SENSEI_WHY, WHY_REPLY } from "./content.ts";
+  eitherOf, KIRIKAESHI_AGAIN, KIRIKAESHI_FIRST, KIRIKAESHI_LOST, KIRIKAESHI_READY, KIRIKAESHI_WINDED, kirikaeshiDone, kirikaeshiGrew, MENU_KIRIKAESHI, SENSEI_NOT_YET, SENSEI_OFFER, SENSEI_WHY, WHY_REPLY } from "./content.ts";
 import { CHALLENGE_REWARD, SENPAI, SENPAI_IDS, type SenpaiId, type Session } from "./curriculum.ts";
 import { MEN_CEREMONY_SEEN } from "./men-ceremony.ts";
 
@@ -213,13 +213,13 @@ export function lineOutcome(run: RunState, result: { passed: boolean; cleans: nu
 /** How Sensei sets up kirikaeshi, depending on how far along you are. */
 export const kirikaeshiOffer = (run: RunState): string[] => [...(run.kirikaeshiPasses === 0 ? KIRIKAESHI_FIRST : [KIRIKAESHI_AGAIN]), KIRIKAESHI_READY];
 
-export function kirikaeshiOutcome(run: RunState, result: { outcome: KirikaeshiOutcome; misses: number }): { run: RunState; lines: string[] } {
-  const { outcome, misses } = result;
+/** Being on Bo's beat is only ever praise: a pass earns the same however slowly it went. */
+export function kirikaeshiOutcome(run: RunState, result: { outcome: KirikaeshiOutcome; misses: number; onBeat: number }): { run: RunState; lines: string[] } {
+  const { outcome, misses, onBeat } = result;
   if (outcome === "winded") return { run, lines: [KIRIKAESHI_WINDED] };
   if (outcome === "lost") return { run, lines: [KIRIKAESHI_LOST] };
-  if (outcome === "noFollow") return { run, lines: [KIRIKAESHI_NO_FOLLOW] };
   const next = recordKirikaeshiPass(run);
-  return { run: next, lines: [next.bonusKi > run.bonusKi ? kirikaeshiGrew(misses) : kirikaeshiDone(misses)] };
+  return { run: next, lines: [(next.bonusKi > run.bonusKi ? kirikaeshiGrew : kirikaeshiDone)(misses, onBeat, SAYU_COUNT)] };
 }
 
 export function doorResponse(run: RunState): { leaves: boolean; lines: string[] } {

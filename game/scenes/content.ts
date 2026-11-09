@@ -176,22 +176,31 @@ export const lineFailed = (cleans: number, count: number) => `Sensei Kuma: ${cle
 export const KIRIKAESHI_FIRST = [
   "Sensei Kuma: Kirikaeshi builds stamina, and Bo will receive. Big men with a stomp, four sayu men forward, five back.",
   "Sensei Kuma: The same again, then one last big men, all the way through. Call every men, and watch your breath.",
+  "Sensei Kuma: Bo waits for every men, so take it at your own pace. Bo keeps a beat too, if you want something to follow.",
 ];
 export const KIRIKAESHI_BIG_KEYS = "Space + J";
-export const KIRIKAESHI_AGAIN = "Sensei Kuma: Kirikaeshi again, and closer to full speed. Call every men, and spend your breath carefully.";
+export const KIRIKAESHI_AGAIN = "Sensei Kuma: Kirikaeshi again. Bo will keep a quicker beat this time, if you can stay with it. Spend your breath carefully.";
 export const KIRIKAESHI_READY = "Sensei Kuma: Ready? E to begin, X to leave.";
 export const KIRIKAESHI_LEFT = "Sensei Kuma: Catch your breath. Bo isn't going anywhere.";
-export const kirikaeshiGrew = (misses: number) => `Sensei Kuma: All the way through. Slips: ${misses}. Your spirit grows: ki +5.`;
-export const kirikaeshiDone = (misses: number) => `Sensei Kuma: All the way through. Slips: ${misses}. Your breath is getting steadier.`;
+/** How many sayu men were on Bo's beat, which is praise and nothing more. Taking your own time gets no comment at all. */
+const rhythmNote = (onBeat: number, of: number) => (onBeat === 0 ? "" : onBeat === of ? " Every men on Bo's beat." : ` ${onBeat} of ${of} on Bo's beat.`);
+export const kirikaeshiGrew = (misses: number, onBeat: number, of: number) => `Sensei Kuma: All the way through. Slips: ${misses}.${rhythmNote(onBeat, of)} Your spirit grows: ki +5.`;
+export const kirikaeshiDone = (misses: number, onBeat: number, of: number) => `Sensei Kuma: All the way through. Slips: ${misses}.${rhythmNote(onBeat, of)} Your breath is getting steadier.`;
 export const KIRIKAESHI_WINDED = "Sensei Kuma: Out of breath. Slips cost ki, and none comes back until the chain is done. Go again when you're ready.";
-export const KIRIKAESHI_LOST = "Sensei Kuma: You lost the rhythm. Left, right, left, right. Keep your hands going and your feet will follow.";
-export const KIRIKAESHI_NO_FOLLOW = "Sensei Kuma: You stopped at the end. The last men goes through Bo, hands up, all the way past.";
+export const KIRIKAESHI_LOST = "Sensei Kuma: Too many slips. Left, right, left, right. Watch which side comes next, and there's no hurry.";
 export const KIRIKAESHI_TITLE = "Kirikaeshi";
-export const KIRIKAESHI_HELP = "Space + J big men  A D sayu men  Hold D follow through";
-export const KIRIKAESHI_EARLY = "Too soon!";
+/** What to do right now, one part of the set at a time, so it fits along the bottom at the smallest size. */
+export const KIRIKAESHI_HELP = {
+  start: "Square up to Bo",
+  breath: "Step back to distance, and breathe",
+  big: "Space + J  big men, when you're ready",
+  rhythm: "A D  sayu men, at your own pace",
+  follow: "Hold D  all the way through Bo",
+} as const;
+/** The next strike, over your head. */
+export const KIRIKAESHI_SIDE = { left: "left men", right: "right men" } as const;
 export const KIRIKAESHI_WRONG = "Other side!";
-export const KIRIKAESHI_LATE = "Too late!";
-export const KIRIKAESHI_NOW = "NOW";
+export const kirikaeshiRhythm = (streak: number) => `Rhythm x${streak}`;
 export const KIRIKAESHI_LOW = "Low ki!";
 export const SAYU_CALL = "Men!";
 export const MENU_KIRIKAESHI = "Kirikaeshi";
@@ -634,17 +643,15 @@ export function allContentLines(): string[] {
     KIRIKAESHI_AGAIN,
     KIRIKAESHI_READY,
     KIRIKAESHI_LEFT,
-    kirikaeshiGrew(4),
-    kirikaeshiDone(4),
+    kirikaeshiGrew(4, 11, 18),
+    kirikaeshiDone(4, 18, 18),
     KIRIKAESHI_WINDED,
     KIRIKAESHI_LOST,
-    KIRIKAESHI_NO_FOLLOW,
     KIRIKAESHI_TITLE,
-    KIRIKAESHI_HELP,
-    KIRIKAESHI_EARLY,
+    ...Object.values(KIRIKAESHI_HELP),
+    ...Object.values(KIRIKAESHI_SIDE),
     KIRIKAESHI_WRONG,
-    KIRIKAESHI_LATE,
-    KIRIKAESHI_NOW,
+    kirikaeshiRhythm(18),
     KIRIKAESHI_LOW,
     SAYU_CALL,
     MENU_KIRIKAESHI,
