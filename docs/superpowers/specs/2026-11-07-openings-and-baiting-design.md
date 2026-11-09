@@ -65,13 +65,16 @@ These two keep today's `exposes` table for what they leave open. Every other str
 
 - **Plain guard is the only place ki recharges,** standing or walking. That's the only reason to be in it.
 - **Plain guard stays fully exposed.** The usual stance when you're not tired is an opening or a block, and resting is a visible risk you take. An alert player in guard can still block in time, at the usual block cost.
-- **Holding a block drains ki slowly,** even when nothing hits it, and an opening drains too. Starting values (my call): `BLOCK_DRAIN` 0.1 a tick and `OPENING_DRAIN` 0.2 a tick, against `KI_RECOVERY` of 0.25.
-- **Running out (my call).** A block that reaches 0 breaks your guard, as an absorbed strike does today. An opening that reaches 0 drops you into guard.
+- **Holding a block drains ki slowly,** even when nothing hits it. Starting value (my call): `BLOCK_DRAIN` 0.1 a tick, against `KI_RECOVERY` of 0.25.
+- **Holding an opening neither drains ki nor recovers it (owner, issue #15).** It used to drain 0.2 a tick, which punished simply waiting with bait out. It still isn't plain guard, so it's no place to rest.
+- **Running out (my call).** A block that reaches 0 breaks your guard, as an absorbed strike does today. An opening no longer drains, so it can't run out.
 - **Dashing costs ki,** as it does today.
 
 ### Seme
 
 Seme mostly keeps its rules: it costs ki, plants your feet and leaves you exposed, and it builds pressure on someone in guard, block or an opening. It now cancels into an opening rather than straight into a strike.
+
+**Seme is the answer to free bait (with issue #15).** Once holding an opening stopped draining ki, the simulated reader and presser, which only ever gambled on an opening or waited for it to run out, lost to the counter-only baiter (43 to 5 and 38 to 10, with many matches never ending). The rules didn't change for it: the simulated players now play the answer a person would. The presser stops gambling on an opening held longer than 40 ticks and presses it like anything else, and the reader keeps pressing one held longer than 240 ticks (6 seconds) down to 25 ki instead of 50. Counter-only then loses 1 to 47 to the reader and 2 to 46 to the presser, and baiting against reading is 29 to 19.
 
 **The standoff (owner).** While both fighters hold seme, neither pressure bar builds. Both burn ki until someone commits or backs off. A kiai doesn't add pressure during a standoff either (my call, following "neither builds"). Bars keep the value they had, and only start fading or climbing again once the standoff ends (my call). Check that Ren's and the senseis' pressing, and the tests about holding seme against them, still make the story's promises.
 

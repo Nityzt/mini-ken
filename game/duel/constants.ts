@@ -35,7 +35,6 @@ export const LOW_KI_WALK = 0.75;
 /** How long a new opening has to be held before a strike can start from it. */
 export const OPENING_MIN = 10;
 export const OPENING_START_KI = 10;
-export const OPENING_DRAIN = 0.2;
 /** A held block costs a little even when nothing hits it, so nobody can sit behind one for ever. */
 export const BLOCK_DRAIN = 0.1;
 

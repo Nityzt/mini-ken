@@ -34,7 +34,7 @@ Tiny Kendo is a cute browser game that lets people experience kendo in a fun way
 - **Journey (revised 2026-11-05):** one club with one secret, a city map with optional fights, five rival dojos with Ren as the last of them, and a tournament.
 - **Views:** a top-down city map, top-down indoors, and side-on for duels and gang fights. No platforming.
 - **Borrowed from Hollow Knight:** hidden places and tough, learnable opponents only. The mood stays cute.
-- **Duel rules:** first to 2 points, with a 2-minute clock. One clean strike scores. Every ordinary strike starts from a visible opening (see Openings). Swinging, blocking and holding an opening drain ki, only plain guard recovers it, and low ki makes you slower and more open.
+- **Duel rules:** first to 2 points, with a 2-minute clock. One clean strike scores. Every ordinary strike starts from a visible opening (see Openings). Swinging and blocking drain ki, holding an opening neither drains nor recovers it, only plain guard recovers it, and low ki makes you slower and more open.
 - **World:** everything is fictional, including people and dojos, with no real sensei, officers or clubs.
 - **Devices:** keyboard first. Phones get a friendly "play on a computer" screen, and touch comes later if the game proves fun.
 - **Link to the club:** none for now (see above).
@@ -366,7 +366,7 @@ If nothing's happened after about five seconds the referee calls Wakare, and bot
 |---|---|---|
 | Plain guard, no key held | All three | The only place ki recovers, so resting is a risk you choose |
 | Blocking, key held | None | Can't move or strike. Drains ki slowly, and every absorbed strike costs more |
-| Holding an opening | Only the one target it shows | Can walk and launch. Drains ki a little faster than a block |
+| Holding an opening | Only the one target it shows | Can walk and launch. Ki neither drains nor comes back (owner, issue #15). Seme is the answer to someone sitting in one |
 | Striking from an opening | The same one target | Committed, with the tip's shine as the warning |
 | Recovering from a failed strike | All three | The price of a bad swing, which stops mashing |
 | Guard broken, ki ran out while blocking | All three | Brief stun, which stops turtling |
@@ -378,9 +378,9 @@ If nothing's happened after about five seconds the referee calls Wakare, and bot
 The rival's AI normally holds block when the player is in range. Its openings therefore come mainly from its own tells and recoveries, and from running its ki down. A clean strike shows the kiai as a speech bubble ("MEN!"). The three referees raise their flags 12 ticks after the hit, about as the striker gets past (owner, 2026-11-06), and the point itself only counts at the end of the slide. Stop short and the flags come back down, the way referees take a point back.
 
 **Ki**
-- Swinging, launching, holding an opening and holding a block all drain it, the last two slowly even when nothing touches you. It only recovers in plain guard, standing or walking (owner, 2026-11-07). An opening needs at least 10 to start.
+- Swinging, launching and holding a block all drain it, the block slowly even when nothing touches you. Holding an opening neither drains it nor recovers it (owner, issue #15). It only recovers in plain guard, standing or walking (owner, 2026-11-07). An opening needs at least 10 to start.
 - Low ki means slower steps and strikes and longer recovery.
-- Ki never ends the match by itself, but running out while blocking breaks your guard, and running out in an opening drops you into plain guard.
+- Ki never ends the match by itself, but running out while blocking breaks your guard.
 
 **The rival** has about three readable habits, each with a tell that can be seen before it happens. The exact habits and numbers are tuned during playtesting. Rule: **every rival attack has a visible tell, and every loss has a learnable reason.**
 
