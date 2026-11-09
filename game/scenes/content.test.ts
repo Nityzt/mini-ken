@@ -4,7 +4,7 @@ import { GLYPHS, measureText, wrapText } from "../art/font.ts";
 import { STAGE_W } from "../core/scale.ts";
 import { GANGS } from "../world/map.ts";
 import { allContentLines, CONTROL_ROWS, INSIGNIA_NOTE, GANG_STORIES, MAP_HELP, GI_LINE, MOMO_WELCOME, SENSEI_SHINAI, DAI_LINES, DIALOGUE_LINES, DIALOGUE_WIDTH, GEAR_LINES, KEI_LINES, REN_LINES, WIN_LINES } from "./content.ts";
-import { moodLine } from "./content.ts";
+import { KIRIKAESHI_HELP, KIRIKAESHI_SIDE, moodLine } from "./content.ts";
 import { measureText as measure_ } from "../art/font.ts";
 import { STAGE_W as STAGE_W_ } from "../core/scale.ts";
 import { DOJOS as DOJOS_ } from "../world/dojos.ts";
@@ -113,4 +113,9 @@ test("anyone's mood fits on the bow screen", () => {
       for (const favourite of ["men", "kote", "do", "bigMen"] as const) assert.ok(measure_(moodLine(name, pace, favourite)) <= STAGE_W_ - 8, moodLine(name, pace, favourite));
     }
   }
+});
+
+test("kirikaeshi's help, a line at a time, fits along the bottom at the smallest size", () => {
+  for (const line of Object.values(KIRIKAESHI_HELP)) assert.ok(measureText(line) <= STAGE_W - 4, line);
+  for (const side of Object.values(KIRIKAESHI_SIDE)) assert.ok(measureText(`A ${side}`) <= STAGE_W / 3, side);
 });

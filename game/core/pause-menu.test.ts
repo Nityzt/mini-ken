@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createPauseMenu, menuItems, stepPauseMenu, type MenuKeys, type PauseMenu } from "./pause-menu.ts";
+import { createPauseMenu, menuItems, stepPauseMenu, type InventoryStep, type MenuKeys, type PauseMenu } from "./pause-menu.ts";
 
 const keys = (pressed: Partial<MenuKeys> = {}): MenuKeys => ({ up: false, down: false, confirm: false, cancel: false, ...pressed });
 const inFight = menuItems({ forfeit: "Forfeit match", inGame: true, hasTare: false });
@@ -99,27 +99,19 @@ test("the controls page opens and comes back to where it was", () => {
   assert.deepEqual(back, { page: "main", choice: at });
 });
 
-test("the inventory is a page of its own: arrows move through it, and only a usable item does anything", () => {
+test("the inventory is a page of its own: its screen moves the cursor, and X goes back", () => {
   const items = menuItems({ forfeit: null, inGame: true, hasTare: false });
   const open = stepPauseMenu({ page: "main", choice: items.findIndex((i) => i.id === "inventory") }, items, keys({ confirm: true }));
   assert.equal(open.menu.page, "inventory");
-  const held = ["ticket", "gi", "tare"] as const;
-  const moved = stepPauseMenu(open.menu, items, keys({ right: true }), [...held]);
+  assert.equal(open.menu.choice, 0);
+  const screen: InventoryStep = (choice, pressed) => ({ choice: choice + (pressed.right ? 1 : 0), action: pressed.confirm ? "use-ticket" : null });
+  const moved = stepPauseMenu(open.menu, items, keys({ right: true }), screen);
   assert.equal(moved.menu.choice, 1);
-  assert.equal(stepPauseMenu(moved.menu, items, keys({ confirm: true }), [...held]).action, null);
-  assert.equal(stepPauseMenu(open.menu, items, keys({ confirm: true }), [...held]).action, "use-ticket");
-  const back = stepPauseMenu(moved.menu, items, keys({ cancel: true }), [...held]);
+  assert.equal(stepPauseMenu(moved.menu, items, keys({ confirm: true }), screen).action, "use-ticket");
+  const back = stepPauseMenu(moved.menu, items, keys({ cancel: true }), screen);
   assert.equal(back.menu.page, "main");
   assert.equal(items[back.menu.choice].id, "inventory");
-  assert.equal(stepPauseMenu(open.menu, items, keys({ down: true }), []).menu.choice, 0, "an empty inventory doesn't break");
-});
-
-test("anything wearable can be put on from the inventory", () => {
-  const items = menuItems({ forfeit: null, inGame: true, hasTare: false });
-  const held = ["gi", "shop:gooseColors"];
-  const actionFor = (id: string) => (id.startsWith("shop:") ? ("wear" as const) : null);
-  assert.equal(stepPauseMenu({ page: "inventory", choice: 1 }, items, keys({ confirm: true }), held, actionFor).action, "wear");
-  assert.equal(stepPauseMenu({ page: "inventory", choice: 0 }, items, keys({ confirm: true }), held, actionFor).action, null);
+  assert.equal(stepPauseMenu(open.menu, items, keys({ down: true })).menu.choice, 0, "with no screen, nothing moves");
 });
 
 test("the challenges page opens and closes like the others", () => {
@@ -144,24 +136,10 @@ test("multiplayer shows up in the story menu only once it's open", () => {
   assert.ok(!menuItems({ forfeit: null, inGame: true, hasTare: true }).some((i) => i.id === "multiplayer"));
 });
 
-test("the inventory is a grid: arrows move across it and between its groups, and nothing wraps", () => {
-  const items = menuItems({ forfeit: null, inGame: true, hasTare: false });
-  const groups = [["ticket", "letter"], ["gi", null, "shinai"], ["shop:inkColors"]];
-  const held = groups.flat().filter((slot): slot is string => slot !== null);
-  const go = (choice: number, pressed: Partial<MenuKeys>) => stepPauseMenu({ page: "inventory", choice }, items, keys(pressed), held, undefined, groups).menu.choice;
-  assert.equal(go(0, { right: true }), 1);
-  assert.equal(go(1, { right: true }), 2, "on into the next group");
-  assert.equal(go(0, { left: true }), 0, "no wrapping off the start");
-  assert.equal(go(0, { down: true }), 2, "straight down is the gear row");
-  assert.equal(go(3, { down: true }), 4, "then the colors");
-  assert.equal(go(4, { down: true }), 4, "and that's the bottom");
-  assert.equal(go(3, { up: true }), 1);
-});
-
 test("the progress page opens on the map at what's next, and the arrows switch pages", () => {
   const items = menuItems({ forfeit: null, inGame: true, hasTare: false });
   const at = items.findIndex((i) => i.id === "progress");
-  const open = stepPauseMenu({ page: "main", choice: at }, items, keys({ confirm: true }), [], undefined, undefined, { goal: 4, rows: 20 });
+  const open = stepPauseMenu({ page: "main", choice: at }, items, keys({ confirm: true }), undefined, { goal: 4, rows: 20 });
   assert.deepEqual(open.menu, { page: "progress", choice: 4, tab: 2 });
   const left = stepPauseMenu(open.menu, items, keys({ left: true })).menu;
   assert.equal(left.tab, 1);
@@ -174,7 +152,7 @@ test("the progress page opens on the map at what's next, and the arrows switch p
 test("up and down walk the map and stop at both ends; on the other pages they leave the row alone", () => {
   const items = menuItems({ forfeit: null, inGame: true, hasTare: false });
   const progress = { goal: 0, rows: 5 };
-  const map = (choice: number, pressed: Partial<MenuKeys>, tab = 2) => stepPauseMenu({ page: "progress", choice, tab }, items, keys(pressed), [], undefined, undefined, progress).menu.choice;
+  const map = (choice: number, pressed: Partial<MenuKeys>, tab = 2) => stepPauseMenu({ page: "progress", choice, tab }, items, keys(pressed), undefined, progress).menu.choice;
   assert.equal(map(2, { down: true }), 3);
   assert.equal(map(4, { down: true }), 4);
   assert.equal(map(0, { up: true }), 0);

@@ -61,7 +61,7 @@ export const challengeText = (name: string, target: Target, canBeHit: boolean): 
 
 export const KIRIKAESHI_CARD: TeachCard = {
   title: "Kirikaeshi",
-  text: "Sensei Kuma: Big men, sayu men left and right as each one comes due, then one last big men, all the way through.",
+  text: "Sensei Kuma: Big men, then sayu men left and right, at your own pace. Bo waits for each one. One last big men goes all the way through.",
   keys: [["Space + J", "big men"], ["A D", "sayu men, taking turns"], SLIDE],
 };
 export const LINE_CARD: TeachCard = {

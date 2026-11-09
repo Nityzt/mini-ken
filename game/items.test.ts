@@ -3,7 +3,8 @@ import type { EquipmentId, ModId } from "./equipment.ts";
 import assert from "node:assert/strict";
 import { wrapText } from "./art/font.ts";
 import { STAGE_W } from "./core/scale.ts";
-import { ALL_ITEMS, createReveal, inventoryGroups, inventoryOf, itemKind, isUsable, isWearable, isWorn, itemInfo, itemsGained, REVEAL_MIN_TICKS, revealBounce, stepReveal, toggleWorn, itemIconColors } from "./items.ts";
+import { inventoryOf, packGroups } from "./equipment-screen.ts";
+import { ALL_ITEMS, createReveal, itemKind, isUsable, isWearable, isWorn, itemInfo, itemsGained, REVEAL_MIN_TICKS, revealBounce, stepReveal, toggleWorn, itemIconColors } from "./items.ts";
 import { LOOKS } from "./shop.ts";
 import { createRunState, recordCup, walkingGear } from "./run-state.ts";
 
@@ -41,7 +42,7 @@ test("the inventory holds what you've earned, with anything usable first", () =>
   assert.deepEqual(inventoryOf(run), []);
   const later = { ...run, gi: true, gear: { ...run.gear, shinai: true, tare: true }, hasTsuba: true, cups: ["pinecone" as const], ticket: 1 };
   const held = inventoryOf(later);
-  assert.equal(held[0], "ticket");
+  assert.equal(packGroups(later)[0].slots[0], "ticket");
   for (const item of ["gi", "shinai", "tare", "tsuba", "cup:pinecone"]) assert.ok(held.includes(item as never), item);
   assert.equal(inventoryOf({ ...later, dan: 1 }).includes("ticket"), false, "a ticket for a rank you already have is no use");
 });
@@ -125,23 +126,17 @@ test("a letter gets its moment, sits in your inventory, and can't be used", () =
   assert.equal(itemInfo("letter").name, "Letter of recommendation");
 });
 
-test("the inventory is grouped, and gear and trophies keep a gap for what's missing", () => {
-  const empty = inventoryGroups(createRunState());
-  assert.deepEqual(empty.map((g) => g.title), ["Gear 0/6", "Trophies 0/7"], "empty groups don't show");
-  const run = { ...createRunState(), gi: true, gear: { ...createRunState().gear, shinai: true, kote: true }, hasTsuba: true, ticket: 1, cups: ["pinecone" as const], owned: ["fineShinai", "gooseColors"] };
-  const groups = inventoryGroups(run);
-  assert.deepEqual(groups.map((g) => g.title), ["Items", "Gear 3/6", "Colors", "Trophies 1/7"]);
-  assert.deepEqual(groups[0].slots, ["ticket", "tsuba", "shop:fineShinai"]);
-  assert.deepEqual(groups[1].slots, ["gi", "shinai", null, null, null, "kote"]);
+test("the pack is grouped, trophies keep a gap for what's missing, and worn gear isn't in it", () => {
+  const empty = packGroups(createRunState());
+  assert.deepEqual(empty.map((g) => g.title), ["Trophies 0/7"], "empty groups don't show");
+  const run = { ...createRunState(), gi: true, gear: { ...createRunState().gear, shinai: true, kote: true }, hasTsuba: true, ticket: 1, cups: ["pinecone" as const], owned: ["fineShinai", "gooseColors", "charm"] };
+  const groups = packGroups(run);
+  assert.deepEqual(groups.map((g) => g.title), ["Items", "Gear", "Colors", "Trophies 1/7"]);
+  assert.deepEqual(groups[0].slots, ["ticket", "gi", "tsuba", "shop:charm"]);
+  assert.deepEqual(groups[1].slots, ["shinai"], "the fine shinai is in hand, so Sensei's old one waits in the pack");
   assert.deepEqual(groups[2].slots, ["shop:gooseColors"]);
   assert.equal(groups[3].slots[0], "cup:pinecone");
   assert.equal(groups[3].slots.filter(Boolean).length, 1);
-});
-
-test("the flat list is exactly what the grid lets you pick, in order, so a selection means the same thing in both", () => {
-  const run = { ...createRunState(), gi: true, gear: { ...createRunState().gear, do: true }, ticket: 1, cups: ["raccoon" as const, "pinecone" as const], owned: ["inkColors", "charm"] };
-  assert.deepEqual(inventoryOf(run), inventoryGroups(run).flatMap((g) => g.slots.filter(Boolean)));
-  assert.deepEqual(inventoryOf(run), ["ticket", "shop:charm", "gi", "do", "shop:inkColors", "cup:pinecone", "cup:raccoon"]);
 });
 
 test("every item has a kind for the card", () => {

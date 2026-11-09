@@ -1,7 +1,9 @@
 import { createAudio } from "./core/audio.ts";
 import { createDungeonScene } from './scenes/dungeon.ts';
 import { discoverDungeon, enterDungeon } from './dungeon-story.ts';
+import { stepSpot, type Spot } from "./core/return-spot.ts";
 import { createFlow, FADE_TICKS, startFade, stepFlow } from "./core/flow.ts";
+import { escapeLock, keyboardLock, pausesOnFullscreenExit } from "./core/fullscreen.ts";
 import { createInput } from "./core/input.ts";
 import type { BindingsUi } from "./BindingsOverlay.tsx";
 import { createKeybindingSync } from "./net/keybinding-sync.ts";
@@ -15,7 +17,8 @@ import { characterById, cleanPlayerName, playerColors, playerName, type Characte
 import { createNameEntry, stepNameEntry, type NameEntry } from "./name-entry.ts";
 import { createInsigniaEditor, stepInsigniaEditor, type InsigniaEditor } from "./insignia.ts";
 import { canUseTicketIn } from "./grading.ts";
-import { createReveal, inventoryGroups, inventoryOf, isWearable, itemsGained, stepReveal, toggleWorn, type ItemId, type Reveal } from "./items.ts";
+import { createReveal, itemsGained, stepReveal, type ItemId, type Reveal } from "./items.ts";
+import { stepInventoryScreen } from "./equipment-screen.ts";
 import { CHALLENGES, isClaimed, moneyText, settleChallenges } from "./money.ts";
 import { goalRow, LADDER, newlyOpened } from "./progress.ts";
 import { levelOf } from "./ranks.ts";
@@ -185,10 +188,14 @@ export function createGame(
   let waitingItems: ItemId[] = [];
   let card: { kind: "item"; reveal: Reveal } | { kind: "insignia"; editor: InsigniaEditor } | { kind: "name"; entry: NameEntry } | null = null;
   let afterCards: (() => void) | null = null;
+  /** Where you stepped out of a room for a drill or a fight, so coming back puts you there again. */
+  let spot: Spot = null;
 
   const switchScene = (next: SceneName) => {
     scene().leave?.(game);
-    game.fromFight = sceneName === "duel";
+    const step = stepSpot(spot, sceneName, next, game.run.node);
+    spot = step.spot;
+    game.returning = step.returning;
     if (game.after.length) {
       game.message = [...(game.message ?? []), ...game.after];
       game.after = [];
@@ -245,7 +252,7 @@ export function createGame(
     message: null,
     after: [],
     autoTo: null,
-    fromFight: false,
+    returning: false,
     wokeUp: false,
     session: null,
     versus: versusFromUrl,
@@ -296,6 +303,7 @@ export function createGame(
   };
 
   const startFresh = (next: RunState) => {
+    spot = null;
     game.autoTo = null;
     game.after = [];
     waitingItems = [];
@@ -405,16 +413,18 @@ export function createGame(
       right: input.wasPressed("right"),
       confirm: input.wasPressed("confirm"),
       cancel: input.wasPressed("cancel"),
-    }, inventoryOf(game.run), (item) => (item === "ticket" ? "use-ticket" : isWearable(item as ItemId) ? "wear" : null), inventoryGroups(game.run).map((group) => group.slots), { goal: goalRow(game.run), rows: LADDER.length });
+    }, (choice, keys) => {
+      // Equipping changes the run straight away, so it's saved like any other change.
+      const screen = stepInventoryScreen(game.run, choice, keys);
+      game.run = screen.run;
+      return screen;
+    }, { goal: goalRow(game.run), rows: LADDER.length });
     const openBindings = menu.page === "main" && step.menu.page === "controls";
     menu = step.menu;
     if (openBindings) {
       editingBindings = true;
       const close = () => { editingBindings = false; menu = { page: "main", choice: pauseItems().findIndex((item) => item.id === "controls") }; options.onBindingsUi?.(null); input.clear(); };
       options.onBindingsUi?.({ bindings: keybindings.current(), close, save: async (bindings) => { const saved = await keybindings.set(bindings); if (saved) close(); return saved; } });
-    }
-    if (step.action === "wear") {
-      game.run = toggleWorn(game.run, inventoryOf(game.run)[menu.choice]);
     }
     if (step.action === "resume") flow = { ...flow, paused: false };
     else if (step.action === "use-ticket") {
@@ -567,8 +577,27 @@ export function createGame(
   // It has to happen right here in the key press, or the browser refuses it.
   const toggleFullscreen = (event: KeyboardEvent) => {
     if (editingBindings || game.input.typing || !input.matches("fullscreen", event.key, event.code) || event.repeat || event.ctrlKey || event.metaKey || event.altKey) return;
-    if (document.fullscreenElement) void document.exitFullscreen();
-    else void document.documentElement.requestFullscreen?.().catch(() => {});
+    if (document.fullscreenElement) {
+      leavingFullscreen = true;
+      void document.exitFullscreen().catch(() => { leavingFullscreen = false; });
+    } else void document.documentElement.requestFullscreen?.().catch(() => {});
+  };
+  // Set while the game's own key is taking it out of fullscreen, so only the browser's Esc opens the menu.
+  let leavingFullscreen = false;
+  const onFullscreenChange = () => {
+    const fullscreen = !!document.fullscreenElement;
+    const lock = keyboardLock();
+    const lockStep = escapeLock(fullscreen, !!lock);
+    if (lockStep === "lock") void lock!.lock(["Escape"]).catch(() => {});
+    else if (lockStep === "unlock") lock!.unlock();
+    const byGame = leavingFullscreen;
+    leavingFullscreen = false;
+    // Whatever would have let the pause key through in update().
+    const canPause = !editingBindings && !game.input.typing && !game.online.accountUi() && !scene().neverPauses?.(game);
+    if (pausesOnFullscreenExit({ fullscreen, byGame, paused: flow.paused, canPause })) {
+      flow = { ...flow, paused: true };
+      game.input.clear();
+    }
   };
   const flushSave = () => game.online.save?.flushOnClose();
   const retryBindings = () => { void keybindings.retry(); };
@@ -578,6 +607,7 @@ export function createGame(
   document.addEventListener("visibilitychange", pauseIfAway);
   window.addEventListener("keydown", unlockAudio);
   window.addEventListener("keydown", toggleFullscreen);
+  document.addEventListener("fullscreenchange", onFullscreenChange);
 
   if (IS_DEV) {
     (window as unknown as { __tinyKendo?: unknown }).__tinyKendo = {
@@ -607,6 +637,12 @@ export function createGame(
       },
       get lesson() {
         return game.debug.lesson;
+      },
+      get ceremony() {
+        return game.debug.ceremony;
+      },
+      get menToast() {
+        return game.debug.menToast;
       },
       get kirikaeshi() {
         return game.debug.kirikaeshi;
@@ -670,6 +706,7 @@ export function createGame(
       document.removeEventListener("visibilitychange", pauseIfAway);
       window.removeEventListener("keydown", unlockAudio);
       window.removeEventListener("keydown", toggleFullscreen);
+      document.removeEventListener("fullscreenchange", onFullscreenChange);
     },
     resize(fit) {
       resize(fit);

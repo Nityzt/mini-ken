@@ -61,7 +61,9 @@ export function createGradingHallScene(nameOf: () => string): Scene {
     enter(game) {
       seed = Math.floor(Math.random() * 2 ** 31);
       const [start] = findTiles(HALL_MAP, "@");
-      walker = createWalker(start.col, start.row);
+      // Back from a bout or the demonstration, you're still standing in front of the panel where you were.
+      const stayed = game.returning && walker !== undefined;
+      if (!stayed) walker = createWalker(start.col, start.row);
       entrance = null;
       stride = null;
       if (game.message) {
@@ -72,7 +74,7 @@ export function createGradingHallScene(nameOf: () => string): Scene {
           const reply = talkToPanel(game.run, "tachiai");
           dialogue.open([...lines, ...reply.lines], reply.fight ? () => startBout(game, reply.fight!) : undefined);
         } else dialogue.open(lines);
-      } else entrance = createEntrance(walker, findTiles(HALL_MAP, "D")[0], start, { rows: HALL_MAP, solid: "", tile: TILE });
+      } else if (!stayed) entrance = createEntrance(walker, findTiles(HALL_MAP, "D")[0], start, { rows: HALL_MAP, solid: "", tile: TILE });
     },
     update(game) {
       tick++;
