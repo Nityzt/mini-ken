@@ -420,6 +420,43 @@ function keyboard(down: Set<Action>, before: Set<Action>): Input {
   };
 }
 
+test("every senpai names the opening to hold before the strike, as their card does (issue #11)", () => {
+  const strikeKey = { men: "J", do: "L", kote: "K" } as const;
+  for (const id of SENPAI_IDS) {
+    for (const [level, target] of (["men", "do", "kote"] as const).entries()) {
+      const prompt = challengeFor(id, level).prompt;
+      const opening = prompt.search(/\b[Hh]old [WQE]\b/);
+      assert.ok(opening >= 0, `${id}-${level} names no opening: ${prompt}`);
+      assert.ok(prompt.indexOf(`${strikeKey[target]} and Space`) > opening, `${id}-${level} strikes before opening: ${prompt}`);
+    }
+  }
+});
+
+for (const id of ["aki", "bo"] as const) {
+  test(`${id}'s first challenge passes by doing what the words say: hold E, wait for the moment, J and Space, slide through`, () => {
+    const lesson = challengeFor(id, 0);
+    let control = createPlayerControl();
+    let before = new Set<Action>();
+    const literal: Player = (duel) => {
+      const down = new Set<Action>();
+      const partner = duel.fighters[1];
+      if (duel.phase === "zanshin") down.add("right");
+      else if (distance(duel) > RANGE_MAX) down.add("right");
+      else {
+        down.add("drop");
+        // Bo's words: wait for his guard to drop. Aki's: stay in range, so strike while she's in it.
+        if (before.has("drop") && partner.stance !== "block" && duel.fighters[0].stance === "opening") down.add("men").add("stomp");
+      }
+      if (duel.phase !== "zanshin" && !down.has("drop")) control = createPlayerControl();
+      const input = control(keyboard(down, before), duel.fighters[0]);
+      before = down;
+      return input;
+    };
+    const result = play(lesson, literal, BEFORE[0], 8000, { literal: true });
+    assert.ok(result.passed, `${id}: reps ${result.reps}, misses ${result.misses}`);
+  });
+}
+
 test("Yui's first challenge passes by doing exactly what she says, key for key (issue #11)", () => {
   const lesson = challengeFor("yui", 0);
   // Her words, in order: slide into range, hold E, then J and Space, then slide through.
