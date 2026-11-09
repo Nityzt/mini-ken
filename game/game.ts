@@ -608,6 +608,12 @@ export function createGame(
       get lesson() {
         return game.debug.lesson;
       },
+      get ceremony() {
+        return game.debug.ceremony;
+      },
+      get menToast() {
+        return game.debug.menToast;
+      },
       get kirikaeshi() {
         return game.debug.kirikaeshi;
       },

@@ -13,6 +13,7 @@ import {
   helpPaid, HELP_FAILED, MENU_CHALLENGE, MENU_CHALLENGE_THEM, MENU_GRADE, MENU_HELP, MENU_LEAVE, MENU_LETTER, MENU_LINE, MENU_SPAR, MENU_TALK, MENU_WAZA, MENU_WAZA_AGAIN, QUICK_DONE, WAZA_AGAIN_DONE, WAZA_DONE, SENSEI_NEXT, SENSEI_NO_GI, SENSEI_ROUND_DONE, SENSEI_SHINAI, SENSEI_SHINAI_AFTER, SENSEI_WAITING, SHINAI_WAITING, SPAR_DOOR_OPEN, SPAR_KI,
   eitherOf, KIRIKAESHI_AGAIN, KIRIKAESHI_FIRST, KIRIKAESHI_LOST, KIRIKAESHI_NO_FOLLOW, KIRIKAESHI_READY, KIRIKAESHI_WINDED, kirikaeshiDone, kirikaeshiGrew, MENU_KIRIKAESHI, SENSEI_NOT_YET, SENSEI_OFFER, SENSEI_WHY, WHY_REPLY } from "./content.ts";
 import { CHALLENGE_REWARD, SENPAI, SENPAI_IDS, type SenpaiId, type Session } from "./curriculum.ts";
+import { MEN_CEREMONY_SEEN } from "./men-ceremony.ts";
 
 /** What each person says depends only on how far through the armor loop the player is. */
 
@@ -150,7 +151,7 @@ export function talkToSenpai(run: RunState, senpai: SenpaiId): { lines: string[]
 }
 
 /** What finishing a training session earns, and what gets said about it: `lines` up to the gift, `after` once you've seen it, and `home` once you're back out in the dojo. */
-export function finishSession(before: RunState, session: Session): { run: RunState; lines: string[]; after?: string[]; home?: string[] } {
+export function finishSession(before: RunState, session: Session): { run: RunState; lines: string[]; after?: string[]; home?: string[]; ceremony?: "men" } {
   // The short tutorial is for people not playing the story, and practising what you already know pays nothing.
   if (session.kind === "quick") return { run: before, lines: QUICK_DONE };
   if (session.kind === "waza" && before.waza) return { run: before, lines: WAZA_AGAIN_DONE };
@@ -160,10 +161,13 @@ export function finishSession(before: RunState, session: Session): { run: RunSta
   if (session.kind === "senpai") {
     const earned = CHALLENGE_REWARD[session.level];
     const gear = { ...run.gear, [earned]: true };
+    // The men is put on your head for you, the first time, and the dojo mentions it once you're back.
+    const ceremony = earned === "men" && !before.gear.men;
     return {
-      run: { ...run, gear, trained: earned === "kote", armorFrom: { ...run.armorFrom, [earned]: session.senpai } },
+      run: { ...run, gear, trained: earned === "kote", armorFrom: { ...run.armorFrom, [earned]: session.senpai }, ...(ceremony ? { seen: [...run.seen, MEN_CEREMONY_SEEN] } : {}) },
       lines: [SENPAI_LINES[session.senpai].pass],
       ...(earned === "kote" ? { home: [KOTE_DONE] } : {}),
+      ...(ceremony ? { ceremony: "men" as const } : {}),
     };
   }
   const next = { ...run, senseiRounds: Math.max(run.senseiRounds, session.round + 1) };
