@@ -1,4 +1,5 @@
 import type { EquipmentId, EquipmentSlot, ModId } from "./equipment.ts";
+import { createDungeonTrial, type DungeonTrial } from "./dungeon-story.ts";
 import { wornKi } from "./durability.ts";
 import { NO_GEAR, type Gear } from "./art/kendoka.ts";
 import { DEFAULT_CHARACTER, type CharacterId } from "./characters.ts";
@@ -57,6 +58,7 @@ const SEME_WITH_GAZE = 0.75;
 
 /** Everything one playthrough remembers. It's saved as it changes, so a refresh picks up where you left off. */
 export type RunState = {
+  dungeon: DungeonTrial;
   /** Who you chose to play as. */
   character: CharacterId;
   /** The name you gave yourself, or empty to go by your character's. See `playerName`. */
@@ -138,6 +140,7 @@ export type RunState = {
 };
 
 export const createRunState = (): RunState => ({
+  dungeon: createDungeonTrial(),
   character: DEFAULT_CHARACTER,
   name: "",
   insignia: DEFAULT_INSIGNIA,

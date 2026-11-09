@@ -9,7 +9,7 @@ import type { GameAudio } from "./audio.ts";
 import type { Input } from "./input.ts";
 import type { OnlineHub } from "../net/hub.ts";
 
-export type SceneName = "art" | "title" | "character" | "club" | "training" | "line" | "kirikaeshi" | "map" | "travel" | "brawl" | "rival-dojo" | "duel" | "tournament" | "grading-hall" | "online" | "online-appearance" | "online-bracket" | "online-duel" | "online-lobby" | "online-history";
+export type SceneName = "art" | "title" | "character" | "club" | "training" | "line" | "kirikaeshi" | "map" | "travel" | "brawl" | "rival-dojo" | "duel" | "tournament" | "grading-hall" | "online" | "online-appearance" | "online-bracket" | "online-duel" | "online-lobby" | "online-history" | "dungeon";
 
 export type Game = {
   input: Input;

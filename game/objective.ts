@@ -1,4 +1,5 @@
 import { gradingReady, hasTicket } from "./grading.ts";
+import { dungeonObjective } from './dungeon-story.ts';
 import { heldObjective } from "./health.ts";
 import { gradingFee } from "./money.ts";
 import { nextGoal, shortNeeds } from "./progress.ts";
@@ -11,6 +12,8 @@ import { homeVisitor } from "./scenes/visits.ts";
 
 /** One short line saying what to do next. Empty when there's nothing left to chase. */
 export function currentObjective(run: RunState): string {
+  const dungeon = dungeonObjective(run);
+  if (dungeon) return dungeon;
   if (!run.metSenpai) return OBJECTIVES.meetMomo;
   if (!run.gi) return OBJECTIVES.getGi;
   if (!run.gear.shinai) return OBJECTIVES.greetSensei;

@@ -1,4 +1,5 @@
 import { equipmentHeld, equipmentInfo, isEquipment, isMod, MODS, EQUIPMENT_SLOTS } from "./equipment.ts";
+import { createDungeonTrial, parseDungeonTrial } from "./dungeon-story.ts";
 import { cleanPlayerName, isCharacter } from "./characters.ts";
 import type { SceneName } from "./core/scene.ts";
 import { isInsignia } from "./insignia.ts";
@@ -25,7 +26,12 @@ export function parseRun(raw: unknown): RunState | null {
     const value = raw[key];
     if (value === undefined) continue;
     const start = run[key];
-    if (key === "node") {
+    if (key === 'dungeon') {
+      const dungeon = parseDungeonTrial(value, escrow => parseRun({ ...createRunState(), ...escrow, dungeon: createDungeonTrial() }) !== null);
+      if (!dungeon) return null;
+      out.dungeon = dungeon;
+      continue;
+    } else if (key === "node") {
       if (typeof value !== "string" || !Object.hasOwn(NODES, value)) return null;
     } else if (key === "character") {
       if (!isCharacter(value)) return null;
@@ -110,4 +116,4 @@ export function clearSave(store: SaveStore | null): void {
 }
 
 /** Fights aren't saved partway through. You pick up from wherever you'd walked to. */
-export const resumeScene = (run: RunState): SceneName => (run.node === "pinecone" ? "club" : "map");
+export const resumeScene = (run: RunState): SceneName => (run.dungeon.stage === 'caught' || run.dungeon.stage === 'active' ? 'dungeon' : run.node === "pinecone" ? "club" : "map");

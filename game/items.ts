@@ -62,6 +62,8 @@ export const gearName = (key: GearKey): string => equipmentInfo(key).name;
 
 /** Whatever this change of state just gave you. Anything you gain, by any route, gets its moment. */
 export function itemsGained(before: RunState, after: RunState): ItemId[] {
+  // Recovered belongings were already acquired before Ren confiscated them.
+  if (before.dungeon?.escrow && !after.dungeon?.escrow) before = { ...before, ...before.dungeon.escrow };
   const gained: ItemId[] = [];
   if (after.gi && !before.gi) gained.push("gi");
   for (const piece of GEAR_ORDER) if (after.gear[piece] && !before.gear[piece]) gained.push(piece);

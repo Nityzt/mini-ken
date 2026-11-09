@@ -1,4 +1,6 @@
 import { createAudio } from "./core/audio.ts";
+import { createDungeonScene } from './scenes/dungeon.ts';
+import { discoverDungeon, enterDungeon } from './dungeon-story.ts';
 import { createFlow, FADE_TICKS, startFade, stepFlow } from "./core/flow.ts";
 import { createInput } from "./core/input.ts";
 import type { BindingsUi } from "./BindingsOverlay.tsx";
@@ -105,6 +107,7 @@ export function createGame(
     map: createMapScene(nameOf),
     travel: createTravelScene(),
     brawl: createBrawlScene(),
+    dungeon: createDungeonScene(nameOf),
     "rival-dojo": createRivalDojoScene(nameOf),
     duel: createDuelScene(),
     tournament: createTournamentScene(),
@@ -157,6 +160,11 @@ export function createGame(
       run.bonusKi = Number(params.get("ki") ?? run.bonusKi);
       run.hp = Number(params.get("hp") ?? run.hp);
       versusFromUrl = params.get("versus") as Game["versus"];
+      if (jump === 'dungeon') {
+        run.node = 'radish';
+        run.beaten = [...run.beaten, 'raiko'];
+        run.dungeon = enterDungeon(discoverDungeon(run)).dungeon;
+      }
     }
   }
   const scene = () => scenes[sceneName] ?? scenes.title!;
@@ -611,6 +619,9 @@ export function createGame(
       },
       get brawl() {
         return game.debug.brawl;
+      },
+      get dungeon() {
+        return game.debug.dungeon;
       },
       get trip() {
         return game.debug.trip;

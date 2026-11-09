@@ -1,4 +1,5 @@
 import { keyLabel } from "../core/key-labels.ts";
+import { canDiscoverDungeon, canEnterDungeon, discoverDungeon, enterDungeon } from '../dungeon-story.ts';
 import { drawKendoka, FULL_GEAR, type Gear, type HeldShinai } from "../art/kendoka.ts";
 import { TEAM_COLORS } from "../art/looks.ts";
 import { PALETTE } from "../art/palette.ts";
@@ -204,6 +205,17 @@ export function createRivalDojoScene(nameOf: () => string): Scene {
           game.go("tournament");
         } : undefined);
       } else {
+        if (canEnterDungeon(game.run, front)) {
+          dialogue.open(['The rack slides aside. Cold air rises from a stair beneath Thunder Radish Dojo.'], () => menu.open([
+            { id: 'enter', label: 'Explore the hidden passage' },
+            { id: 'leave', label: 'Leave it for later' },
+          ], id => {
+            if (id !== 'enter') return;
+            game.run = enterDungeon(game.run);
+            game.go('dungeon');
+          }));
+          return;
+        }
         const found = inspectDojo(game.run, dojoFor(game.run.node), front);
         if (found) {
           game.run = found.run;
@@ -229,9 +241,16 @@ export function createRivalDojoScene(nameOf: () => string): Scene {
       }
     else if (char === "V") dialogue.open(talkToDojoVisitor(game.run, visitorHere(game)!));
     else if (char === "X") {
-        menu.open(dojoSenseiMenu(game.run), (id) => {
+        const options: { id: string; label: string }[] = dojoSenseiMenu(game.run);
+        // The hint sits above "Never mind", so the last option still backs out.
+        if (canDiscoverDungeon(game.run)) options.splice(options.length - 1, 0, { id: 'secret', label: 'Ask about the cold draft' });
+        menu.open(options, (id) => {
           if (id === "talk") openTopics(game, menu, dialogue, dojo.sensei.id);
           else if (id === "challenge") challenge(game, dojo.sensei.id);
+          else if (id === 'secret') {
+            game.run = discoverDungeon(game.run);
+            dialogue.open(['Sensei Raiko: You felt it too? There is an old passage behind the shinai rack.', 'Sensei Raiko: I thought it was sealed. Look at the rack along the north wall. Be careful down there.']);
+          }
         });
       }
     else if (char === "G") talkToHelper(game, dojo.helperIds.G);
@@ -303,7 +322,8 @@ export function createRivalDojoScene(nameOf: () => string): Scene {
       drawTopBar(ctx, dojo.name, game.run);
       if (!dialogue.active && !menu.active) {
         drawObjective(ctx, currentObjective(game.run));
-        const label = interactionLabel(personAhead(walker, room, dojo.solid, PEOPLE)?.char ?? tileInFront(walker, room), "rival");
+        const front = tileInFront(walker, room);
+        const label = canEnterDungeon(game.run, front) ? 'Inspect the hidden passage' : interactionLabel(personAhead(walker, room, dojo.solid, PEOPLE)?.char ?? front, "rival");
         if (label) drawInteractPrompt(ctx, label, walker.box.x + walker.box.w / 2 - cam.x, walker.box.y - cam.y, keyLabel(game.input, "confirm", "e"));
       }
       // Everybody here goes by a name their own line can be matched to.
