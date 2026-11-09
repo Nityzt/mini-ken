@@ -7,7 +7,7 @@ import { viewH, viewW } from "../core/scale.ts";
 import type { Game, Scene } from "../core/scene.ts";
 import { playerColors } from "../characters.ts";
 import { payGradingFee, talkToPanel } from "../grading.ts";
-import { danLabel, personDan, presenceOf } from "../ranks.ts";
+import { personDan, presenceOf } from "../ranks.ts";
 import type { OpponentId } from "../world/dojos.ts";
 import { interactionLabel } from "./club-story.ts";
 import { GRADING_HALL_NAME, HALL_ARRIVAL, HALL_OBJECTIVE } from "./content.ts";
@@ -115,7 +115,7 @@ export function createGradingHallScene(nameOf: () => string): Scene {
         const x = spot.col * TILE - cam.x;
         const y = spot.row * TILE - 4 - cam.y;
         const dan = i === 1 ? personDan("examiner") : SIDE_EXAMINER_DAN;
-        if (i === tagged) tags.push(() => drawRankTag(ctx, danLabel(dan), x + 8, y - 8, true));
+        if (i === tagged) tags.push(() => drawRankTag(ctx, i === 1 ? "Ono" : "Examiner", x + 8, y - 8, true));
         return {
           y: spot.row * TILE,
           draw: () => {

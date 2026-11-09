@@ -43,7 +43,7 @@ export function drawPresence(ctx: CanvasRenderingContext2D, centerX: number, fee
   ctx.globalAlpha = 1;
 }
 
-/** Someone's rank, floating over their head. Serious ranks stand out. */
+/** A label floating over someone's head. Senior figures stand out. */
 export function drawRankTag(ctx: CanvasRenderingContext2D, label: string, centerX: number, y: number, senior: boolean): void {
   const at = guiPoint(ctx, centerX, y + TAG_BOTTOM);
   onGui(ctx, () => {
