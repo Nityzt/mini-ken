@@ -1,3 +1,4 @@
+import { paletteForGear } from "./gear-colors.ts";
 import { MEN_INHERITS, PALETTE, RIVAL_COLORS, SENIOR_COLORS } from "./palette.ts";
 import { FULL_GEAR, type Gear } from "./kendoka.ts";
 import type { Kamae } from "../duel/rules.ts";
@@ -433,6 +434,7 @@ function drawArmAndShinai(
   weapon: "shinai" | "stick" | "none",
   blade = SHINAI_BLADE,
   handBelowTsuba = 0,
+  piecePixels?: { kote: typeof px; shinai: typeof px },
 ): void {
   const dx = Math.cos((angle * Math.PI) / 180);
   const dy = Math.sin((angle * Math.PI) / 180);
@@ -447,7 +449,7 @@ function drawArmAndShinai(
       else if (i <= 1) color = PALETTE.K;
       else if (i >= blade - 3) color = PALETTE.W;
       else if (i % 6 === 0) color = PALETTE.y;
-      px(x, y, color, 2);
+      (piecePixels?.shinai ?? px)(x, y, color, 2);
     }
   } else if (weapon === "stick") {
     for (let i = -2; i <= STICK_LENGTH; i++) {
@@ -462,15 +464,15 @@ function drawArmAndShinai(
   ];
   for (let s = 0; s <= steps; s++) {
     const [x, y] = along(s);
-    px(x - 2, y - 2, PALETTE.N, 5);
+    (kote && s / steps > 0.55 ? piecePixels?.kote ?? px : px)(x - 2, y - 2, PALETTE.N, 5);
   }
   for (let s = 0; s <= steps; s++) {
     const [x, y] = along(s);
-    px(x - 1, y - 1, kote && s / steps > 0.55 ? PALETTE.I : PALETTE.W, 3);
+    (kote && s / steps > 0.55 ? piecePixels?.kote ?? px : px)(x - 1, y - 1, kote && s / steps > 0.55 ? PALETTE.I : PALETTE.W, 3);
   }
   // Kote mitten on the grip, or a bare hand until they're earned.
-  px(hand[0] - 2, hand[1] - 2, PALETTE.N, 5);
-  px(hand[0] - 1, hand[1] - 1, kote ? PALETTE.I : PALETTE.S, 3);
+  (kote ? piecePixels?.kote ?? px : px)(hand[0] - 2, hand[1] - 2, PALETTE.N, 5);
+  (kote ? piecePixels?.kote ?? px : px)(hand[0] - 1, hand[1] - 1, kote ? PALETTE.I : PALETTE.S, 3);
 }
 
 /** x is the fighter's center and y is the ground. The player faces right and the rival faces left. */
@@ -532,10 +534,10 @@ export function drawFighter(
     : def.legs === "step" ? LEGS_STEP
     : walkLegs;
 
-  const place = (rows: string[], dx: number, dy: number) => {
+  const place = (rows: string[], dx: number, dy: number, piece?: keyof Gear) => {
     const width = rows[0].length;
     const drawX = flip ? left + FIGHTER_WIDTH - width - dx : left + dx;
-    drawSprite(ctx, rows, drawX, top + dy, { flip, colors });
+    drawSprite(ctx, rows, drawX, top + dy, { flip, colors: piece ? paletteForGear(colors,piece) : colors });
   };
 
   // The men's details share their default colors with other things, and those mustn't change along with them.
@@ -547,17 +549,24 @@ export function drawFighter(
   };
   const px = (dx: number, dy: number, color: string, size = 1) => exactly(dx, dy, swaps.get(color) ?? color, size);
   // Facing right, the left hand is on the far side of the body.
+  const scopedPixel = (piece: keyof Gear) => {
+    const palette = paletteForGear(colors,piece);
+    const changes = new Map(Object.entries(palette ?? {}).filter(([key]) => key in PALETTE && !(key in MEN_INHERITS)).map(([key,value]) => [PALETTE[key],value]));
+    return (dx:number,dy:number,color:string,size=1) => exactly(dx,dy,changes.get(color) ?? color,size);
+  };
+  const piecePixels = { kote: scopedPixel("kote"), shinai: scopedPixel("shinai") };
+  const menColors = paletteForGear(colors,"men");
   const shoulder: [number, number] = [16 + torsoX, 20 + torsoY];
   const armBehind = def.sheathed && !flip;
-  const shinaiArm = () => drawArmAndShinai(px, shoulder, def.hand, def.angle, gear.kote, weapon, SHINAI_BLADE, def.handBelowTsuba);
+  const shinaiArm = () => drawArmAndShinai(px, shoulder, def.hand, def.angle, gear.kote, weapon, SHINAI_BLADE, def.handBelowTsuba, piecePixels);
   // A free right hand is on the near side when the left is on the far side, and the other way round.
-  const rightArm = () => def.rightHand && drawArmAndShinai(px, shoulder, def.rightHand, 0, gear.kote, "none");
+  const rightArm = () => def.rightHand && drawArmAndShinai(px, shoulder, def.rightHand, 0, gear.kote, "none", SHINAI_BLADE, 0, piecePixels);
   // The far side goes behind the legs as well as the body.
   if (armBehind) shinaiArm();
   place(legs, 0, 28);
   if (!armBehind) rightArm();
-  place(gear.do ? CHEST_DO : CHEST_GI, torsoX, 17 + torsoY);
-  place(gear.tare ? WAIST_TARE : WAIST_PLAIN, torsoX, 22 + torsoY);
+  place(gear.do ? CHEST_DO : CHEST_GI, torsoX, 17 + torsoY, gear.do ? "do" : undefined);
+  place(gear.tare ? WAIST_TARE : WAIST_PLAIN, torsoX, 22 + torsoY, gear.tare ? "tare" : undefined);
   if (gear.tare && options.insignia) {
     for (const pixel of duelInsigniaPixels(options.insignia)) exactly(14 + torsoX + pixel.x, 23 + torsoY + pixel.y, pixel.color);
   }
@@ -583,7 +592,7 @@ export function drawFighter(
           const fall = k * (1 - speed) + (speed * k) / 3 + ripple;
           const tieX = 4 + headX - strand - Math.round(k * (0.25 + speed * 0.75));
           const tieY = 6 + headY + strand + Math.round(fall);
-          const own = colors?.[strand ? "t" : "T"];
+          const own = menColors?.[strand ? "t" : "T"];
           if (own) exactly(tieX, tieY, own);
           else px(tieX, tieY, strand ? PALETTE.r : PALETTE.R);
         }
@@ -592,14 +601,14 @@ export function drawFighter(
   }
   // Arms raised over the head go on after it.
   const overHead = kamae !== "chudan" && def.hand[1] < 12;
-  if (overHead) place(gear.men ? HEAD : HEAD_BARE, headX, headY);
+  if (overHead) place(gear.men ? HEAD : HEAD_BARE, headX, headY, gear.men ? "men" : undefined);
   if (armBehind) rightArm();
   else shinaiArm();
   if (kamae === "nito" && !def.sheathed) {
     const short = pose === "block" ? SHORT_BLOCK : SHORT_SWORD;
-    drawArmAndShinai(px, [shoulder[0] + 2, shoulder[1] + 1], [short.hand[0] + torsoX, short.hand[1] + torsoY], short.angle, gear.kote, weapon, SHORT_BLADE);
+    drawArmAndShinai(px, [shoulder[0] + 2, shoulder[1] + 1], [short.hand[0] + torsoX, short.hand[1] + torsoY], short.angle, gear.kote, weapon, SHORT_BLADE, 0, piecePixels);
   }
-  if (!overHead) place(gear.men ? HEAD : HEAD_BARE, headX, headY);
+  if (!overHead) place(gear.men ? HEAD : HEAD_BARE, headX, headY, gear.men ? "men" : undefined);
 
   if (pose === "stunned" || pose === "stumble") {
     place(STARS, 8 + (frame % 2), -3 + headY);

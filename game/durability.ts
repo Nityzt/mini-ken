@@ -1,11 +1,11 @@
 import type { RunState } from "./run-state.ts";
-import { owns } from "./shop.ts";
+import { equipmentHeld, equippedAt, equipmentWear, equipmentInfo, type EquipmentId } from "./equipment.ts";
 import type { OpponentId } from "./world/dojos.ts";
 
 /** Everything that can wear out. The three shinai are kept apart, because only the one in your hand takes any harm. */
-export type ShinaiId = "shinai" | "ownShinai" | "fineShinai";
+export type ShinaiId = "shinai" | "ownShinai" | "fineShinai" | "tideShinai" | "gooseShinai" | "radishShinai" | "guardedShinai" | "tunedShinai";
 export type ArmorId = "tare" | "do" | "men" | "kote";
-export type GearKey = ShinaiId | ArmorId;
+export type GearKey = EquipmentId;
 
 export const FULL_DURABILITY = 100;
 /** Sensei's old shinai was already tired when it was lent to you. */
@@ -25,17 +25,12 @@ export const shinaiReturned = (run: RunState): boolean => run.shinaiQuest === "r
 
 /** The shinai you could pick up right now. */
 export function shinaiHeld(run: RunState): ShinaiId[] {
-  const held: ShinaiId[] = [];
-  if (run.madeShinai) held.push("ownShinai");
-  if (owns(run, "fineShinai")) held.push("fineShinai");
-  if (run.gear.shinai && !shinaiReturned(run)) held.push("shinai");
-  return held;
+  return equipmentHeld(run).filter((id): id is ShinaiId => equipmentInfo(id).slot === "shinai").sort((a,b) => a === "ownShinai" ? -1 : b === "ownShinai" ? 1 : a === "fineShinai" ? -1 : b === "fineShinai" ? 1 : 0);
 }
 
 /** The one you've chosen, or otherwise the best one you've got: your own before anything else. */
 export function wieldedShinai(run: RunState): ShinaiId | null {
-  const held = shinaiHeld(run);
-  return held.includes(run.wielded as ShinaiId) ? (run.wielded as ShinaiId) : held[0] ?? null;
+  return equippedAt(run, "shinai") as ShinaiId | null;
 }
 
 /** Only the special few are hard on your gear. Everyone else, however good, leaves it as it was. */
@@ -64,11 +59,11 @@ export function wearFrom(run: RunState, opponent: OpponentId): { run: RunState; 
   const wornOut: GearKey[] = [];
   const take = (key: GearKey, amount: number) => {
     const before = durabilityOf(run, key);
-    const after = Math.max(LEAST_DURABILITY, before - amount);
+    const after = Math.max(LEAST_DURABILITY, before - equipmentWear(run, key, amount));
     durability[key] = after;
     if (before > WORN_AT && after <= WORN_AT) wornOut.push(key);
   };
-  for (const piece of ARMOR) if (wear[piece] && run.gear[piece]) take(piece, wear[piece]!);
+  for (const piece of ARMOR) { const id = equippedAt(run,piece); if (wear[piece] && id) take(id, wear[piece]!); }
   const wielded = wieldedShinai(run);
   if (wear.shinai && wielded) take(wielded, shinaiReturned(run) ? Math.ceil(wear.shinai / 2) : wear.shinai);
   return { run: { ...run, durability }, wornOut };
@@ -76,7 +71,7 @@ export function wearFrom(run: RunState, opponent: OpponentId): { run: RunState; 
 
 /** Worn-out gear is the only way durability ever matters: each piece costs a little ki until it's mended. */
 export function wornKi(run: RunState): number {
-  const armor = ARMOR.filter((piece) => run.gear[piece] && durabilityOf(run, piece) <= WORN_AT).length;
+  const armor = ARMOR.filter((piece) => { const id = equippedAt(run,piece); return id && durabilityOf(run,id) <= WORN_AT; }).length;
   const wielded = wieldedShinai(run);
   return (armor + (wielded && durabilityOf(run, wielded) <= WORN_AT ? 1 : 0)) * WORN_KI;
 }
@@ -89,7 +84,7 @@ export function benchJobs(run: RunState): { key: GearKey; cost: number }[] {
     if (run.madeShinai) jobs.push({ key, cost: 0 });
     else if (key !== "shinai") jobs.push({ key, cost: MEND_COST });
   }
-  for (const piece of ARMOR) if (run.gear[piece] && durabilityOf(run, piece) < FULL_DURABILITY) jobs.push({ key: piece, cost: MEND_COST });
+  for (const id of equipmentHeld(run)) if (equipmentInfo(id).slot !== "shinai" && durabilityOf(run,id) < FULL_DURABILITY) jobs.push({ key: id, cost: MEND_COST });
   return jobs;
 }
 

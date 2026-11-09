@@ -97,3 +97,20 @@ test("a men's details never show on someone who doesn't set them", () => {
   assert.equal(colorOf("M"), PALETTE.w);
   assert.equal(colorOf("T"), PALETTE.R);
 });
+
+test("equipped gear colors reach the player while packed gear stays invisible", async () => {
+  const { EQUIPMENT, equip } = await import('./equipment.ts');
+  const { createRunState } = await import('./run-state.ts');
+  const entry = Object.entries(EQUIPMENT).find(([, gear]) => gear.slot === 'do' && gear.colors);
+  assert.ok(entry, 'a cosmetic do variant exists');
+  const [id, gear] = entry;
+  const run = { ...createRunState(), gi: true, gear: { shinai: true, tare: true, do: true, men: true, kote: true }, owned: [id] };
+  const before = playerColors(run);
+  const equipped = equip(run, id as keyof typeof EQUIPMENT);
+  const after = playerColors(equipped);
+  for (const [channel, color] of Object.entries(gear.colors!)) assert.equal(after[`do:${channel}`], color);
+  assert.notDeepEqual(after, before);
+  assert.equal(playerColors(equipped), after, 'sprite cache stays stable');
+  assert.equal(after.Z, before.Z, 'personal insignia stays intact');
+  assert.deepEqual(playerColors(equip(equipped, 'do')), before);
+});

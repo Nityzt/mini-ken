@@ -145,14 +145,14 @@ test("the status bar never runs into a place's name: long ones lose the word Doj
 });
 
 test("nobody's asked to pay for what they're already wearing: the home table sells your own colors", () => {
-  assert.deepEqual(STALLS.pinecone, ["ownColors"]);
+  assert.deepEqual(STALLS.pinecone.filter((id) => !!LOOKS[id]), ["ownColors"]);
   const bought = buy({ ...start, money: 9999 }, "ownColors");
   assert.equal(bought.look, "ownColors");
   assert.equal(wear(bought, "ownColors").look, "", "taking them off puts you back in the dojo's");
 });
 
 test("every other dojo sells its own colors", () => {
-  for (const id of ["raccoon", "goose", "heron", "otter", "radish"] as const) assert.deepEqual(STALLS[id], [`${id}Colors`]);
+  for (const id of ["raccoon", "goose", "heron", "otter", "radish"] as const) assert.deepEqual(STALLS[id].filter((item) => !!LOOKS[item]), [`${id}Colors`]);
 });
 
 test("now and then someone tips you, and it's never a fortune", () => {

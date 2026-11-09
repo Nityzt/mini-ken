@@ -4,7 +4,8 @@ import type { PauseMenu } from "../core/pause-menu.ts";
 import { STAGE_H, STAGE_W } from "../core/scale.ts";
 import { GRID_COLS, layoutGrid } from "../inventory-grid.ts";
 import { durabilityOf, FULL_DURABILITY, WORN_AT } from "../durability.ts";
-import { asShinai, gearKeyOf, inventoryGroups, inventoryOf, isUsable, isWearable, isWorn, itemInfo, itemKind, type ItemId } from "../items.ts";
+import { asShinai, gearKeyOf, inventoryDescription, inventoryGroups, inventoryOf, isUsable, isWearable, isWorn, itemInfo, itemKind, type ItemId } from "../items.ts";
+import { equipmentInfo } from "../equipment.ts";
 import { moneyText } from "../money.ts";
 import type { RunState } from "../run-state.ts";
 import { DURABILITY_LABEL, HINT_BACK, HINT_MOVE, HINT_TAKE_OFF, HINT_USE, HINT_WEAR, HINT_WIELD, ITEM_IN_HAND, ITEM_PUT_AWAY, INVENTORY_EMPTY, ITEM_FIGHTS_ONLY, ITEM_NOT_WORN, ITEM_READY, ITEM_WORN } from "./content.ts";
@@ -61,12 +62,12 @@ function drawCard(ctx: CanvasRenderingContext2D, item: ItemId | null, color: str
   drawText(ctx, itemKind(item).toUpperCase(), CARD.x + 52, top, color);
   if (isWearable(item)) {
     const worn = isWorn(run, item);
-    const status = asShinai(item) ? (worn ? ITEM_IN_HAND : ITEM_PUT_AWAY) : worn ? ITEM_WORN : item === "men" ? ITEM_FIGHTS_ONLY : ITEM_NOT_WORN;
+    const status = asShinai(item) ? (worn ? ITEM_IN_HAND : ITEM_PUT_AWAY) : worn ? ITEM_WORN : gearKey && equipmentInfo(gearKey).slot === "men" ? ITEM_FIGHTS_ONLY : ITEM_NOT_WORN;
     drawText(ctx, status, CARD.x + 52, top + 10, worn ? UI.good : UI.faint);
   } else if (isUsable(item)) drawText(ctx, ITEM_READY, CARD.x + 52, top + 10, UI.good);
   if (gearKey) {
     const left = durabilityOf(run, gearKey);
-    const y = gearKey === "tare" || gearKey === "do" || gearKey === "kote" ? top + 10 : top + 20;
+    const y = top + 20;
     drawText(ctx, DURABILITY_LABEL, CARD.x + 52, y, UI.dim);
     ctx.fillStyle = UI.track;
     ctx.fillRect(CARD.x + 52, y + 12, 34, 3);
@@ -74,7 +75,8 @@ function drawCard(ctx: CanvasRenderingContext2D, item: ItemId | null, color: str
     ctx.fillRect(CARD.x + 52, y + 12, Math.ceil((34 * left) / FULL_DURABILITY), 3);
     drawText(ctx, `${left}`, CARD.x + 89, y + 9, left <= WORN_AT ? UI.bad : UI.dim);
   }
-  const { name, line } = itemInfo(item);
+  const { name } = itemInfo(item);
+  const line = inventoryDescription(run, item);
   const nameLines = wrapText(name, CARD_TEXT_WIDTH);
   nameLines.forEach((text, i) => drawText(ctx, text, CARD.x + 8, CARD.y + 48 + i * LINE_HEIGHT, UI.accent));
   wrapText(line, CARD_TEXT_WIDTH).forEach((text, i) => drawText(ctx, text, CARD.x + 8, CARD.y + 50 + (nameLines.length + i) * LINE_HEIGHT, UI.dim));
@@ -142,6 +144,7 @@ export function drawInventory(ctx: CanvasRenderingContext2D, menu: PauseMenu, ru
   const item = picked >= 0 ? held[picked] : null;
   drawCard(ctx, item, at ? groupColor(groups[at.group].title) : UI.accent, run);
 
-  const act: [string, string][] = item && isUsable(item) ? [["E", HINT_USE]] : item && asShinai(item) ? (isWorn(run, item) ? [] : [["E", HINT_WIELD]]) : item && isWearable(item) ? [["E", isWorn(run, item) ? HINT_TAKE_OFF : HINT_WEAR]] : [];
+  const equipment = item ? gearKeyOf(item) : null;
+  const act: [string, string][] = equipment && equipmentInfo(equipment).slot !== "men" ? (isWorn(run, item!) ? [] : [["E", "Equip"]]) : item && isUsable(item) ? [["E", HINT_USE]] : item && asShinai(item) ? (isWorn(run, item) ? [] : [["E", HINT_WIELD]]) : item && isWearable(item) ? [["E", isWorn(run, item) ? HINT_TAKE_OFF : HINT_WEAR]] : [];
   drawHints(ctx, [["<^v>", HINT_MOVE], ...act, ["X", HINT_BACK]], STAGE_H - 12, STAGE_W);
 }

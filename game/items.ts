@@ -1,5 +1,6 @@
+import { MODS, equip, equippedAt, equipmentInfo, isEquipment, modOn, type EquipmentId, type ModId } from "./equipment.ts";
 import type { Gear } from "./art/kendoka.ts";
-import { shinaiHeld, wieldedShinai, type GearKey, type ShinaiId } from "./durability.ts";
+import { type GearKey, type ShinaiId } from "./durability.ts";
 import { hasLetter, hasTicket, rankLabel } from "./ranks.ts";
 import type { SlotGroup } from "./inventory-grid.ts";
 import { isShopItem, LOOKS, SHOP_ITEMS, wear, type ShopItemId } from "./shop.ts";
@@ -27,6 +28,11 @@ const withoutName = (line: string) => {
   return rest[0].toUpperCase() + rest.slice(1);
 };
 
+const equipmentEffects = (key: EquipmentId, mod: ModId | null): string => {
+  const piece = equipmentInfo(key);
+  return `Ki +${piece.ki + (mod ? MODS[mod].ki : 0)}. Wear -${piece.wearReduction + (mod ? MODS[mod].wearReduction : 0)}/fight. ${mod ? MODS[mod].name : "No mod"}.`;
+};
+
 export function itemInfo(id: ItemId): ItemInfo {
   if (id === "gi") return { title: ITEM, name: "Spare gi", line: GI_LINE };
   if (id === "tsuba") return { title: ITEM, name: "Lucky tsuba", line: TSUBA_FOUND };
@@ -37,7 +43,8 @@ export function itemInfo(id: ItemId): ItemInfo {
   if (id === "gaze") return { title: TECHNIQUE, name: "Far-mountain gaze", line: GAZE_ITEM_LINE };
   if (id.startsWith("shop:")) {
     const bought = SHOP_ITEMS[id.slice("shop:".length) as ShopItemId];
-    return { title: ITEM, name: bought.name, line: bought.line };
+    const key = id.slice("shop:".length);
+    return { title: ITEM, name: bought.name, line: isEquipment(key) ? equipmentEffects(key, equipmentInfo(key).premod ?? null) : bought.line };
   }
   if (id === "ticket") return { title: ITEM, name: "Grading ticket", line: TICKET_LINE };
   if (id === "letter") return { title: ITEM, name: "Letter of recommendation", line: LETTER_LINE };
@@ -51,7 +58,7 @@ export function itemInfo(id: ItemId): ItemInfo {
 }
 
 /** What the gear that can wear out is called, in a sentence. */
-export const gearName = (key: GearKey): string => (key === "fineShinai" ? "Your fine shinai" : key === "ownShinai" ? "Your own shinai" : key === "shinai" ? "Sensei's old shinai" : `Your ${GEAR_NAMES[key].toLowerCase()}`);
+export const gearName = (key: GearKey): string => equipmentInfo(key).name;
 
 /** Whatever this change of state just gave you. Anything you gain, by any route, gets its moment. */
 export function itemsGained(before: RunState, after: RunState): ItemId[] {
@@ -73,27 +80,46 @@ export function itemsGained(before: RunState, after: RunState): ItemId[] {
 }
 
 /** Colors you can buy are shown in those colors. Everything else is drawn as it is. */
-export const itemIconColors = (item: ItemId): Record<string, string> | undefined => (isColors(item) ? LOOKS[item.slice("shop:".length) as ShopItemId] : undefined);
+export const itemIconColors = (item: ItemId): Record<string, string> | undefined => {
+  const key = gearKeyOf(item);
+  return key ? equipmentInfo(key).colors : isColors(item) ? LOOKS[item.slice("shop:".length) as ShopItemId] : undefined;
+};
+
+/** Inventory details include the installed mod and its current effect. */
+export const inventoryDescription = (run: RunState, item: ItemId): string => {
+  const key = gearKeyOf(item);
+  if (!key) return itemInfo(item).line;
+  return equipmentEffects(key, modOn(run, key));
+
+};
 
 /** Only some things do anything when you use them. */
 export const isUsable = (item: ItemId): boolean => item === "ticket";
 const isColors = (item: ItemId): boolean => item.startsWith("shop:") && !!LOOKS[item.slice("shop:".length) as ShopItemId];
 /** Which shinai this is, if it's one you can carry. */
-export const asShinai = (item: ItemId): ShinaiId | null => (item === "shinai" ? "shinai" : item === "ownShinai" ? "ownShinai" : item === "shop:fineShinai" ? "fineShinai" : null);
+export const asShinai = (item: ItemId): ShinaiId | null => {
+  const key = gearKeyOf(item);
+  return key && equipmentInfo(key).slot === "shinai" ? key as ShinaiId : null;
+};
 /** What this item is to the durability rules, if it can wear out at all. */
-export const gearKeyOf = (item: ItemId): GearKey | null => asShinai(item) ?? (item === "tare" || item === "do" || item === "men" || item === "kote" ? item : null);
-/** Colors you've bought and your men go on and come off from the inventory, and that's also where you pick which shinai to carry. */
-export const isWearable = (item: ItemId): boolean => item === "men" || isColors(item) || asShinai(item) !== null;
+export const gearKeyOf = (item: ItemId): EquipmentId | null => {
+  const key = item.startsWith("shop:") ? item.slice("shop:".length) : item;
+  return isEquipment(key) ? key : null;
+};
+/** Equipment swaps its slot; colors and the visibility of your current men can be toggled. */
+export const isWearable = (item: ItemId): boolean => isColors(item) || gearKeyOf(item) !== null;
 export function isWorn(run: RunState, item: ItemId): boolean {
-  const shinai = asShinai(item);
-  if (shinai) return wieldedShinai(run) === shinai;
-  return item === "men" ? run.gear.men && run.menOn : isColors(item) && run.look === item.slice("shop:".length);
+  const key = gearKeyOf(item);
+  if (key) return equippedAt(run, equipmentInfo(key).slot) === key && (equipmentInfo(key).slot !== "men" || run.menOn);
+  return isColors(item) && run.look === item.slice("shop:".length);
 }
-/** Puts it on, or takes it off if it's already on. You always carry some shinai, so that one only ever swaps. */
+/** Gear always swaps, while your men visibility and cosmetic colors can be toggled. */
 export function toggleWorn(run: RunState, item: ItemId): RunState {
-  const shinai = asShinai(item);
-  if (shinai) return shinaiHeld(run).includes(shinai) ? { ...run, wielded: shinai } : run;
-  if (item === "men") return run.gear.men ? { ...run, menOn: !run.menOn } : run;
+  const key = gearKeyOf(item);
+  if (key) {
+    if (equipmentInfo(key).slot === "men" && equippedAt(run, "men") === key) return { ...run, menOn: !run.menOn };
+    return equip(run, key);
+  }
   return isColors(item) ? wear(run, item.slice("shop:".length) as ShopItemId) : run;
 }
 
@@ -132,7 +158,7 @@ export function itemKind(item: ItemId): string {
   if (item.startsWith("cup:")) return "Trophy";
   if (item.startsWith("rank:")) return "Rank";
   if (item === "seme" || item === "gaze") return "Technique";
-  if (asShinai(item)) return "Gear";
+  if (gearKeyOf(item)) return "Gear";
   if (item === "gi" || item === "tare" || item === "do" || item === "men" || item === "kote" || item === "shinai") return "Gear";
   return "Item";
 }

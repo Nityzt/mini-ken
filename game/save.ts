@@ -1,3 +1,4 @@
+import { equipmentHeld, equipmentInfo, isEquipment, isMod, MODS, EQUIPMENT_SLOTS } from "./equipment.ts";
 import { cleanPlayerName, isCharacter } from "./characters.ts";
 import type { SceneName } from "./core/scene.ts";
 import { isInsignia } from "./insignia.ts";
@@ -46,6 +47,8 @@ export function parseRun(raw: unknown): RunState | null {
       }
       out.gear = gear;
       continue;
+    } else if (key === "equipped" || key === "mods") {
+      if (!isRecord(value) || !Object.values(value).every(v => typeof v === "string")) return null;
     } else if (key === "hp") {
       if (!isCount(value)) return null;
       out.hp = Math.min(value, run.hp);
@@ -62,6 +65,17 @@ export function parseRun(raw: unknown): RunState | null {
     out[key] = value;
   }
   const parsed = out as RunState;
+  if (parsed.shinaiQuest === "returned" && parsed.equipped.shinai === "shinai") {
+    parsed.equipped = { ...parsed.equipped };
+    delete parsed.equipped.shinai;
+  }
+  const held = equipmentHeld(parsed);
+  for (const [slot,id] of Object.entries(parsed.equipped)) {
+    if (!EQUIPMENT_SLOTS.includes(slot as typeof EQUIPMENT_SLOTS[number]) || !isEquipment(id) || equipmentInfo(id).slot !== slot || !held.includes(id)) return null;
+  }
+  for (const [id,mod] of Object.entries(parsed.mods)) {
+    if (!isEquipment(id) || !isMod(mod) || (!held.includes(id) && !(id === "shinai" && parsed.shinaiQuest === "returned" && parsed.gear.shinai)) || !MODS[mod].slots.includes(equipmentInfo(id).slot)) return null;
+  }
   // Saved before gradings existed, so nobody's locked out of what they'd already reached.
   return raw.dan === undefined ? { ...parsed, dan: impliedDan(parsed) } : parsed;
 }
