@@ -1,9 +1,10 @@
 import type { AttackKind, FighterInput, Opening } from "../duel/rules.ts";
+import { isAppearance, type Appearance, type OnlineRank } from "./appearance.ts";
 
 /** Bumped whenever two clients on different versions couldn't play each other. The server should turn away a mismatch. */
-export const PROTOCOL_VERSION = 3;
+export const PROTOCOL_VERSION = 4;
 
-export type Identity = { id: string; name: string; dan: number; guest: boolean };
+export type Identity = { id: string; name: string; dan: number; guest: boolean; appearance?: Appearance; rank?: OnlineRank };
 export type BracketEntrant = { id: string; name: string; controller: "player" | "remote" | "bot" };
 /** Who's left at the start of each round, paired off in order. The last list is the champion. */
 export type Bracket = { rounds: BracketEntrant[][]; size: number };
@@ -16,7 +17,7 @@ export type OutcomeReason = "played" | "disagreed" | "out-of-step" | "left" | "s
 export type LobbyClosedReason = "expired" | "creator-left" | "opponent-left" | "not-back-in-time" | "server";
 export type LobbyErrorReason = "no-such-lobby" | "full" | "own-lobby";
 export type ClientMessage =
-  | { t: "hello"; version: number }
+  | { t: "hello"; version: number; appearance?: Appearance }
   | { t: "create-lobby" }
   | { t: "join-lobby"; code: string }
   | { t: "leave-lobby" }
@@ -31,7 +32,7 @@ export type ServerMessage =
   | { t: "lobby"; code: string }
   | { t: "lobby-error"; reason: LobbyErrorReason }
   | { t: "opponent-joined"; opponent: Identity }
-  | { t: "match"; seed: number; side: 0 | 1; opponent: Identity }
+  | { t: "match"; seed: number; side: 0 | 1; opponent: Identity; self?: Identity }
   /** What the server has decided, and what it does to your record. `winner` is null if it doesn't count. */
   | { t: "outcome"; winner: "you" | "them" | null; reason: OutcomeReason; wins: number; losses: number }
   | { t: "rematch-wanted" }
@@ -86,7 +87,9 @@ export const cleanName = (name: unknown): string => {
 
 function parseIdentity(v: unknown): Identity | null {
   if (!isRecord(v) || typeof v.id !== "string" || !isCount(v.dan)) return null;
-  return { id: v.id, name: cleanName(v.name), dan: v.dan, guest: !!v.guest };
+  if (v.appearance !== undefined && !isAppearance(v.appearance)) return null;
+  if (v.rank !== undefined && v.rank !== "bronze" && v.rank !== "silver" && v.rank !== "gold") return null;
+  return { id: v.id, name: cleanName(v.name), dan: v.dan, guest: !!v.guest, ...(isAppearance(v.appearance) ? { appearance: v.appearance } : {}), ...(v.rank ? { rank: v.rank as OnlineRank } : {}) };
 }
 
 export function parseLobbyCode(raw: unknown): string | null {
@@ -122,7 +125,7 @@ export function parseClientMessage(text: string): ClientMessage | null {
   if (!raw) return null;
   switch (raw.t) {
     case "hello":
-      return isCount(raw.version) ? { t: "hello", version: raw.version } : null;
+      return isCount(raw.version) && (raw.appearance === undefined || isAppearance(raw.appearance)) ? { t: "hello", version: raw.version, ...(isAppearance(raw.appearance) ? { appearance: raw.appearance } : {}) } : null;
     case "create-lobby":
     case "leave-lobby":
     case "ping":
@@ -164,7 +167,8 @@ export function parseServerMessage(text: string): ServerMessage | null {
     }
     case "match": {
       const opponent = parseIdentity(raw.opponent);
-      return opponent && isCount(raw.seed) && (raw.side === 0 || raw.side === 1) ? { t: "match", seed: raw.seed, side: raw.side, opponent } : null;
+      const self = raw.self === undefined ? undefined : parseIdentity(raw.self);
+      return opponent && self !== null && isCount(raw.seed) && (raw.side === 0 || raw.side === 1) ? { t: "match", seed: raw.seed, side: raw.side, opponent, ...(self ? { self } : {}) } : null;
     }
     case "outcome":
       return (raw.winner === "you" || raw.winner === "them" || raw.winner === null) && oneOf(REASONS, raw.reason) && isCount(raw.wins) && isCount(raw.losses) ? { t: "outcome", winner: raw.winner, reason: raw.reason, wins: raw.wins, losses: raw.losses } : null;

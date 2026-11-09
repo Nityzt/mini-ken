@@ -10,6 +10,7 @@ import { identityOf, onlineAccess, readProfile, withResult, writeProfile, type O
 import type { Identity } from "./protocol.ts";
 import { createSaveSync, type SaveChoice, type SaveSync } from "./save-sync.ts";
 import { createOnlineService, type FoundMatch, type OnlineService, type TournamentSession } from "./service.ts";
+import { DEFAULT_APPEARANCE, allowedAppearance, appearanceColors, onlineArmorForStory, readAccountAppearance, writeAccountAppearance, type Appearance } from "./appearance.ts";
 
 const ACCOUNT_RETRY_MS = 30_000;
 /** Signed out with no connection, so the server still has to be told before anything else. */
@@ -37,8 +38,12 @@ export type OnlineHub = {
   recordResult(won: boolean): void;
   /** Your record: the account's if you're signed in, and this browser's if not. */
   record(): AccountRecord;
+  /** Only recorded human matches can unlock multiplayer rank colors. */
+  rankRecord(): AccountRecord;
   /** How you look: as yourself if you've got a story going, and in the usual kit if not. */
   look(): Record<string, string>;
+  appearance(): Appearance;
+  setAppearance(appearance: Appearance): void;
   /** The match about to be played or under way. */
   match: FoundMatch | null;
   /** The tournament in progress, if this match is part of one. */
@@ -105,6 +110,16 @@ export function createOnlineHub(options: {
   const guest = () => identityOf(profile, readRun());
   const auth = options.auth ? options.auth(guest) : account ? createAccountAuth(account.current, guest) : createGuestAuth(guest);
   const identity = () => auth.identity();
+  const rankRecord = (): AccountRecord => (account?.current() ? account.record() : null) ?? { wins: 0, losses: 0 };
+  const sessionAppearances = new Map<string, Appearance>();
+  const selectedAppearance = (): Appearance | null => {
+    const signedIn = account?.current();
+    return signedIn ? sessionAppearances.get(signedIn.id) ?? readAccountAppearance(store, signedIn.id) : profile.appearance ?? null;
+  };
+  const appearance = (): Appearance => {
+    const run = readRun();
+    return selectedAppearance() ?? (run ? { ...DEFAULT_APPEARANCE, character: run.character, armor: onlineArmorForStory(run.look), insignia: run.insignia } : DEFAULT_APPEARANCE);
+  };
   let formOpen = false;
   let signOutWarning = false;
   let guestWarning: (() => void) | null = null;
@@ -164,8 +179,12 @@ export function createOnlineHub(options: {
   };
 
   return {
-    service: createOnlineService(auth, serverUrl, { alert: options.alert }),
-    profile: () => profile,
+    service: createOnlineService(auth, serverUrl, { alert: options.alert, appearance: () => allowedAppearance(appearance(), rankRecord()) }),
+    profile: () => {
+      const { appearance: _guestAppearance, ...rest } = profile;
+      const selected = selectedAppearance();
+      return selected ? { ...rest, appearance: selected } : rest;
+    },
     identity,
     access: () => onlineAccess({ ...profile, tutorial: profile.tutorial || !!account?.current()?.tutorial }, readRun()),
     finishTutorial() {
@@ -177,7 +196,19 @@ export function createOnlineHub(options: {
     },
     recordResult: (won) => update(withResult(profile, won)),
     record: () => account?.record() ?? { wins: profile.wins, losses: profile.losses },
+    rankRecord,
+    appearance,
+    setAppearance: (next) => {
+      const signedIn = account?.current();
+      if (signedIn) {
+        sessionAppearances.set(signedIn.id, next);
+        writeAccountAppearance(store, signedIn.id, next);
+      }
+      else update({ ...profile, appearance: next });
+    },
     look() {
+      const selected = selectedAppearance();
+      if (selected) return appearanceColors(allowedAppearance(selected, rankRecord()));
       const run = readRun();
       return playerColors(run?.gi ? run : { character: run?.character ?? DEFAULT_CHARACTER, insignia: run?.insignia ?? DEFAULT_INSIGNIA, gi: true });
     },

@@ -29,6 +29,7 @@ import { createOnlineHistoryScene } from "./scenes/online-history.ts";
 import { JOIN_ALERT_TITLE } from "./scenes/online-lines.ts";
 import { createOnlineLobbyScene } from "./scenes/online-lobby.ts";
 import { createOnlineScene } from "./scenes/online.ts";
+import { createOnlineAppearanceScene } from "./scenes/online-appearance.ts";
 import { createClubScene } from "./scenes/club.ts";
 import { drawInsigniaCard } from "./scenes/insignia-card.ts";
 import { drawNameCard } from "./scenes/name-card.ts";
@@ -107,6 +108,7 @@ export function createGame(
     tournament: createTournamentScene(),
     "grading-hall": createGradingHallScene(nameOf),
     online: createOnlineScene(),
+    "online-appearance": createOnlineAppearanceScene(),
     "online-bracket": createOnlineBracketScene(),
     "online-duel": createOnlineDuelScene(),
     "online-lobby": createOnlineLobbyScene(),

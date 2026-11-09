@@ -1,5 +1,6 @@
 import { parseServerMessage, PROTOCOL_VERSION, type ClientMessage, type Identity, type LinkMessage, type LobbyClosedReason, type LobbyErrorReason, type ServerMessage } from "./protocol.ts";
 import type { FoundMatch } from "./service.ts";
+import type { Appearance } from "./appearance.ts";
 import { createSocketLink, type Link, type SocketLike } from "./transport.ts";
 
 /** Browsers slow timers in hidden tabs to about one a minute at worst, and proxies usually wait longer than that. */
@@ -35,6 +36,7 @@ export function createLobbyClient(options: {
   url: string;
   open?: (url: string) => SocketLike;
   join?: string;
+  appearance?: Appearance;
   alert(): void;
   visibility: { hidden(): boolean; subscribe(changed: () => void): () => void };
   setInterval(run: () => void, ms: number): number;
@@ -44,6 +46,7 @@ export function createLobbyClient(options: {
   const open = options.open ?? ((target: string) => new WebSocket(target) as unknown as SocketLike);
   let state: Exclude<LobbyState, { kind: "opponent-here" }> | { kind: "opponent-here"; opponent: Identity } = join ? { kind: "joining" } : { kind: "connecting" };
   let opponent: Identity | null = null;
+  let self: Identity | null = null;
   let outcome: ServerOutcome | null = null;
   let theyWantRematch = false;
   let iWantRematch = false;
@@ -89,6 +92,7 @@ export function createLobbyClient(options: {
         seed: message.seed,
         side: message.side,
         opponent: message.opponent,
+        ...(message.self || self ? { self: message.self ?? self! } : {}),
         live: { report: (report) => socket.send({ t: "result", report }), outcome: () => outcome },
       },
     };
@@ -96,6 +100,9 @@ export function createLobbyClient(options: {
 
   const onArrive = (message: ServerMessage) => {
     switch (message.t) {
+      case "welcome":
+        self = message.identity;
+        break;
       case "input":
       case "hash":
       case "leave":
@@ -139,7 +146,7 @@ export function createLobbyClient(options: {
   const socket = createSocketLink<ClientMessage, ServerMessage>(open(url), parseServerMessage, { onArrive, onClosed: () => closeWith("lost-connection") });
   const reportVisibility = () => socket.send({ t: "visible", visible: !visibility.hidden() });
 
-  socket.send({ t: "hello", version: PROTOCOL_VERSION });
+  socket.send({ t: "hello", version: PROTOCOL_VERSION, ...(options.appearance ? { appearance: options.appearance } : {}) });
   reportVisibility();
   socket.send(join ? { t: "join-lobby", code: join } : { t: "create-lobby" });
   heartbeat = options.setInterval(() => socket.send({ t: "ping" }), HEARTBEAT_MS);

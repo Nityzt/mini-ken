@@ -5,9 +5,10 @@ import { onGui, onStage, viewH, viewW } from "../core/scale.ts";
 import type { Game, Scene } from "../core/scene.ts";
 import { createDuel, faceDir, screenX, type DuelState, type FighterInput } from "../duel/rules.ts";
 import { createLockstep, liveResult, type Lockstep } from "../net/lockstep.ts";
+import { appearanceColors } from "../net/appearance.ts";
+import { onlineFlipped, onlineRenderView, onlineViewDuel } from "../net/presentation.ts";
 import type { FoundMatch } from "../net/service.ts";
 import { ONLINE_RULES } from "../net/stand-in.ts";
-import { danLabel } from "../ranks.ts";
 import { DOJOS } from "../world/dojos.ts";
 import { CLOSING_LINE, ONLINE_BOW, ONLINE_CONTINUE, ONLINE_FORFEIT, ONLINE_LEFT, ONLINE_LOST, ONLINE_OUT_OF_STEP, ONLINE_WAITING, ONLINE_WON, YOU } from "./content.ts";
 import { applyEvents, createDuelView, createPlayerControl, drawDuelHud, drawDuelStage, drawPanel, helpLine, lockHelp, playDuelSounds, playSemeHum, playShineTing, tickView, type DuelView } from "./duel.ts";
@@ -162,7 +163,7 @@ export function createOnlineDuelScene(): Scene {
       if (!match) return;
       if (match.live) {
         const me = lock?.state.fighters[match.side];
-        runLive(game, me ? control(game.input, me, true, lock!.state.crossed) : IDLE);
+        runLive(game, me ? control(game.input, me, true, onlineViewDuel(lock!.state).crossed) : IDLE);
         const end = liveEnd();
         if (!end) return;
         announce(game, end);
@@ -180,7 +181,7 @@ export function createOnlineDuelScene(): Scene {
         return;
       }
       const me = lock.state.fighters[match.side];
-      const input = control(game.input, me, true, lock.state.crossed);
+      const input = control(game.input, me, true, onlineViewDuel(lock.state).crossed);
       advance(game, input);
     },
     render(ctx, game) {
@@ -189,24 +190,33 @@ export function createOnlineDuelScene(): Scene {
       const waiting = lock?.waiting ?? 0;
       const end = liveEnd();
       const { side, opponent, seed } = match;
-      const { duel } = view;
-      const mine = game.online.look();
-      const theirs = OPPONENT_LOOKS[seed % OPPONENT_LOOKS.length];
-      drawDuelStage(ctx, view, "arena", {
+      const rotated = onlineFlipped(view.duel);
+      const displayed = onlineRenderView(view);
+      const { duel } = displayed;
+      const mine = match.self?.appearance ? appearanceColors(match.self.appearance) : game.online.look();
+      const theirs = opponent.appearance ? appearanceColors(opponent.appearance) : OPPONENT_LOOKS[seed % OPPONENT_LOOKS.length];
+      const myInsignia = match.self?.appearance?.insignia ?? game.online.appearance().insignia;
+      const theirInsignia = opponent.appearance?.insignia;
+      drawDuelStage(ctx, displayed, "arena", {
         playerColors: side === 0 ? mine : theirs,
         opponentColors: side === 0 ? theirs : mine,
+        insignias: side === 0 ? [myInsignia, theirInsignia] : [theirInsignia, myInsignia],
+        showRibbons: false,
         gear: FULL_GEAR,
         reducedMotion: game.reducedMotion,
         you: side,
+        presentationFlipped: rotated,
       });
-      const self = game.online.identity();
-      const label = (who: { name: string; dan: number }) => `${who.name} ${danLabel(who.dan)}`;
-      const names: [string, string] = side === 0 ? [label(self), label(opponent)] : [label(opponent), label(self)];
+      const self = match.self ?? game.online.identity();
+      const label = (who: { name: string; rank?: string }) => `${who.name} ${who.rank ?? "bronze"}`;
+      const originalNames: [string, string] = side === 0 ? [label(self), label(opponent)] : [label(opponent), label(self)];
+      const hudSwapped = duel.crossed;
+      const names: [string, string] = hudSwapped ? [originalNames[1], originalNames[0]] : originalNames;
       const help = duel.lock ? lockHelp(faceDir(duel, side) > 0) : helpLine(view.walkTick, true);
-      drawDuelHud(ctx, view, names, help, side);
+      drawDuelHud(ctx, displayed, names, help, side, undefined, hudSwapped);
 
       // There's nothing else to say which one you are.
-      if (duel.phase === "bow" || duel.phase === "turning") {
+      {
         onStage(ctx, () => {
           drawTag(ctx, YOU, screenX(duel, duel.fighters[side].x), GROUND - 47, UI.accent);
         });

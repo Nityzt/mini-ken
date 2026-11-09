@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import type { Game } from "../core/scene.ts";
 import { createRunState } from "../run-state.ts";
 import { createOnlineScene } from "./online.ts";
+import { DEFAULT_APPEARANCE } from "../net/appearance.ts";
 
 function setup(invite: string | null, signedIn = true) {
   let pressed: string[] = [];
@@ -25,7 +26,7 @@ function setup(invite: string | null, signedIn = true) {
       access: () => ({ open: true, via: "story" }),
       storySettled: () => true,
       accountUi: () => false,
-      profile: () => ({ primer: asked }),
+      profile: () => ({ primer: asked, appearance: DEFAULT_APPEARANCE }),
       primerAsked: () => (asked = true),
     },
   } as unknown as Game;
@@ -38,6 +39,14 @@ function setup(invite: string | null, signedIn = true) {
   };
   return { game, went, update, account, isAsked: () => asked };
 }
+
+test("an invite waits while a new player chooses their appearance", () => {
+  const { game, went, update } = setup("ABCDE");
+  game.online.profile = () => ({ primer: false } as ReturnType<Game["online"]["profile"]>);
+  update();
+  assert.deepEqual(went, ["online-appearance"]);
+  assert.equal(game.online.invite, "ABCDE");
+});
 
 test("an invite waits while the offer's up, and declining goes straight to that lobby", () => {
   const { game, went, update, isAsked } = setup("ABCDE");
