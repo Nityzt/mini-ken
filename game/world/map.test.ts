@@ -209,3 +209,18 @@ test("the store is on the map, on foot, and past the gang on Market Street", () 
   assert.equal(NODES.store.kind, "store");
   assert.ok(reachable([]).has("store"));
 });
+
+test('outlying districts offer new shops, secret detours, and optional dojos', () => {
+  for (const [district, shop, secret] of [
+    ['beach', 'beachShop', 'beachGarden'], ['park', 'parkShop', 'parkGrove'],
+    ['steel', 'steelShop', 'steelAlley'], ['falls', 'fallsShop', 'fallsPool'],
+  ] as const) {
+    assert.equal(NODES[shop].district, district);
+    assert.equal(NODES[shop].kind, 'store');
+    assert.equal(NODES[secret].district, district);
+    assert.equal(NODES[secret].kind, 'path');
+    assert.ok(EDGES.some((edge) => edge.from === shop && edge.to === secret));
+  }
+  assert.equal(NODES.lantern.kind, 'dojo');
+  assert.equal(NODES.bamboo.kind, 'dojo');
+});

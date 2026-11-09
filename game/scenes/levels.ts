@@ -117,6 +117,14 @@ export const GOOSE_MAP = [
   "#######D########",
 ];
 
+// Optional neighborhood dojos have no cup noticeboard.
+export const LANTERN_MAP = [
+  "################", "#WwWWWWrWWWWwWW#", "#$.....X.......#", "#...G.......E.s#", "#......R......s#", "#.............s#", "#.kk..........s#", "#......@.......#", "#######D########",
+];
+export const BAMBOO_MAP = [
+  "################", "#WpWWwWWWWwWWpW#", "#$.....X.......#", "#...G.........s#", "#...........E.s#", "#......R......s#", "#.........kk..s#", "#......@.......#", "#######D########",
+];
+
 // The grading hall: P the three examiners at the far end, with candidates warming up along the wall, and D the way out.
 export const HALL_SOLID = "#WwDrpPsk";
 

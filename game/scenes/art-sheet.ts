@@ -47,6 +47,7 @@ export const ART_CAST: { name: string; colors?: Record<string, string>; gear: Ge
 ];
 
 /** The tower stands apart, because it's far taller than the rest. */
+export const SHEET_PAGE_SIZE = 15;
 export const CITY_SPRITES = Object.keys(WORLD_GRIDS).filter((name) => name !== "tower");
 
 /** Where the nth small sprite goes on a page, with room for its name underneath. */
@@ -69,9 +70,9 @@ function renderDressing(ctx: CanvasRenderingContext2D, tick: number) {
   drawText(ctx, "Tare, do, men, kote, shinai", 6, 110, PALETTE.w);
 }
 
-function renderCast(ctx: CanvasRenderingContext2D, tick: number) {
+function renderCast(ctx: CanvasRenderingContext2D, tick: number, page = 0) {
   const frame = (Math.floor(tick / 15) % 2) as 0 | 1;
-  ART_CAST.forEach(({ name, colors, gear }, i) => {
+  ART_CAST.slice(page * SHEET_PAGE_SIZE, (page + 1) * SHEET_PAGE_SIZE).forEach(({ name, colors, gear }, i) => {
     const { x, y } = sheetCell(i);
     drawKendoka(ctx, x, y, "down", frame, gear, { colors });
     drawText(ctx, name, x - 4, y + 22, PALETTE.w);
@@ -186,8 +187,8 @@ function renderTiles(ctx: CanvasRenderingContext2D) {
   drawReferee(ctx, 162, 122, "white");
 }
 
-function renderCitySprites(ctx: CanvasRenderingContext2D) {
-  CITY_SPRITES.forEach((name, i) => {
+function renderCitySprites(ctx: CanvasRenderingContext2D, page = 0) {
+  CITY_SPRITES.slice(page * SHEET_PAGE_SIZE, (page + 1) * SHEET_PAGE_SIZE).forEach((name, i) => {
     const { x, y } = sheetCell(i);
     drawSprite(ctx, WORLD_GRIDS[name], x, y);
     drawText(ctx, name.slice(0, 6), x - 4, y + 18, PALETTE.w);
@@ -239,7 +240,7 @@ const CRESTS = Object.keys(BACKDROP_GRIDS)
 /** One page per thing, built from the game's own lists, so a new dojo or street can't be left off. */
 const PAGES: Page[] = [
   { title: "Dressing up", render: renderDressing },
-  { title: "The cast", render: renderCast },
+  ...Array.from({ length: Math.ceil(ART_CAST.length / SHEET_PAGE_SIZE) }, (_, page): Page => ({ title: page ? `The cast ${page + 1}` : "The cast", render: (ctx, tick) => renderCast(ctx, tick, page) })),
   { title: "Playable", render: renderPlayable },
   { title: "Item card", render: (ctx, tick, still) => drawItemCard(ctx, { item: "tare", tick: tick % 150 }, sheetRun(), still) },
   { title: "Insignia", render: (ctx) => drawInsigniaCard(ctx, { insignia: sheetRun().insignia, row: 0 }, sheetRun()) },
@@ -251,7 +252,7 @@ const PAGES: Page[] = [
   { title: "Alley Cats", render: renderAlleyCats },
   { title: "Tiles", render: renderTiles },
   { title: "The dojo", render: renderDojoPeek },
-  { title: "City sprites", render: renderCitySprites },
+  ...Array.from({ length: Math.ceil(CITY_SPRITES.length / SHEET_PAGE_SIZE) }, (_, page): Page => ({ title: page ? `City sprites ${page + 1}` : "City sprites", render: (ctx) => renderCitySprites(ctx, page) })),
   { title: "Map rides", render: renderSmallRides },
   { title: "Ride: streetcar", render: (ctx, tick, still) => drawRide(ctx, { train: false, eastbound: true, tick, still, hair: PALETTE.I }) },
   { title: "Ride: train", render: (ctx, tick, still) => drawRide(ctx, { train: true, eastbound: true, tick, still, hair: PALETTE.I }) },

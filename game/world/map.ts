@@ -2,10 +2,10 @@ import type { BrawlSpec } from "../duel/brawl.ts";
 
 export type NodeId =
   | "pinecone" | "crossroads" | "market" | "store" | "ravine" | "stop" | "tower" | "bridge" | "wharf" | "radish" | "station"
-  | "beachStop" | "beachStrip" | "boardwalk" | "goose"
-  | "parkStop" | "cherryWalk" | "picnic" | "raccoon"
-  | "steelStation" | "millRow" | "foundry" | "heron"
-  | "fallsStation" | "lookout" | "gorge" | "otter"
+  | "beachStop" | "beachStrip" | "boardwalk" | "goose" | "beachShop" | "beachGarden" | "lantern"
+  | "parkStop" | "cherryWalk" | "picnic" | "raccoon" | "parkShop" | "parkGrove" | "bamboo"
+  | "steelStation" | "millRow" | "foundry" | "heron" | "steelShop" | "steelAlley"
+  | "fallsStation" | "lookout" | "gorge" | "otter" | "fallsShop" | "fallsPool"
   | "arenaStation" | "grandArena";
 export type Direction = "left" | "right" | "up" | "down";
 /** Each district is its own map. Streetcars and trains are the only way between them. */
@@ -37,18 +37,28 @@ export const NODES: Record<NodeId, WorldNode> = {
   beachStrip: { name: "Beach Strip", kind: "path", district: "beach", x: 120, y: 60 },
   boardwalk: { name: "The Boardwalk", kind: "gang", district: "beach", x: 120, y: 102 },
   goose: { name: "Angry Goose Dojo", kind: "dojo", district: "beach", x: 210, y: 60 },
+  beachShop: { name: "Shell Market", kind: "store", district: "beach", x: 120, y: 30 },
+  beachGarden: { name: "Dune Garden", kind: "path", district: "beach", x: 58, y: 30 },
+  lantern: { name: "Lantern Dojo", kind: "dojo", district: "beach", x: 210, y: 30 },
   parkStop: { name: "Park Stop", kind: "stop", district: "park", x: 36, y: 60 },
   cherryWalk: { name: "Cherry Walk", kind: "path", district: "park", x: 120, y: 60 },
   picnic: { name: "Picnic Grounds", kind: "gang", district: "park", x: 120, y: 104 },
   raccoon: { name: "Sleepy Raccoon Dojo", kind: "dojo", district: "park", x: 210, y: 60 },
+  parkShop: { name: "Blossom Shop", kind: "store", district: "park", x: 120, y: 30 },
+  parkGrove: { name: "Quiet Grove", kind: "path", district: "park", x: 58, y: 30 },
+  bamboo: { name: "Bamboo Dojo", kind: "dojo", district: "park", x: 210, y: 30 },
   steelStation: { name: "Steel Bay Station", kind: "station", district: "steel", x: 36, y: 76 },
   millRow: { name: "Mill Row", kind: "path", district: "steel", x: 116, y: 76 },
   foundry: { name: "The Foundry", kind: "gang", district: "steel", x: 116, y: 112 },
   heron: { name: "Iron Heron Dojo", kind: "dojo", district: "steel", x: 206, y: 76 },
+  steelShop: { name: "Forge Shop", kind: "store", district: "steel", x: 116, y: 38 },
+  steelAlley: { name: "Foundry Alley", kind: "path", district: "steel", x: 60, y: 38 },
   fallsStation: { name: "Misty Falls Station", kind: "station", district: "falls", x: 36, y: 104 },
   lookout: { name: "The Lookout", kind: "path", district: "falls", x: 110, y: 104 },
   gorge: { name: "The Gorge", kind: "gang", district: "falls", x: 110, y: 72 },
   otter: { name: "Soggy Otter Dojo", kind: "dojo", district: "falls", x: 204, y: 104 },
+  fallsShop: { name: "Falls Outfitters", kind: "store", district: "falls", x: 125, y: 122 },
+  fallsPool: { name: "Moss Pool", kind: "path", district: "falls", x: 55, y: 122 },
   arenaStation: { name: "Arena Station", kind: "station", district: "arena", x: 36, y: 104 },
   grandArena: { name: "The Grand Arena", kind: "tournament", district: "arena", x: 160, y: 104 },
 };
@@ -67,16 +77,26 @@ export const EDGES: Edge[] = [
   { from: "beachStop", to: "beachStrip", dir: "right" },
   { from: "beachStrip", to: "boardwalk", dir: "down" },
   { from: "beachStrip", to: "goose", dir: "right" },
+  { from: "beachStrip", to: "beachShop", dir: "up" },
+  { from: "beachShop", to: "beachGarden", dir: "left" },
+  { from: "goose", to: "lantern", dir: "up" },
   { from: "wharf", to: "station", dir: "right" },
   { from: "parkStop", to: "cherryWalk", dir: "right" },
   { from: "cherryWalk", to: "picnic", dir: "down" },
   { from: "cherryWalk", to: "raccoon", dir: "right" },
+  { from: "cherryWalk", to: "parkShop", dir: "up" },
+  { from: "parkShop", to: "parkGrove", dir: "left" },
+  { from: "raccoon", to: "bamboo", dir: "up" },
   { from: "steelStation", to: "millRow", dir: "right" },
   { from: "millRow", to: "foundry", dir: "down" },
   { from: "millRow", to: "heron", dir: "right" },
+  { from: "millRow", to: "steelShop", dir: "up" },
+  { from: "steelShop", to: "steelAlley", dir: "left" },
   { from: "fallsStation", to: "lookout", dir: "right" },
   { from: "lookout", to: "gorge", dir: "up" },
   { from: "lookout", to: "otter", dir: "right" },
+  { from: "lookout", to: "fallsShop", dir: "down" },
+  { from: "fallsShop", to: "fallsPool", dir: "left" },
   { from: "arenaStation", to: "grandArena", dir: "right" },
 ];
 

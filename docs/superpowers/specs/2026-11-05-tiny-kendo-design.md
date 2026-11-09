@@ -520,3 +520,7 @@ The minimum rank is 1st dan. Real matches are duels through a lobby code or invi
 - **Betting on other people's matches.** This comes with hosted multiplayer, since it needs a server to hold the money. Today you can only bet on yourself, and stakes already settle per side.
 - **A timekeeper at matches.**
 
+
+## More places to visit
+
+The beach, park, steel and falls maps each have a regional shop and a quiet side path. The shops sell distinctive cosmetic armor that works with the existing inventory and save. Looking around the side paths reveals one small 25-kensen discovery per district, once per run. Two optional dojos, Lantern by the beach and Bamboo by the park, have their own rooms, people and challenges. They add practice and rewards without changing the existing route to Ren; they do not host cups.

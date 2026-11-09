@@ -9,6 +9,14 @@ export const VOICES: Record<string, Voice> = {
   // Pinecone, at home.
   "Sensei Kuma": voice(155, 6, { tract: 0.85, lilt: 0.7, fall: 2, volume: 0.28 }), // A big, unhurried bear of a teacher.
   "Senpai Momo": voice(345, 5, { tract: 1.12, lilt: 1.1, volume: 0.17 }), // Kind, and a bit ahead of you.
+  Kiri: voice(340, 5, { wave: "triangle", lilt: 1.7, volume: 0.18 }),
+  Mina: voice(295, 6, { tract: 1.1, lilt: 1.1, volume: 0.17 }),
+  Yori: voice(230, 6, { wave: "triangle", tract: 0.92, lilt: 0.9, volume: 0.2 }),
+  "Sensei Tama": voice(170, 7, { wave: "triangle", tract: 0.85, lilt: 0.9, volume: 0.24 }),
+  Nori: voice(275, 7, { wave: "triangle", lilt: 0.4, volume: 0.18 }),
+  Taro: voice(205, 7, { tract: 0.9, lilt: 0.5, volume: 0.22 }),
+  Fuwa: voice(370, 6, { lilt: 0.8, fall: 3, volume: 0.16 }),
+  "Sensei Hoshi": voice(145, 8, { wave: "triangle", tract: 0.84, lilt: 0.4, volume: 0.24 }),
   Aki: voice(420, 4, { tract: 1.2, lilt: 1.8, fall: 1.5, volume: 0.19 }), // Never stops. Never stands still.
   Bo: voice(190, 7, { wave: "triangle", tract: 0.9, lilt: 0.3, fall: 1, volume: 0.34 }), // "Mm. Indigo runs."
   Yui: voice(390, 5, { tract: 1.15, lilt: 1.4, fall: 2, volume: 0.16 }), // A thousand suburi, nine of them right.

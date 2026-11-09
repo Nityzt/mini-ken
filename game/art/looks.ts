@@ -74,6 +74,22 @@ export const DOJO_LOOKS: Record<Crest, DojoLook> = {
     banner: { cloth: "#2F6E78", edge: "#173A40", field: "#E4DCC4" },
     decor: { tile: "decorRing", every: 6 }, mark: { tile: "markPuddle", every: 7 }, markOnCourt: true,
   },
+  // Lantern light, terracotta walls, and a sea breeze.
+  lantern: {
+    floor: "planks", wall: "slats", view: "pond",
+    room: { B: "#A56B52", D: "#85513E", b: "#39242B", L: "#C68D6D", O: "#E8C8A0", w: "#D06C4B" },
+    window: { C: "#9BCFD0", G: "#78ACA3", g: "#427B80", W: "#F6E7CC" },
+    banner: { cloth: "#A93E46", edge: "#F1B45D", field: "#F8E4BD" },
+    decor: { tile: "decorLantern", every: 4 }, mark: null,
+  },
+  // A small training hall tucked into the park's bamboo grove.
+  bamboo: {
+    floor: "tatami", wall: "paper", view: "bamboo",
+    room: { B: "#9AAE7B", D: "#788D5A", b: "#304331", L: "#BDCF9B", O: "#E4E8D0", w: "#608D61" },
+    window: { C: "#C3E4CA", G: "#6C9B66", g: "#39684B", W: "#F1F4DE" },
+    banner: { cloth: "#456F50", edge: "#BBD4A0", field: "#F4F2D8" },
+    decor: { tile: "decorScroll", every: 5 }, mark: null,
+  },
   // The Grand Taikai: polished maple, crimson boards, and flags for every dojo in the land.
   arena: {
     floor: "boards", wall: "plaster", view: "sky",
@@ -115,6 +131,8 @@ export const TEAM_COLORS: Partial<Record<Crest, Colors>> = {
   raccoon: { ...RACCOON_COLORS, Z: "#2A2830", z: "#FAF7F2" },
   heron: { ...HERON_COLORS, Z: "#FAF7F2", z: "#1A1A1A" },
   otter: { ...OTTER_COLORS, Z: "#2F9E9A", z: "#FAF7F2" },
+  lantern: { ...PINECONE_COLORS, I: "#A33F4C", i: "#682D3B", Z: "#EF9D56", z: "#FFF1D9" },
+  bamboo: { ...PINECONE_COLORS, I: "#376E53", i: "#214D38", Z: "#B6C976", z: "#203F2D" },
 };
 
 const SENIOR_TRIM = "#E6C46A";

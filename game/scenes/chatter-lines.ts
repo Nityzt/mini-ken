@@ -37,6 +37,54 @@ const cleanLine = (run: RunState) => run.seen.includes("feat:perfectLine");
 const heads = beat("raccoon", "goose", "heron", "otter", "radish");
 
 export const PEOPLE: Record<string, Person> = {
+  lantern: {
+    name: "Kiri",
+    news: [{ id: "won", when: beat("lantern"), line: "Kiri: Word of your match has reached us." }],
+    small: ["Kiri: The light moves all day. We practice anyway.", "Kiri: The breeze has stolen three of our towels."],
+    advice: ["Kiri: Watch my feet, not the lanterns."],
+  },
+  mina: {
+    name: "Mina",
+    news: [{ id: "won", when: beat("lantern"), line: "Mina: Word of your match has reached us." }],
+    small: ["Mina: Kiri never seems to tire.", "Mina: I keep the lanterns polished."],
+    advice: ["Mina: Kiri likes to move before you settle."],
+  },
+  yori: {
+    name: "Yori",
+    news: [{ id: "won", when: beat("lantern"), line: "Yori: Word of your match has reached us." }],
+    small: ["Yori: The tide tells us when to take a break.", "Yori: Our floor is always a little sandy."],
+    advice: ["Yori: Wait for Kiri to commit before you move."],
+  },
+  tama: {
+    name: "Sensei Tama",
+    news: [{ id: "won", when: beat("lantern"), line: "Sensei Tama: Word of your match has reached us." }],
+    small: ["Sensei Tama: There is time enough for tea and practice.", "Sensei Tama: We tie the lanterns down on windy days."],
+    advice: ["Sensei Tama: The tide comes back. So can you."],
+  },
+  bamboo: {
+    name: "Nori",
+    news: [{ id: "won", when: beat("bamboo"), line: "Nori: Word of your match has reached us." }],
+    small: ["Nori: The grove is quiet in the morning.", "Nori: Fuwa keeps the path swept. Mostly."],
+    advice: ["Nori: You can learn a lot by waiting."],
+  },
+  taro: {
+    name: "Taro",
+    news: [{ id: "won", when: beat("bamboo"), line: "Taro: Word of your match has reached us." }],
+    small: ["Taro: The grove makes its own music.", "Taro: Nori has the patience of a stone."],
+    advice: ["Taro: Nori waits for you to rush."],
+  },
+  fuwa: {
+    name: "Fuwa",
+    news: [{ id: "won", when: beat("bamboo"), line: "Fuwa: Word of your match has reached us." }],
+    small: ["Fuwa: I sweep the path after every wind.", "Fuwa: The bamboo always wins that game."],
+    advice: ["Fuwa: Watch for a pause before you attack."],
+  },
+  hoshi: {
+    name: "Sensei Hoshi",
+    news: [{ id: "won", when: beat("bamboo"), line: "Sensei Hoshi: Word of your match has reached us." }],
+    small: ["Sensei Hoshi: The grove grows a little each day.", "Sensei Hoshi: We practice slowly before we practice fast."],
+    advice: ["Sensei Hoshi: A firm stance lets you change direction."],
+  },
   // At home.
   momo: {
     name: "Senpai Momo",
@@ -524,6 +572,8 @@ export const PEOPLE: Record<string, Person> = {
 
 /** What someone says after you've just beaten them in their own dojo, the first time and any time after. */
 export const AFTER_WINS: Record<string, { first: string[]; again: string[] }> = {
+  lantern: { first: ["Kiri: You caught the tide just right!"], again: ["Kiri: That was quick!", "Kiri: Let's try that again sometime."] },
+  bamboo: { first: ["Nori: You waited for the right moment."], again: ["Nori: A fine match.", "Nori: You saw that one coming."] },
   radish: {
     first: ["Ren: ...There it is. I've been waiting a long time for someone to do that.", "Ren: Sensei Kuma will be unbearable. Tell them I said the corners still need sweeping."],
     again: ["Ren: Again. You're making a habit of this.", "Ren: Good. Now I've got something to do on Tuesdays."],

@@ -74,7 +74,7 @@ function windowColors(place: Crest): Record<string, string> {
 }
 
 const CREST_SPRITES: Record<Crest, string> = {
-  pinecone: "crestPinecone", radish: "crestRadish", goose: "crestGoose", raccoon: "crestRaccoon", heron: "crestHeron", otter: "crestOtter", arena: "crestArena", hall: "crestHall", hut: "crestHut",
+  lantern: "crestLantern", bamboo: "crestBamboo", pinecone: "crestPinecone", radish: "crestRadish", goose: "crestGoose", raccoon: "crestRaccoon", heron: "crestHeron", otter: "crestOtter", arena: "crestArena", hall: "crestHall", hut: "crestHut",
 };
 
 /** A room seen from above. It's the same place you'll fight in, so it has the same floor, walls, view and crest. */

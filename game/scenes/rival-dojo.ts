@@ -8,7 +8,8 @@ import { viewH, viewW } from "../core/scale.ts";
 import type { Game, Scene } from "../core/scene.ts";
 import { playerColors } from "../characters.ts";
 import { danLabel, personDan, presenceOf, type PersonId } from "../ranks.ts";
-import { arrivalLine, DOJOS, dojoFor, MEMBERS, type DojoId, type OpponentId } from "../world/dojos.ts";
+import { arrivalLine, DOJOS, dojoFor, MEMBERS, type OpponentId } from "../world/dojos.ts";
+import { cupAt } from "../world/tournament.ts";
 import { talkToChallenger, type ChallengerId } from "./challengers.ts";
 import { offerBet } from "./bet-menu.ts";
 import { askAway } from "../grading.ts";
@@ -86,7 +87,7 @@ export function createRivalDojoScene(nameOf: () => string): Scene {
   };
 
   return {
-    busy: () => dialogue.active || menu.active,
+    busy: () => dialogue.active || menu.active || shop.active,
     enter(game) {
       seed = Math.floor(Math.random() * 2 ** 31);
       const dojo = dojoHere(game);
@@ -194,7 +195,9 @@ export function createRivalDojoScene(nameOf: () => string): Scene {
       if (front === "D") leaveDojo(game, menu);
       else if (front === "$") shop.open(dojoFor(game.run.node));
       else if (front === "N") {
-        const offer = cupOffer(game.run, dojoFor(game.run.node) as DojoId);
+        const cup = cupAt(game.run.node);
+        if (!cup || cup === "grand") return;
+        const offer = cupOffer(game.run, cup);
         dialogue.open(offer.lines, offer.enter ? () => {
           game.tournament = null;
           game.go("tournament");
