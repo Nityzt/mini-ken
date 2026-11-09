@@ -81,3 +81,17 @@ test("Momo waits at her spot while someone is standing on it", () => {
   for (let i = 0; i < 5; i++) escort.update(player, map);
   assert.equal(escort.done, true);
 });
+
+for (const [name, col, row] of [["the front door", 8, 2], ["right in front of Momo", 3, 6], ["beside Momo", 4, 5], ["by the training area", 9, 6]] as const) {
+  test(`following Momo from ${name}, you never walk into her`, () => {
+    const { player, escort, log } = run(col, row);
+    let closest = Infinity;
+    for (let i = 0; i < 2000 && log.length === 0; i++) {
+      escort.update(player, map);
+      const gap = Math.max(Math.abs(player.box.x - escort.momo.box.x), Math.abs(player.box.y - escort.momo.box.y));
+      closest = Math.min(closest, gap);
+    }
+    assert.deepEqual(log, ["arrived"]);
+    assert.ok(closest >= 12, `came within ${closest}px of her`);
+  });
+}
