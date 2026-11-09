@@ -730,7 +730,7 @@ export function allContentLines(): string[] {
     PROGRESS_OPEN,
     PROGRESS_NONE,
     PROGRESS_CHAMPION,
-    HINT_MOVE, HINT_PAGE, HINT_PICK, HINT_BACK, HINT_USE, HINT_WEAR, HINT_TAKE_OFF, ITEM_WORN, ITEM_NOT_WORN, ITEM_FIGHTS_ONLY, NAME_TITLE, HINT_KEEP_NAME, HINT_NAME_BACK, ITEM_READY, RANK_LEVEL, RANK_XP_LEFT, ...RANK_STATS, MAP_NEXT, MAP_OPEN, MAP_LOCKED, MAP_NOTHING_NEEDED, TECHNIQUES_TITLE,
+    HINT_MOVE, HINT_PAGE, HINT_PICK, HINT_BACK, HINT_USE, HINT_WEAR, HINT_TAKE_OFF, ITEM_WORN, ITEM_NOT_WORN, ITEM_FIGHTS_ONLY, HINT_EQUIP, HINT_SWAP, ITEM_LOCKED, SLOT_EMPTY, SLOT_EMPTY_LINE, NAME_TITLE, HINT_KEEP_NAME, HINT_NAME_BACK, ITEM_READY, RANK_LEVEL, RANK_XP_LEFT, ...RANK_STATS, MAP_NEXT, MAP_OPEN, MAP_LOCKED, MAP_NOTHING_NEEDED, TECHNIQUES_TITLE,
     FORFEIT_MATCH,
     FORFEIT_GANG,
     FORFEIT_TRAINING,
@@ -877,6 +877,11 @@ export const HINT_TAKE_OFF = "Take off";
 export const ITEM_WORN = "Worn";
 export const ITEM_NOT_WORN = "Not worn";
 export const ITEM_FIGHTS_ONLY = "Fights only";
+export const HINT_EQUIP = "Equip";
+export const HINT_SWAP = "Swap";
+export const ITEM_LOCKED = "Slot locked";
+export const SLOT_EMPTY = "Empty slot";
+export const SLOT_EMPTY_LINE = "Nothing for this slot yet. Bought pieces show up in the pack below.";
 /** Where your name goes in anything someone says. */
 export const NAME_TOKEN = "<name>";
 export const fillName = (line: string, name: string): string => line.replaceAll(NAME_TOKEN, name);
@@ -885,7 +890,7 @@ export const nameNote = (fallback: string) => `Type your own, or just go by ${fa
 export const nameMenuLabel = (name: string) => `Name: ${name}`;
 export const HINT_KEEP_NAME = "Keep";
 export const HINT_NAME_BACK = "Back";
-export const ITEM_READY = "Ready to use";
+export const ITEM_READY = "Ready";
 export const RANK_LEVEL = "Level";
 export const RANK_XP_LEFT = "xp to next level";
 export const RANK_STATS = ["Beaten", "Cups", "Dojos"];

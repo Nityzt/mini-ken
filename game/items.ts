@@ -2,7 +2,6 @@ import { MODS, equip, equippedAt, equipmentInfo, isEquipment, modOn, type Equipm
 import type { Gear } from "./art/kendoka.ts";
 import { type GearKey, type ShinaiId } from "./durability.ts";
 import { hasLetter, hasTicket, rankLabel } from "./ranks.ts";
-import type { SlotGroup } from "./inventory-grid.ts";
 import { isShopItem, LOOKS, SHOP_ITEMS, wear, type ShopItemId } from "./shop.ts";
 import type { RunState } from "./run-state.ts";
 import { BAMBOO_LINE, OWN_SHINAI_LINE, SHINAI_BAG_LINE, GAZE_ITEM_LINE, GEAR_LINES, GI_LINE, LETTER_LINE, RANK_LINE, SEME_ITEM_LINE, TICKET_LINE, TSUBA_FOUND } from "./scenes/content.ts";
@@ -97,7 +96,7 @@ export const inventoryDescription = (run: RunState, item: ItemId): string => {
 
 /** Only some things do anything when you use them. */
 export const isUsable = (item: ItemId): boolean => item === "ticket";
-const isColors = (item: ItemId): boolean => item.startsWith("shop:") && !!LOOKS[item.slice("shop:".length) as ShopItemId];
+export const isColors = (item: ItemId): boolean => item.startsWith("shop:") && !!LOOKS[item.slice("shop:".length) as ShopItemId];
 /** Which shinai this is, if it's one you can carry. */
 export const asShinai = (item: ItemId): ShinaiId | null => {
   const key = gearKeyOf(item);
@@ -124,35 +123,6 @@ export function toggleWorn(run: RunState, item: ItemId): RunState {
   }
   return isColors(item) ? wear(run, item.slice("shop:".length) as ShopItemId) : run;
 }
-
-/** What you're carrying, in groups. Things you can use come first, then gear, colors and trophies. Gear and trophies keep a gap for what you haven't found. */
-export function inventoryGroups(run: RunState): SlotGroup<ItemId>[] {
-  const shopHeld = (run.owned.filter(isShopItem) as ShopItemId[]).map((id): ItemId => `shop:${id}`);
-  // Once Sensei's shinai has gone back, the one you carry now takes its place among your gear.
-  const carried: ItemId = run.shinaiQuest !== "returned" ? "shinai" : run.madeShinai ? "ownShinai" : "shop:fineShinai";
-  const things: ItemId[] = [
-    ...(hasTicket(run) ? (["ticket"] as const) : []),
-    ...(hasLetter(run) ? (["letter"] as const) : []),
-    ...(run.hasTsuba ? (["tsuba"] as const) : []),
-    ...(run.shinaiQuest === "gotBamboo" && !run.madeShinai ? (["bamboo"] as const) : []),
-    ...(run.madeShinai && carried !== "ownShinai" ? (["ownShinai"] as const) : []),
-    ...(run.shinaiQuest === "returned" ? (["shinaiBag"] as const) : []),
-    ...shopHeld.filter((item) => !isColors(item) && item !== carried),
-  ];
-  const gear: (ItemId | null)[] = [run.gi ? "gi" : null, ...GEAR_ORDER.map((piece) => (!run.gear[piece] ? null : piece === "shinai" ? carried : piece))];
-  const colors = shopHeld.filter(isColors);
-  const trophies = CUP_IDS.map((cup): ItemId | null => (run.cups.includes(cup) ? `cup:${cup}` : null));
-  const found = (slots: (ItemId | null)[]) => slots.filter(Boolean).length;
-  return [
-    { title: "Items", slots: things },
-    { title: `Gear ${found(gear)}/${gear.length}`, slots: gear },
-    { title: "Colors", slots: colors },
-    { title: `Trophies ${found(trophies)}/${trophies.length}`, slots: trophies },
-  ].filter((group) => group.slots.length > 0);
-}
-
-/** What you're carrying, in the order the inventory page walks through it. */
-export const inventoryOf = (run: RunState): ItemId[] => inventoryGroups(run).flatMap((group) => group.slots.filter((slot): slot is ItemId => slot !== null));
 
 /** What the inventory page calls each kind of thing, for the card beside the grid. */
 export function itemKind(item: ItemId): string {

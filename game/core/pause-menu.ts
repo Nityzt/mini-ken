@@ -1,8 +1,6 @@
-import { layoutGrid, moveInGrid } from "../inventory-grid.ts";
-
 export type MenuItemId = "resume" | "progress" | "inventory" | "challenges" | "controls" | "name" | "insignia" | "multiplayer" | "sign-in" | "forfeit" | "restart";
 export type MenuItem = { id: MenuItemId; label: string };
-export type MenuAction = "name" | "resume" | "insignia" | "multiplayer" | "sign-in" | "forfeit" | "restart" | "use-ticket" | "wear" | null;
+export type MenuAction = "name" | "resume" | "insignia" | "multiplayer" | "sign-in" | "forfeit" | "restart" | "use-ticket" | null;
 /** On the progress page `choice` is the row picked on the map, and `tab` is which of the three pages is showing. */
 export type PauseMenu = { page: "main" | "progress" | "inventory" | "challenges" | "controls" | "confirm"; choice: number; tab?: number };
 export type MenuKeys = { up: boolean; down: boolean; confirm: boolean; cancel: boolean; left?: boolean; right?: boolean };
@@ -30,21 +28,20 @@ export function menuItems(state: { forfeit: string | null; inGame: boolean; hasT
 const CONFIRM_CHOICES = 2;
 const CONFIRM_YES = 1;
 
+/** The inventory screen's own step: where the cursor goes, and anything that has to happen outside the menu. */
+export type InventoryStep = (choice: number, keys: Required<MenuKeys>) => { choice: number; action: MenuAction };
+
 export function stepPauseMenu(
   menu: PauseMenu,
   items: MenuItem[],
   keys: MenuKeys,
-  inventory: readonly string[] = [],
-  actionFor: (item: string) => MenuAction = (item) => (item === "ticket" ? "use-ticket" : null),
-  /** The inventory's groups of slots, with a null for each gap. Without them everything is one group. */
-  groups: readonly (readonly (string | null)[])[] = [inventory],
+  inventory: InventoryStep = (choice) => ({ choice, action: null }),
   progress: ProgressMap = { goal: 0, rows: 0 },
 ): { menu: PauseMenu; action: MenuAction } {
   if (menu.page === "inventory") {
     if (keys.cancel) return { menu: { page: "main", choice: items.findIndex((i) => i.id === "inventory") }, action: null };
-    const cells = layoutGrid(groups.map((group) => group.length), groups.map((group) => group.map(Boolean)));
-    const choice = moveInGrid(cells, Math.min(menu.choice, Math.max(0, inventory.length - 1)), (keys.right ? 1 : 0) - (keys.left ? 1 : 0), (keys.down ? 1 : 0) - (keys.up ? 1 : 0));
-    return { menu: { ...menu, choice }, action: keys.confirm && inventory[choice] ? actionFor(inventory[choice]) : null };
+    const step = inventory(menu.choice, { left: false, right: false, ...keys });
+    return { menu: { ...menu, choice: step.choice }, action: step.action };
   }
   if (menu.page === "progress") {
     if (keys.confirm || keys.cancel) return { menu: { page: "main", choice: items.findIndex((i) => i.id === "progress") }, action: null };

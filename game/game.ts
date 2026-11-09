@@ -16,7 +16,8 @@ import { characterById, cleanPlayerName, playerColors, playerName, type Characte
 import { createNameEntry, stepNameEntry, type NameEntry } from "./name-entry.ts";
 import { createInsigniaEditor, stepInsigniaEditor, type InsigniaEditor } from "./insignia.ts";
 import { canUseTicketIn } from "./grading.ts";
-import { createReveal, inventoryGroups, inventoryOf, isWearable, itemsGained, stepReveal, toggleWorn, type ItemId, type Reveal } from "./items.ts";
+import { createReveal, itemsGained, stepReveal, type ItemId, type Reveal } from "./items.ts";
+import { stepInventoryScreen } from "./equipment-screen.ts";
 import { CHALLENGES, isClaimed, moneyText, settleChallenges } from "./money.ts";
 import { goalRow, LADDER, newlyOpened } from "./progress.ts";
 import { levelOf } from "./ranks.ts";
@@ -406,16 +407,18 @@ export function createGame(
       right: input.wasPressed("right"),
       confirm: input.wasPressed("confirm"),
       cancel: input.wasPressed("cancel"),
-    }, inventoryOf(game.run), (item) => (item === "ticket" ? "use-ticket" : isWearable(item as ItemId) ? "wear" : null), inventoryGroups(game.run).map((group) => group.slots), { goal: goalRow(game.run), rows: LADDER.length });
+    }, (choice, keys) => {
+      // Equipping changes the run straight away, so it's saved like any other change.
+      const screen = stepInventoryScreen(game.run, choice, keys);
+      game.run = screen.run;
+      return screen;
+    }, { goal: goalRow(game.run), rows: LADDER.length });
     const openBindings = menu.page === "main" && step.menu.page === "controls";
     menu = step.menu;
     if (openBindings) {
       editingBindings = true;
       const close = () => { editingBindings = false; menu = { page: "main", choice: pauseItems().findIndex((item) => item.id === "controls") }; options.onBindingsUi?.(null); input.clear(); };
       options.onBindingsUi?.({ bindings: keybindings.current(), close, save: async (bindings) => { const saved = await keybindings.set(bindings); if (saved) close(); return saved; } });
-    }
-    if (step.action === "wear") {
-      game.run = toggleWorn(game.run, inventoryOf(game.run)[menu.choice]);
     }
     if (step.action === "resume") flow = { ...flow, paused: false };
     else if (step.action === "use-ticket") {
