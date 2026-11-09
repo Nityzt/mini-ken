@@ -178,7 +178,7 @@ test("X cancels", () => {
   input.dispose();
 });
 
-test("P also pauses, because Esc only leaves fullscreen when you're in it", () => {
+test("P also pauses", () => {
   const t = new EventTarget();
   const input = createInput(t);
   t.dispatchEvent(key("keydown", "p"));

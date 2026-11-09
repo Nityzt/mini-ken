@@ -37,6 +37,7 @@ import { createEscort, tileOf, type Escort, type Tile } from "./club-intro.ts";
 import { cameraFor, createWalker, drawClothPuffs, drawRoom, drawWalker, tileInFront, touchesTile, updateWalker, type Walker } from "./topdown.ts";
 import { doorWelcome } from "./welcome.ts";
 import { walkingGear, type RunState } from "../run-state.ts";
+import { drawMenToast, markMenToast, menToastDue, TOAST_TICKS } from "./men-ceremony.ts";
 
 const place = (char: string) => findTiles(CLUB_MAP, char)[0];
 const gi = place("G");
@@ -95,6 +96,8 @@ export function createClubScene(nameOf: () => string): Scene {
   let dressing: Dressing | null = null;
   /** What you've actually got on, so anything new can be put on where people can see. */
   let worn: Gear | null = null;
+  /** How long the note about your new men has been showing, if it is. It never stops you doing anything. */
+  let menToast: number | null = null;
 
   const visitorHere = (game: Game) => (arriving ? null : lingering ?? homeVisitor(game.run));
   const rowsFor = (game: Game) => {
@@ -319,6 +322,12 @@ export function createClubScene(nameOf: () => string): Scene {
       worn ??= walkingGear(game.run);
       // Home's where you get your strength back, however you got here.
       game.run = rest(game.run);
+      // The first time home after the men's been put on you, a note at the side says where it's gone. Only ever once.
+      menToast = null;
+      if (menToastDue(game.run)) {
+        game.run = markMenToast(game.run);
+        menToast = 0;
+      }
       // Back from a drill or a match started here, you're standing (and facing) where you were. Arriving any other way,
       // or coming round after a knockout, starts you back near the door.
       if (game.wokeUp || !game.returning) walker = newWalker();
@@ -367,6 +376,9 @@ export function createClubScene(nameOf: () => string): Scene {
     },
     update(game) {
       tick++;
+      // It counts down whatever else is going on, because nothing waits for it.
+      if (menToast !== null && ++menToast >= TOAST_TICKS) menToast = null;
+      game.debug.menToast = menToast;
       game.debug.visitor = visit?.walker.box ?? null;
       game.debug.talking = dialogue.active || menu.active || shop.active;
       if (dialogue.active) {
@@ -605,6 +617,7 @@ export function createClubScene(nameOf: () => string): Scene {
         const label = interactionLabel(personAhead(walker, rows, CLUB_SOLID, PEOPLE)?.char ?? tileInFront(walker, rows), "home");
         if (label) drawInteractPrompt(ctx, label, walker.box.x + walker.box.w / 2 - cam.x, walker.box.y - cam.y, keyLabel(game.input, "confirm", "e"));
       }
+      if (menToast !== null) drawMenToast(ctx, menToast, game.reducedMotion, { pause: keyLabel(game.input, "pause", "escape"), confirm: keyLabel(game.input, "confirm", "e") }, playerColors(game.run));
       dialogue.render(ctx, speakersIn(figures, SPEAKERS, you, talkingTo));
       menu.render(ctx);
       shop.render(ctx, game);

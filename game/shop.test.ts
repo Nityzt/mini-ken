@@ -24,7 +24,7 @@ test('each regional shop carries its own wearable, cosmetic colors', () => {
 
 test('regional armor survives the save format and is available in inventory', async () => {
   const { parseRun } = await import('./save.ts');
-  const { inventoryOf } = await import('./items.ts');
+  const { inventoryOf } = await import('./equipment-screen.ts');
   const purchased = buy({ ...createRunState(), money: 500 }, 'tideColors');
   const restored = parseRun(JSON.parse(JSON.stringify(purchased)));
   assert.ok(restored);
