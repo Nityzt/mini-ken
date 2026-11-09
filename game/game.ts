@@ -2,6 +2,7 @@ import { createAudio } from "./core/audio.ts";
 import { createDungeonScene } from './scenes/dungeon.ts';
 import { discoverDungeon, enterDungeon } from './dungeon-story.ts';
 import { createFlow, FADE_TICKS, startFade, stepFlow } from "./core/flow.ts";
+import { escapeLock, keyboardLock, pausesOnFullscreenExit } from "./core/fullscreen.ts";
 import { createInput } from "./core/input.ts";
 import type { BindingsUi } from "./BindingsOverlay.tsx";
 import { createKeybindingSync } from "./net/keybinding-sync.ts";
@@ -567,8 +568,27 @@ export function createGame(
   // It has to happen right here in the key press, or the browser refuses it.
   const toggleFullscreen = (event: KeyboardEvent) => {
     if (editingBindings || game.input.typing || !input.matches("fullscreen", event.key, event.code) || event.repeat || event.ctrlKey || event.metaKey || event.altKey) return;
-    if (document.fullscreenElement) void document.exitFullscreen();
-    else void document.documentElement.requestFullscreen?.().catch(() => {});
+    if (document.fullscreenElement) {
+      leavingFullscreen = true;
+      void document.exitFullscreen().catch(() => { leavingFullscreen = false; });
+    } else void document.documentElement.requestFullscreen?.().catch(() => {});
+  };
+  // Set while the game's own key is taking it out of fullscreen, so only the browser's Esc opens the menu.
+  let leavingFullscreen = false;
+  const onFullscreenChange = () => {
+    const fullscreen = !!document.fullscreenElement;
+    const lock = keyboardLock();
+    const lockStep = escapeLock(fullscreen, !!lock);
+    if (lockStep === "lock") void lock!.lock(["Escape"]).catch(() => {});
+    else if (lockStep === "unlock") lock!.unlock();
+    const byGame = leavingFullscreen;
+    leavingFullscreen = false;
+    // Whatever would have let the pause key through in update().
+    const canPause = !editingBindings && !game.input.typing && !game.online.accountUi() && !scene().neverPauses?.(game);
+    if (pausesOnFullscreenExit({ fullscreen, byGame, paused: flow.paused, canPause })) {
+      flow = { ...flow, paused: true };
+      game.input.clear();
+    }
   };
   const flushSave = () => game.online.save?.flushOnClose();
   const retryBindings = () => { void keybindings.retry(); };
@@ -578,6 +598,7 @@ export function createGame(
   document.addEventListener("visibilitychange", pauseIfAway);
   window.addEventListener("keydown", unlockAudio);
   window.addEventListener("keydown", toggleFullscreen);
+  document.addEventListener("fullscreenchange", onFullscreenChange);
 
   if (IS_DEV) {
     (window as unknown as { __tinyKendo?: unknown }).__tinyKendo = {
@@ -670,6 +691,7 @@ export function createGame(
       document.removeEventListener("visibilitychange", pauseIfAway);
       window.removeEventListener("keydown", unlockAudio);
       window.removeEventListener("keydown", toggleFullscreen);
+      document.removeEventListener("fullscreenchange", onFullscreenChange);
     },
     resize(fit) {
       resize(fit);
