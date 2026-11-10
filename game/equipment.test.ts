@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRunState, playerKiMax } from './run-state.ts';
 import { buy } from './shop.ts';
-import { equip, equippedAt, modify, modOn, equipmentKi } from './equipment.ts';
+import { equip, equippedAt, modify, modOn, equipmentEffects, equipmentKi } from './equipment.ts';
 import { wearFrom, durabilityOf } from './durability.ts';
 import { parseRun } from './save.ts';
 const armed = () => ({ ...createRunState(), gear: { shinai: true, tare: true, do: true, men: true, kote: true }, money: 5000 });
@@ -73,4 +73,11 @@ test('returning a modified loan keeps the save readable and removes it from use'
  assert.equal(equippedAt(parsed, 'shinai'), 'ownShinai');
  assert.equal(equipmentKi(parsed), 0);
  assert.equal(modOn(parsed, 'shinai'), 'balancedGrip');
+});
+
+test("a piece's effects leave out what it doesn't do, so nothing reads \"Wear -0\"", () => {
+  assert.equal(equipmentEffects('shinai', null), 'No ki bonus. No mod.');
+  assert.equal(equipmentEffects('tunedShinai', 'balancedGrip'), 'Ki +7. Mod: Balanced grip.');
+  assert.equal(equipmentEffects('guardedShinai', 'reinforced'), 'Ki +5. Wears 2 less a fight. Mod: Reinforcement.');
+  assert.equal(equipmentEffects('tideShinai', null), 'Ki +4. Wears 1 less a fight. No mod.');
 });

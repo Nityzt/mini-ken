@@ -1,7 +1,7 @@
 import type { Gear } from "../art/kendoka.ts";
 import type { Crest } from "../art/backdrops.ts";
 import { AKI_COLORS, BO_COLORS, GEN_COLORS, SENIOR_COLORS, YUI_COLORS } from "../art/palette.ts";
-import { RANGE_MAX, TSUBA_GAP } from "../duel/constants.ts";
+import { KI_MAX, RANGE_MAX, TSUBA_GAP } from "../duel/constants.ts";
 import { createDuel, distance, type AttackKind, type DuelEvent, type DuelState, type FighterInput, type Target } from "../duel/rules.ts";
 import type { OpponentId } from "../world/dojos.ts";
 import type { ArmorPiece } from "../run-state.ts";
@@ -44,6 +44,8 @@ export type Lesson = {
   longLock?: boolean;
   /** Shows when to tap, over the partner. */
   cue?: boolean;
+  /** Your ki for the drill. Left out, it's the starting 100. */
+  kiMax?: number;
 };
 
 const IDLE: FighterInput = { move: 0, block: false, attack: null };
@@ -167,6 +169,11 @@ const QUICK_LESSONS: Lesson[] = [
 /** Old Gen presses as hard as Momo does, so a flinch is never far away. */
 const GEN_PRESENCE = 3;
 const GEN_MISSES = 3;
+/**
+ * Gen won't see anyone under ki 125, so that's the least you face Gen with. At the starting 100, holding
+ * seme until Gen flinches left you tired, and a tired strike is too slow to land with the stomp it began with.
+ */
+export const GEN_KI = 125;
 const GEN_TELL = 56;
 /** How much pressure Gen will take before losing patience and swinging. */
 const GEN_PATIENCE = 90;
@@ -188,9 +195,9 @@ const flinched = (events: DuelEvent[]) => events.some((e) => e.type === "shaken"
 
 /** Hold off the aura, punish the flinch, then let go in time to answer the swing. Failing any of them starts it all over. */
 const SEME_LESSONS: Lesson[] = [
-  { id: "seme-hold", ...lessonText("semeHold"), windups: {}, gap: LESSON_DISTANCE, presence: GEN_PRESENCE, misses: GEN_MISSES, reps: 2, partner: genGuards, done: flinched },
-  { id: "seme-punish", ...lessonText("semePunish"), windups: {}, gap: LESSON_DISTANCE, presence: GEN_PRESENCE, misses: GEN_MISSES, reps: 2, partner: genGuards, done: finished("men") },
-  { id: "seme-read", ...lessonText("semeRead"), windups: { bigMen: GEN_TELL }, gap: LESSON_DISTANCE, presence: GEN_PRESENCE, misses: GEN_MISSES, reps: 2, partner: genLosesPatience, done: finished("do") },
+  { id: "seme-hold", ...lessonText("semeHold"), kiMax: GEN_KI, windups: {}, gap: LESSON_DISTANCE, presence: GEN_PRESENCE, misses: GEN_MISSES, reps: 2, partner: genGuards, done: flinched },
+  { id: "seme-punish", ...lessonText("semePunish"), kiMax: GEN_KI, windups: {}, gap: LESSON_DISTANCE, presence: GEN_PRESENCE, misses: GEN_MISSES, reps: 2, partner: genGuards, done: finished("men") },
+  { id: "seme-read", ...lessonText("semeRead"), kiMax: GEN_KI, windups: { bigMen: GEN_TELL }, gap: LESSON_DISTANCE, presence: GEN_PRESENCE, misses: GEN_MISSES, reps: 2, partner: genLosesPatience, done: finished("do") },
 ];
 
 /** What passing each level of challenge earns. Sensei gives the tare; the senpai give the rest. */
@@ -319,6 +326,7 @@ export function createLessonDuel(lesson: Lesson): DuelState {
     ...(lesson.full ? {} : { basics: true }),
     ...(lesson.longLock ? { longLock: true } : {}),
     ...(lesson.presence ? { presence: [0, lesson.presence] as [number, number] } : {}),
+    ...(lesson.kiMax ? { kiMax: [lesson.kiMax, KI_MAX] as [number, number] } : {}),
   });
   if (lesson.gap !== undefined) {
     const mid = (duel.fighters[0].x + duel.fighters[1].x) / 2;

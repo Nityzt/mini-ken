@@ -59,6 +59,8 @@ export const GEN_LINES = [
   "Old Gen: A visitor! Fine armor, but where's your spirit? Come into my hut.",
   "Old Gen: Seme is pressing with your ki until the other one flinches. Flinch too often, and we start over.",
 ];
+/** Coming back after being sent away. Gen remembers you, and what the first stage was. */
+export const GEN_AGAIN = ["Old Gen: Back? Good. Fed? Good. From the top, then: hold I until I flinch."];
 export const GEN_FAIL = "Old Gen: You flinched, or you flailed. Go and eat something. Then we start again from the top.";
 export const GEN_DONE = ["Old Gen: That's it, <name>. That's seme, and now it's yours."];
 export const GEN_DONE_AFTER = [
@@ -258,8 +260,8 @@ export const LESSON_PROMPTS = {
   kote: "Sensei: See my hands rising? My wrist is open. K and Space, then slide through!",
   launch: "Sensei: From far, tap D twice to launch. No opening needed: J and Space as you land, then slide through!",
   semeHold: "Old Gen: Hold I, or my spirit folds yours. Press until I flinch. Space shouts, for a harder push.",
-  semePunish: "Old Gen: A flinch is an opening. Press until I flinch, then J and Space, and slide through.",
-  semeRead: "Old Gen: Press me, and I'll lose patience. When my arms go up, let go! L and Space, and slide through.",
+  semePunish: "Old Gen: A flinch is your chance. Press until I flinch, then let go, hold E, then J and Space, and slide through.",
+  semeRead: "Old Gen: Press me, and I'll lose patience. When my arms go up, let go, hold W, then L and Space, and slide through.",
 };
 const NEEDS_FOLLOW = "Then slide through!";
 /**
@@ -378,6 +380,7 @@ export const INSIGNIA_ROWS = ["Symbol", "Cloth", "Mark"];
 export const SCREEN_LOOK = "An old bamboo screen, cracked right down the middle.";
 export const SCREEN_NO_SHINAI = "You've got nothing to hit it with anyway. Sensei hasn't let you near a shinai yet.";
 export const SCREEN_NEEDS_TRAINING = "Better not swing at the furniture on your first day. Not yet, anyway.";
+export const SCREEN_STRIKE = "Strike";
 export const SCREEN_HINT = "It's only cracked. A good strike might do it. J, K or L.";
 export const ARRIVAL = ["Thunder Radish Dojo. The whole place smells of pickles."];
 export type GangStory = {
@@ -533,6 +536,8 @@ export const REN_AT_OTTER_NO_LESSON = ["Ren: Four dojos, and you never did give 
 export const RACCOON_ARRIVAL = ["Sleepy Raccoon Dojo. Nobody's awake, and someone has been through the bins."];
 export const NIKO_LINES = ["Niko: Sora hardly seems to be awake. Then, snap! Watch those hands."];
 export const RIO_LINES = ["Rio: Sora goes for the same small target again and again. It's almost rude."];
+export const SORA_NAP_AGAIN = "Sora: Zzz... Still noon? Sleepy Raccoon. Cherry Park. Zzz.";
+export const SORA_REMEMBERS = "Sora: Mmf? Oh, it's you, from Pinecone. You really came. And it's not even noon.";
 export const SORA_LINES = [
   "Sora: Mmf? A visitor. Is it morning?",
   "Sora: First to two points. Rei, and then I can go back to sleep.",
@@ -681,6 +686,7 @@ export function allContentLines(): string[] {
     MOMO_LOSE_NO_SEME,
     MOMO_LOSE_SEME,
     ...GEN_LINES,
+    ...GEN_AGAIN,
     ...GEN_DONE,
     ...GEN_DONE_AFTER,
     ...SENSEI_RAIKO_LINES,
@@ -728,7 +734,7 @@ export function allContentLines(): string[] {
     ...GOOSE_ARRIVAL,
     ...HANA_LINES,
     ...HANA_WIN_LINES,
-    ...RACCOON_ARRIVAL, ...NIKO_LINES, ...RIO_LINES, ...SORA_LINES, ...SORA_WIN_LINES,
+    ...RACCOON_ARRIVAL, ...NIKO_LINES, ...RIO_LINES, ...SORA_LINES, SORA_NAP_AGAIN, SORA_REMEMBERS, ...SORA_WIN_LINES,
     ...HERON_ARRIVAL, ...TEO_LINES, ...UMA_LINES, ...MIKA_LINES, ...MIKA_WIN_LINES,
     ...OTTER_ARRIVAL, ...VAL_LINES, ...WES_LINES, ...KENJI_LINES, ...KENJI_WIN_LINES,
     TAIKAI_STEP_UP, TAIKAI_OUT, TAIKAI_CHAMPION, TAIKAI_CHAMPION_LINE, TAIKAI_CHAMPION_AGAIN, TAIKAI_LOST, TAIKAI_WITHDRAW, SEME_ITEM_LINE, CUP_ENTER, CUP_WON_BEFORE, cupNotice("Thunder Open", true), cupLeft("Grand Taikai"), cupWonLine("Thunder Open"), CHARACTER_TITLE, INSIGNIA_TITLE, INSIGNIA_NOTE, CHOOSE_TITLE, CHOOSE_HELP,
@@ -896,6 +902,8 @@ export const HINT_MOVE = "Move";
 export const HINT_PAGE = "Page";
 export const HINT_PICK = "Pick";
 export const HINT_BACK = "Back";
+/** On a spare's card in the inventory: what equipping it would do to your ki. */
+export const equipChangeLine = (change: number) => (change === 0 ? "Same ki if equipped" : `Ki ${change > 0 ? "+" : ""}${change} if equipped`);
 export const HINT_USE = "Use";
 export const HINT_WEAR = "Wear";
 export const HINT_TAKE_OFF = "Take off";

@@ -11,6 +11,10 @@ export type Direction = "left" | "right" | "up" | "down";
 /** Each district is its own map. Streetcars and trains are the only way between them. */
 export type District = "downtown" | "beach" | "park" | "steel" | "falls" | "arena";
 export const DISTRICTS: District[] = ["downtown", "beach", "park", "steel", "falls", "arena"];
+/** What each part of the city is called where people talk about it: the ladder, Sensei and the destinations board. */
+export const DISTRICT_NAMES: Record<District, string> = { downtown: "Downtown", beach: "The beach", park: "Cherry Park", steel: "Steel Bay", falls: "Misty Falls", arena: "Grand Arena" };
+/** A destinations board names where a ride goes, not just the stop, because "Park Stop" doesn't say Cherry Park. */
+export const boardName = (to: NodeId): string => DISTRICT_NAMES[NODES[to].district];
 export type WorldNode = { name: string; kind: "dojo" | "path" | "gang" | "tower" | "stop" | "station" | "master" | "tournament" | "store"; district: District; x: number; y: number };
 export type Edge = { from: NodeId; to: NodeId; dir: Direction; requires?: NodeId };
 

@@ -14,17 +14,18 @@ import { onGui, onStage, STAGE_H, STAGE_W, stageX, viewH, viewW } from "../core/
 import type { Game, Scene } from "../core/scene.ts";
 import { lockedLine, lockFor, unmet } from "../progress.ts";
 import { recordTower, type RunState, walkingGear } from "../run-state.ts";
-import { DIRECTIONS, EDGES, exitsFrom, neighbor, NODES, nodesIn, routesFrom, TOWER_HEIGHT, type Direction, type District, type NodeId, type Route, type WorldNode } from "../world/map.ts";
+import { boardName, DIRECTIONS, EDGES, exitsFrom, neighbor, NODES, nodesIn, routesFrom, TOWER_HEIGHT, type Direction, type District, type NodeId, type Route, type WorldNode } from "../world/map.ts";
 import { stepsTo } from "../world/routes.ts";
 import { benchJobs, durabilityOf, fixGear, type GearKey } from "../durability.ts";
 import { gearName } from "../items.ts";
-import { AUTO_LOST, AUTO_WALK, benchLabel, BENCH_BROWSE, BENCH_FIXED_FUMI, BENCH_FIXED_SELF, BENCH_TOO_DEAR, CHOOSE_HELP, CHOOSE_TITLE, FUMI_BUILD_DONE, GANG_STORIES, GEN_LINES, MAP_HELP, SHINAI_STEPS, TOWER_AGAIN, TOWER_FIRST } from "./content.ts";
+import { AUTO_LOST, AUTO_WALK, benchLabel, BENCH_BROWSE, BENCH_FIXED_FUMI, BENCH_FIXED_SELF, BENCH_TOO_DEAR, CHOOSE_HELP, CHOOSE_TITLE, FUMI_BUILD_DONE, GANG_STORIES, MAP_HELP, SHINAI_STEPS, TOWER_AGAIN, TOWER_FIRST } from "./content.ts";
 import { finishBuilding, genOnBamboo, shopArrival, stepIsRight } from "./shinai-story.ts";
 import { openTopics } from "./chatter.ts";
 import { createMenu } from "./choice.ts";
 import { figureAt, type Figure } from "./bubble.ts";
 import { createDialogue } from "./dialogue.ts";
 import { canRide } from "./exit.ts";
+import { genWelcome } from "./welcome.ts";
 
 const SPEED = 1.5;
 /** Quicker when you've said where you're going, so a long way doesn't drag, but you still see all of it. */
@@ -171,7 +172,7 @@ function drawChooser(ctx: CanvasRenderingContext2D, routes: Route[], choice: num
     const lock = route.line ? lockFor(run, route.line) : null;
     const selected = i === choice;
     if (selected) drawText(ctx, ">", 19, y, UI.accent);
-    drawText(ctx, NODES[route.to].name, 27, y, lock ? UI.faint : selected ? UI.accent : UI.text);
+    drawText(ctx, boardName(route.to), 27, y, lock ? UI.faint : selected ? UI.accent : UI.text);
     if (lock) {
       const needs = unmet(run, lock).join(", ");
       drawText(ctx, needs, STAGE_W - 19 - measureText(needs), y, UI.dim);
@@ -262,7 +263,9 @@ export function createMapScene(nameOf: () => string): Scene {
       });
       else if (game.run.seme) openTopics(game, menu, dialogue, "gen");
       else {
-        dialogue.open(GEN_LINES, () => {
+        const welcome = genWelcome(game.run);
+        game.run = welcome.run;
+        dialogue.open(welcome.lines, () => {
           game.session = { kind: "master" };
           game.go("training");
         });
