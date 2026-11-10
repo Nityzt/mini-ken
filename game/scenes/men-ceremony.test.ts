@@ -1,9 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createRunState, type RunState } from "../run-state.ts";
+import { POSES } from "../art/duel-sprites.ts";
 import { finishSession } from "./club-story.ts";
 import {
-  beatAt, CEREMONY_BEATS, CEREMONY_SKIP_AFTER, CEREMONY_TICKS, ceremonyFrame, createCeremony, markMenToast, MEN_CEREMONY_SEEN, MEN_TOAST_SEEN, menToastDue, stepCeremony, TOAST_TICKS, toastSlide, type CeremonyBeat,
+  beatAt, CEREMONY_BEATS, CEREMONY_POSES, CEREMONY_SKIP_AFTER, CEREMONY_TICKS, ceremonyFrame, createCeremony, markMenToast, MEN_CEREMONY_SEEN, MEN_TOAST_SEEN, menToastDue, stepCeremony, TOAST_TICKS, toastSlide, type CeremonyBeat,
 } from "./men-ceremony.ts";
 
 const play = (reducedMotion: boolean, skipAt = -1) => {
@@ -116,4 +117,14 @@ test("the note slides in, stays, and slides out, and with reduced motion it just
   assert.equal(toastSlide(0, true), 0);
   assert.equal(toastSlide(TOAST_TICKS - 1, true), 0);
   assert.equal(toastSlide(TOAST_TICKS, true), 1);
+});
+
+test("nobody's in kamae for the handing over: both shinai are down at the hip, and the senpai's free hand is the one holding the men", () => {
+  const [you, senpai] = CEREMONY_POSES;
+  for (const pose of CEREMONY_POSES) assert.ok(POSES[pose].sheathed, pose);
+  // You stand with your right hand free, ready to be given it.
+  assert.ok(POSES[you].rightHand);
+  // The senpai's right arm is drawn by the ceremony, reaching into the gi and holding up the men, so the pose mustn't draw a second one.
+  assert.equal(POSES[senpai].rightHand, undefined);
+  assert.equal(POSES[senpai].angle, POSES[you].angle);
 });

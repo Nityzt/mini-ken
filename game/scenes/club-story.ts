@@ -8,12 +8,13 @@ import { CUPS, type CupId } from "../world/tournament.ts";
 import { earn, maybeTip, withFeat } from "../money.ts";
 import { gainXp, PAY_DRILL, PAY_HELPING, recordKirikaeshiPass, recordLinePass, recordWin, XP_DRILL, type RunState } from "../run-state.ts";
 import {
-  CUP_ENTER, CUP_WON_BEFORE, cupNotice, DOOR_LOCKED, DOOR_NEEDS_SPAR, DRILL_PRAISE, GEN_DONE, GEN_DONE_AFTER, GI_REMINDER, KOTE_DONE, LINE_AGAIN, LINE_FIRST, LINE_NO_KEYS, LINE_READY, LINE_STREETS_OPEN,
+  CUP_ENTER, CUP_WON_BEFORE, cupNotice, DOOR_LOCKED, DOOR_NEEDS_SPAR, DRILL_PRAISE, GEN_DONE, GEN_DONE_AFTER, GI_REMINDER, KOTE_DONE, LINE_AGAIN, LINE_FIRST, LINE_NO_KEYS, LINE_STREETS_OPEN,
   lineExtraRun, lineFailed, lineRunDone, MOMO_AFTER, MOMO_GOT_GI, MOMO_GUARD, MOMO_GUARD_SEME, momoPractice, MOMO_WELCOME, SENPAI_LINES, SENSEI_AGAIN, SENSEI_ALL_OPEN,
   helpPaid, HELP_FAILED, MENU_CHALLENGE, MENU_CHALLENGE_THEM, MENU_GRADE, MENU_HELP, MENU_LEAVE, MENU_LETTER, MENU_LINE, MENU_SPAR, MENU_TALK, MENU_WAZA, MENU_WAZA_AGAIN, QUICK_DONE, WAZA_AGAIN_DONE, WAZA_DONE, SENSEI_NEXT, SENSEI_NO_GI, SENSEI_ROUND_DONE, SENSEI_SHINAI, SENSEI_SHINAI_AFTER, SENSEI_WAITING, SHINAI_WAITING, SPAR_DOOR_OPEN, SPAR_KI,
-  eitherOf, KIRIKAESHI_AGAIN, KIRIKAESHI_FIRST, KIRIKAESHI_LOST, KIRIKAESHI_READY, KIRIKAESHI_WINDED, kirikaeshiDone, kirikaeshiGrew, MENU_KIRIKAESHI, SENSEI_NOT_YET, SENSEI_OFFER, SENSEI_WHY, WHY_REPLY } from "./content.ts";
+  eitherOf, KIRIKAESHI_AGAIN, KIRIKAESHI_FIRST, KIRIKAESHI_LOST, KIRIKAESHI_WINDED, kirikaeshiDone, kirikaeshiGrew, MENU_KIRIKAESHI, SENSEI_NOT_YET, SENSEI_OFFER, SENSEI_WHY, WHY_REPLY } from "./content.ts";
 import { CHALLENGE_REWARD, SENPAI, SENPAI_IDS, type SenpaiId, type Session } from "./curriculum.ts";
 import { MEN_CEREMONY_SEEN } from "./men-ceremony.ts";
+import { wasTaught } from "./teaching.ts";
 
 /** What each person says depends only on how far through the armor loop the player is. */
 
@@ -48,10 +49,15 @@ export function talkToMomo(run: RunState): { lines: string[]; run: RunState; fig
   return { lines: MOMO_WELCOME, run, fight: false, escort: true };
 }
 
-/** How Sensei sets up the line drill, depending on how far along you are. */
+/**
+ * How Sensei sets up the line drill, depending on how far along you are. Choosing it from his menu was the
+ * decision, so there's no "ready?" after it. When the drill's own card is about to say the same thing, the
+ * card says it and Sensei doesn't, and an empty list means straight in.
+ */
 export function lineOffer(run: RunState): string[] {
-  const first = run.linePasses === 0 ? LINE_FIRST : run.linePasses >= LINE_PASSES_TO_UNLOCK - 1 ? LINE_NO_KEYS : LINE_AGAIN;
-  return [first, LINE_READY];
+  if (run.linePasses === 0) return wasTaught(run, "line") ? [LINE_FIRST] : [];
+  if (run.linePasses >= LINE_PASSES_TO_UNLOCK - 1) return wasTaught(run, "lineNoKeys") ? [LINE_NO_KEYS] : [];
+  return [LINE_AGAIN];
 }
 
 export type SenseiChoice = "line" | "kirikaeshi" | "waza" | "help" | "grade" | "challenge" | "talk" | "leave";
@@ -211,7 +217,7 @@ export function lineOutcome(run: RunState, result: { passed: boolean; cleans: nu
 }
 
 /** How Sensei sets up kirikaeshi, depending on how far along you are. */
-export const kirikaeshiOffer = (run: RunState): string[] => [...(run.kirikaeshiPasses === 0 ? KIRIKAESHI_FIRST : [KIRIKAESHI_AGAIN]), KIRIKAESHI_READY];
+export const kirikaeshiOffer = (run: RunState): string[] => (run.kirikaeshiPasses === 0 ? KIRIKAESHI_FIRST : [KIRIKAESHI_AGAIN]);
 
 /** Being on Bo's beat is only ever praise: a pass earns the same however slowly it went. */
 export function kirikaeshiOutcome(run: RunState, result: { outcome: KirikaeshiOutcome; misses: number; onBeat: number }): { run: RunState; lines: string[] } {
@@ -237,13 +243,16 @@ export function cupOffer(run: RunState, cup: Exclude<CupId, "grand">): { lines: 
 
 const LABELS = {
   hall: { P: "Talk", D: "Leave" },
-  home: { $: "Merch", M: "Talk", X: "Talk", A: "Talk", B: "Talk", Y: "Talk", V: "Talk", N: "Notice board", D: "Leave", C: "Look", Q: "Door" },
+  home: { $: "Merch", M: "Talk", X: "Talk", A: "Talk", B: "Talk", Y: "Talk", V: "Talk", Z: "Talk", N: "Notice board", D: "Leave", C: "Look", Q: "Door" },
   rival: { $: "Merch", X: "Talk", G: "Talk", E: "Talk", V: "Talk", R: "Talk", J: "Challenge", N: "Notice board", D: "Leave" },
 } satisfies Record<string, Record<string, string>>;
+
+/**
+ * The words over your head. Facing someone, it names them: their own tag would sit right beside it, or on top
+ * of you when they're below, so it's hidden and the prompt says who it is instead.
+ */
+export const promptFor = (label: string, name?: string): string => (name && label === "Talk" ? `Talk to ${name}` : label);
 
 /** What pressing E would do at this tile, if anything. Shown over your head, so nobody has to guess. */
 export const interactionLabel = (tile: string, place: keyof typeof LABELS): string | null => (LABELS[place] as Record<string, string>)[tile] ?? null;
 
-const HOME_NAMES: Record<string, string> = { M: "Momo", X: "Sensei", A: "Aki", B: "Bo", Y: "Yui", Z: "Nao" };
-/** At home people stand side by side, so the prompt says who E would talk to. A visitor stays "Talk": Ren hasn't always said who they are yet. */
-export const homeLabel = (tile: string): string | null => (HOME_NAMES[tile] ? `Talk to ${HOME_NAMES[tile]}` : interactionLabel(tile, "home"));

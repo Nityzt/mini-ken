@@ -501,3 +501,18 @@ test("Yui's first challenge words would fail without the opening, which is the b
   };
   assert.equal(play(lesson, withoutOpening, BEFORE[0], 1500, { literal: true }).passed, false);
 });
+
+test("a challenge that hits back says which tell to block, so it never says to block the strike you're there to counter", () => {
+  for (const id of SENPAI_IDS) {
+    for (const level of [1, 2]) {
+      const { prompt, keys } = challengeFor(id, level);
+      // Blocking is only for the do, whose tell is the tip dipping, as in Sensei's block lesson.
+      assert.match(prompt, /Tip dips\? That's my do: hold S!/, prompt);
+      assert.doesNotMatch(prompt, /men and do, so hold S/, prompt);
+      // The card reads in the order the words do: strike, slide through, and the block on its own.
+      const order = keys.map(([key]) => key);
+      assert.ok(order.indexOf("D") === order.indexOf("S") - 1, JSON.stringify(order));
+    }
+    assert.doesNotMatch(challengeFor(id, 0).prompt, /hold S/);
+  }
+});

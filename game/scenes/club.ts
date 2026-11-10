@@ -15,7 +15,7 @@ import { currentObjective } from "../objective.ts";
 import { DOJOS, opponentById } from "../world/dojos.ts";
 import { askToGrade, showLetter, type Asker } from "../grading.ts";
 import { hasLetter, personDan, presenceOf, type PersonId } from "../ranks.ts";
-import { answerOffer, answerWhy, cupOffer, doorResponse, homeLabel, kirikaeshiOffer, lineOffer, senpaiMenu, senseiMenu, talkToMomo, talkToSenpai, talkToSensei } from "./club-story.ts";
+import { answerOffer, answerWhy, cupOffer, doorResponse, interactionLabel, kirikaeshiOffer, lineOffer, promptFor, senpaiMenu, senseiMenu, talkToMomo, talkToSenpai, talkToSensei } from "./club-story.ts";
 import { rest } from "../health.ts";
 import { talkToChallenger } from "./challengers.ts";
 import { openTopics } from "./chatter.ts";
@@ -226,7 +226,12 @@ export function createClubScene(nameOf: () => string): Scene {
     }
     dialogue.open(reply.lines, () => {
       menu.open(senseiMenu(game.run), (id) => {
-        if (id === "line") dialogue.open(lineOffer(game.run), () => game.go("line"));
+        if (id === "line") {
+          // With nothing for Sensei to add, the drill's own card does the talking.
+          const offer = lineOffer(game.run);
+          if (offer.length) dialogue.open(offer, () => game.go("line"));
+          else game.go("line");
+        }
         else if (id === "kirikaeshi") dialogue.open(kirikaeshiOffer(game.run), () => game.go("kirikaeshi"));
         else if (id === "waza") dialogue.open(WAZA_OFFER, () => {
           game.session = { kind: "waza" };
@@ -535,6 +540,10 @@ export function createClubScene(nameOf: () => string): Scene {
       }
 
       const tags: (() => void)[] = [];
+      // Whoever you're facing is named in the prompt over your head, so their own tag stays out of its way.
+      const prompting = !dialogue.active && !menu.active;
+      const ahead = prompting ? personAhead(walker, rows, CLUB_SOLID, PEOPLE)?.char ?? null : null;
+      const names: Record<string, string> = { Z: "Nao" };
       const you: Figure = figureAt(ctx, walker.box.x + walker.box.w / 2 - cam.x, walker.box.y - 12 - cam.y, walker.box.y + 8 - cam.y);
       const figures: Record<string, Figure | undefined> = {};
       const walkingFigure = (w: Walker) => figureAt(ctx, w.box.x + w.box.w / 2 - cam.x, w.box.y - 12 - cam.y, w.box.y + 8 - cam.y);
@@ -548,7 +557,8 @@ export function createClubScene(nameOf: () => string): Scene {
           ? facingToward({ x: x + 8, y: y + 16 }, { x: walker.box.x + walker.box.w / 2 - cam.x, y: walker.box.y + walker.box.h / 2 - cam.y })
           : { facing: standing, flip: false };
         const dan = personDan(id);
-        const near = rankTagShown({ x: walker.box.x + walker.box.w / 2 - cam.x, y: walker.box.y - cam.y }, { x: x + 8, y: y + 16 });
+        names[char] = opponentById(id).rival;
+        const near = char !== ahead && rankTagShown({ x: walker.box.x + walker.box.w / 2 - cam.x, y: walker.box.y - cam.y }, { x: x + 8, y: y + 16 });
         if (near) tags.push(() => drawRankTag(ctx, opponentById(id).rival, x + 8, y - 8, presenceOf(dan) > 0));
         return {
           y: spot.row * TILE,
@@ -562,7 +572,7 @@ export function createClubScene(nameOf: () => string): Scene {
       const greeterX = greeterSpot.col * TILE - cam.x;
       const greeterY = greeterSpot.row * TILE - 4 - cam.y;
       figures.Z = figureAt(ctx, greeterX + 8, greeterY, greeterY + 20);
-      if (rankTagShown({ x: walker.box.x + walker.box.w / 2 - cam.x, y: walker.box.y - cam.y }, { x: greeterX + 8, y: greeterY + 16 })) tags.push(() => drawRankTag(ctx, "Nao", greeterX + 8, greeterY - 8, false));
+      if (ahead !== "Z" && rankTagShown({ x: walker.box.x + walker.box.w / 2 - cam.x, y: walker.box.y - cam.y }, { x: greeterX + 8, y: greeterY + 16 })) tags.push(() => drawRankTag(ctx, "Nao", greeterX + 8, greeterY - 8, false));
       const people = [
         { y: greeterSpot.row * TILE, draw: () => drawKendoka(ctx, greeterX, greeterY, "down", 0, { ...FULL_GEAR, men: false }, { colors: TEAM_COLORS.pinecone! }) },
         ...(escort
@@ -612,12 +622,11 @@ export function createClubScene(nameOf: () => string): Scene {
       }
 
       drawTopBar(ctx, "Pinecone Dojo", game.run);
-      if (!dialogue.active && !menu.active) {
+      if (prompting) {
         drawObjective(ctx, currentObjective(game.run));
-        const ahead = personAhead(walker, rows, CLUB_SOLID, PEOPLE);
-        const label = homeLabel(ahead?.char ?? tileInFront(walker, rows));
+        const label = interactionLabel(ahead ?? tileInFront(walker, rows), "home");
         // Facing up at someone, a prompt over your head would sit on their face, so it goes under your feet.
-        if (label) drawInteractPrompt(ctx, label, walker.box.x + walker.box.w / 2 - cam.x, walker.box.y - cam.y, keyLabel(game.input, "confirm", "e"), !!ahead && walker.facing === "up");
+        if (label) drawInteractPrompt(ctx, promptFor(label, ahead ? names[ahead] : undefined), walker.box.x + walker.box.w / 2 - cam.x, walker.box.y - cam.y, keyLabel(game.input, "confirm", "e"), !!ahead && walker.facing === "up");
       }
       if (menToast !== null) drawMenToast(ctx, menToast, game.reducedMotion, { pause: keyLabel(game.input, "pause", "escape"), confirm: keyLabel(game.input, "confirm", "e") }, playerColors(game.run));
       dialogue.render(ctx, speakersIn(figures, SPEAKERS, you, talkingTo));

@@ -1,10 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { answerOffer, cupOffer, doorResponse, finishSession, freeSenpai, freeSenpaiNames, homeLabel, interactionLabel, kirikaeshiOutcome, lineOutcome, lineOffer, pendingChallenge, senseiMenu, sparOutcome, talkToMomo, talkToSenpai, talkToSensei } from "./club-story.ts";
+import { answerOffer, cupOffer, doorResponse, finishSession, freeSenpai, freeSenpaiNames, kirikaeshiOffer, promptFor, interactionLabel, kirikaeshiOutcome, lineOutcome, lineOffer, pendingChallenge, senseiMenu, sparOutcome, talkToMomo, talkToSenpai, talkToSensei } from "./club-story.ts";
 import { recordLinePass, recordWin } from "../run-state.ts";
 import { isOpen, LINE_PASSES_TO_UNLOCK } from "../progress.ts";
-import { DIALOGUE_LINES, DIALOGUE_WIDTH, DRILL_PRAISE, GEAR_LINES, GEN_DONE, GEN_DONE_AFTER, KOTE_DONE, SENPAI_LINES, SENSEI_ROUND_DONE } from "./content.ts";
+import { DIALOGUE_LINES, DIALOGUE_WIDTH, DRILL_PRAISE, GEAR_LINES, GEN_DONE, GEN_DONE_AFTER, KOTE_DONE, LINE_FIRST, LINE_NO_KEYS, SENPAI_LINES, SENSEI_ROUND_DONE } from "./content.ts";
 import { wrapText } from "../art/font.ts";
+import { SENPAI_IDS } from "./curriculum.ts";
+import { LINE_NO_KEYS_CARD } from "./teaching.ts";
 import { createRunState, type RunState } from "../run-state.ts";
 
 const withGi = (): RunState => ({ ...createRunState(), metSenpai: true, gi: true });
@@ -233,9 +235,27 @@ test("runs beyond the third still get a word from Sensei", () => {
   assert.equal(recordLinePass(run).linePasses, LINE_PASSES_TO_UNLOCK + 1);
 });
 
-test("the last tier warns you the key prompts are gone", () => {
-  assert.notDeepEqual(lineOffer({ ...armored(), linePasses: 0 }), lineOffer({ ...armored(), linePasses: 2 }));
-  assert.ok(lineOffer({ ...armored(), linePasses: 2 }).join(" ").includes("no key"));
+test("the last tier warns you the key prompts are gone, once, from Sensei or from the card but not both", () => {
+  const seen = (...ids: string[]) => ids.map((id) => `taught:${id}`);
+  // The card says it the first time, word for word, so Sensei doesn't say it first.
+  assert.deepEqual(lineOffer({ ...armored(), linePasses: 2 }), []);
+  assert.equal(LINE_NO_KEYS_CARD.text, LINE_NO_KEYS);
+  // After that the card's gone, and the warning is Sensei's.
+  assert.ok(lineOffer({ ...armored(), linePasses: 2, seen: seen("line", "lineNoKeys") }).join(" ").includes("no key"));
+  assert.notDeepEqual(lineOffer({ ...armored(), linePasses: 1 }), lineOffer({ ...armored(), linePasses: 2, seen: seen("line", "lineNoKeys") }));
+});
+
+test("picking a drill from Sensei's menu is the decision: nobody asks again if you're ready", () => {
+  for (const linePasses of [0, 1, 2, 3]) {
+    for (const seen of [[], ["taught:line", "taught:lineNoKeys"]]) {
+      for (const line of lineOffer({ ...armored(), linePasses, seen })) assert.doesNotMatch(line, /Ready\?|X to leave/, line);
+    }
+  }
+  // The first run's card explains the line itself, so Sensei only explains it to someone who's had the card.
+  assert.deepEqual(lineOffer({ ...armored(), linePasses: 0 }), []);
+  assert.deepEqual(lineOffer({ ...armored(), linePasses: 0, seen: ["taught:line"] }), [LINE_FIRST]);
+  for (const kirikaeshiPasses of [0, 1]) for (const line of kirikaeshiOffer({ ...armored(), kirikaeshiPasses })) assert.doesNotMatch(line, /Ready\?|X to leave/, line);
+  for (const id of SENPAI_IDS) assert.doesNotMatch(SENPAI_LINES[id].spar, /E to start|X to leave/);
 });
 
 test("the line drill's words fit in the dialogue box", () => {
@@ -461,11 +481,14 @@ test("Momo says every senpai has to test you, and names who's still left", () =>
   assert.match(afterBo, /to go: Aki or Yui\./);
 });
 
-test("at home, the prompt names who E would talk to, Nao included", () => {
-  assert.equal(homeLabel("M"), "Talk to Momo");
-  assert.equal(homeLabel("Y"), "Talk to Yui");
-  assert.equal(homeLabel("Z"), "Talk to Nao");
-  assert.equal(homeLabel("V"), "Talk");
-  assert.equal(homeLabel("D"), "Leave");
-  assert.equal(homeLabel("."), null);
+test("the prompt over your head says who you'd be talking to, since their own name tag is hidden behind it", () => {
+  assert.equal(promptFor("Talk", "Bo"), "Talk to Bo");
+  assert.equal(promptFor("Talk", "Sensei Kuma"), "Talk to Sensei Kuma");
+  // Anything that isn't a person keeps its own word.
+  assert.equal(promptFor("Leave"), "Leave");
+  assert.equal(promptFor("Notice board"), "Notice board");
+});
+
+test("Nao at the door gets a prompt too", () => {
+  assert.equal(interactionLabel("Z", "home"), "Talk");
 });

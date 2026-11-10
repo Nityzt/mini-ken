@@ -168,7 +168,6 @@ export const SPAR_KI = "Your spirit grows: ki +5.";
 export const LINE_FIRST = "Sensei Kuma: Each senpai in the line shows one opening. Strike it, stomp, and slide through to the next.";
 export const LINE_AGAIN = "Sensei Kuma: Again, and quicker this time.";
 export const LINE_NO_KEYS = "Sensei Kuma: This time, no key prompts. Tip dips: men. Hands rise: kote. Arms high: do.";
-export const LINE_READY = "Sensei Kuma: Ready? E to line up, X to leave.";
 export const LINE_LEFT = "Sensei Kuma: Stepping out? The line will still be here.";
 export const LINE_STREETS_OPEN = "Sensei Kuma: That's three good runs. You're ready for the streets. Your spirit grows: ki +5.";
 export const lineRunDone = (cleans: number, count: number, run: number, needed: number) =>
@@ -182,7 +181,6 @@ export const KIRIKAESHI_FIRST = [
 ];
 export const KIRIKAESHI_BIG_KEYS = "Space + J";
 export const KIRIKAESHI_AGAIN = "Sensei Kuma: Kirikaeshi again. Bo will keep a quicker beat this time, if you can stay with it. Spend your breath carefully.";
-export const KIRIKAESHI_READY = "Sensei Kuma: Ready? E to begin, X to leave.";
 export const KIRIKAESHI_LEFT = "Sensei Kuma: Catch your breath. Bo isn't going anywhere.";
 /** How many sayu men were on Bo's beat, which is praise and nothing more. Taking your own time gets no comment at all. */
 const rhythmNote = (onBeat: number, of: number) => (onBeat === 0 ? "" : onBeat === of ? " Every men on Bo's beat." : ` ${onBeat} of ${of} on Bo's beat.`);
@@ -264,6 +262,11 @@ export const LESSON_PROMPTS = {
   semeRead: "Old Gen: Press me, and I'll lose patience. When my arms go up, let go! L and Space, and slide through.",
 };
 const NEEDS_FOLLOW = "Then slide through!";
+/**
+ * Past the first level the senpai hit back with a do as well. Its tell is the tip dipping, as in Sensei's block
+ * lesson, and it's the only strike to block: the other one is the one you're there to counter.
+ */
+const BLOCK_THE_DO = "Tip dips? That's my do: hold S!";
 /** Each senpai's way of being, and their own take on each level's drill. */
 export const SENPAI_LINES = {
   aki: {
@@ -275,10 +278,10 @@ export const SENPAI_LINES = {
     seeSensei: "Aki: You've earned that! Go and see what Sensei has for you next.",
     prompts: [
       `Aki: Catch me! Stay in range, hold E, then J and Space. ${NEEDS_FOLLOW}`,
-      `Aki: Hands high? Hold W, then L and Space. I can hit your do now, so hold S! ${NEEDS_FOLLOW}`,
-      `Aki: Hands rising? Hold Q, then K and Space. I can hit your men and do, so hold S! ${NEEDS_FOLLOW}`,
+      `Aki: Hands high? Hold W, then L and Space. ${NEEDS_FOLLOW} ${BLOCK_THE_DO}`,
+      `Aki: Hands rising? Hold Q, then K and Space. ${NEEDS_FOLLOW} ${BLOCK_THE_DO}`,
     ],
-    spar: "Aki: A real match? Yes! First to two, and I won't slow down. E to start, X to leave.",
+    spar: "Aki: A real match? Yes! First to two, and I won't slow down.",
     sparWin: "Aki: You got me! I'm telling everyone. Everyone!",
     sparAgain: "Aki: Any time! I'll be here. Or there. Somewhere.",
     pass: "Aki: Whew, you kept up! Here, this one's yours.",
@@ -291,10 +294,10 @@ export const SENPAI_LINES = {
     seeSensei: "Bo: Mm. Good. Sensei next.",
     prompts: [
       `Bo: Hold E and wait for my guard to drop, then J and Space. Don't hit the wall. ${NEEDS_FOLLOW}`,
-      `Bo: Hands high? Hold W, then L and Space. I can hit your do now, so hold S! ${NEEDS_FOLLOW}`,
-      `Bo: Hands rising? Hold Q, then K and Space. I can hit your men and do, so hold S! ${NEEDS_FOLLOW}`,
+      `Bo: Hands high? Hold W, then L and Space. ${NEEDS_FOLLOW} ${BLOCK_THE_DO}`,
+      `Bo: Hands rising? Hold Q, then K and Space. ${NEEDS_FOLLOW} ${BLOCK_THE_DO}`,
     ],
-    spar: "Bo: Mm. A real match. First to two. I rarely swing. E to start, X to leave.",
+    spar: "Bo: Mm. A real match. First to two. I rarely swing.",
     sparWin: "Bo: Mm. The wall came down.",
     sparAgain: "Bo: Mm. Rest first.",
     pass: "Bo: Mm. You noticed. This is yours.",
@@ -307,10 +310,10 @@ export const SENPAI_LINES = {
     seeSensei: "Yui: Acceptable. Sensei will want you now.",
     prompts: [
       `Yui: Slide into range, hold E, then J and Space, exactly. ${NEEDS_FOLLOW}`,
-      `Yui: Hands high? Hold W, then L and Space. I can hit your do now, so hold S! ${NEEDS_FOLLOW}`,
-      `Yui: Hands rising? Hold Q, then K and Space. I can hit your men and do, so hold S! ${NEEDS_FOLLOW}`,
+      `Yui: Hands high? Hold W, then L and Space. ${NEEDS_FOLLOW} ${BLOCK_THE_DO}`,
+      `Yui: Hands rising? Hold Q, then K and Space. ${NEEDS_FOLLOW} ${BLOCK_THE_DO}`,
     ],
-    spar: "Yui: A real match, first to two. I'm after your wrists. E to start, X to leave.",
+    spar: "Yui: A real match, first to two. I'm after your wrists.",
     sparWin: "Yui: That was correct. I'll allow it.",
     sparAgain: "Yui: We'll begin again when you're ready.",
     pass: "Yui: Clean. I have nothing to correct. This is yours.",
@@ -639,13 +642,11 @@ export function allContentLines(): string[] {
     LINE_FIRST,
     LINE_AGAIN,
     LINE_NO_KEYS,
-    LINE_READY,
     LINE_LEFT,
     LINE_STREETS_OPEN,
     ...KIRIKAESHI_FIRST,
     KIRIKAESHI_BIG_KEYS,
     KIRIKAESHI_AGAIN,
-    KIRIKAESHI_READY,
     KIRIKAESHI_LEFT,
     kirikaeshiGrew(4, 11, 18),
     kirikaeshiDone(4, 18, 18),
@@ -879,8 +880,8 @@ export const CARD_TRAVEL = "Travel now";
 export const CARD_KEEP = "Keep it";
 /** The note at the side once you're home with your new men. The keys are drawn as keycaps between these. */
 export const MEN_TOAST_TITLE = "Your men is in your inventory";
-export const MEN_TOAST_OPEN = "Inventory";
-export const MEN_TOAST_WEAR = "wear it";
+export const MEN_TOAST_OPEN = "Inventory, then";
+export const MEN_TOAST_WEAR = "to wear it";
 export const CHOICE_HINT = "E choose   X back";
 export const MENU_LINE = "Line drill";
 export const MENU_GRADE = "Ask about grading";
