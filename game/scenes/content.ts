@@ -470,6 +470,7 @@ export const MAP_HELP: Record<string, string> = {
   tournament: "Arrows or WASD walk   E go inside",
   master: "Arrows or WASD walk   E visit the hut",
   tower: "Arrows or WASD walk   E ride to the top",
+  towerDone: "Arrows or WASD walk   E take in the view",
   path: "Arrows or WASD walk",
   store: "Arrows or WASD walk   E go inside",
 };
