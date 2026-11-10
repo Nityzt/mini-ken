@@ -3,7 +3,7 @@ import { createDungeonTrial, type DungeonTrial } from "./dungeon-story.ts";
 import { wornKi } from "./durability.ts";
 import { NO_GEAR, type Gear } from "./art/kendoka.ts";
 import { DEFAULT_CHARACTER, type CharacterId } from "./characters.ts";
-import { KI_MAX, TSUBA_KI_MAX } from "./duel/constants.ts";
+import { KI_MAX, SEME_DECAY, TSUBA_KI_MAX } from "./duel/constants.ts";
 import { PRESS_GIVES_UP_AT, rivalConfig, type RivalConfig } from "./duel/rival.ts";
 import type { DuelOptions, Kamae } from "./duel/rules.ts";
 import { DEFAULT_INSIGNIA, type Insignia } from "./insignia.ts";
@@ -47,10 +47,10 @@ const PAY_TOWER = 20;
 export const PAY_DRILL = 5;
 export const PAY_HELPING = 15;
 /**
- * How hard Ren's stare presses once you know the far-mountain gaze. Pressure fades at half a point a
- * tick all the while, so this leaves it building half as fast as Ren's usual 1, and twice as slow to shake you.
+ * How hard Ren's stare presses once you know the far-mountain gaze. Pressure fades all the while, so
+ * this leaves it building half as fast as Ren's stare does otherwise, and twice as slow to shake you.
  */
-const STARE_WITH_GAZE = 0.75;
+const stareWithGaze = (stare: number): number => (stare + SEME_DECAY) / 2;
 /**
  * And how much of Ren's held seme gets through. Any less, and Ren runs low on ki before they can fold
  * someone hiding behind their guard, which would make holding block a winning plan.
@@ -251,7 +251,7 @@ export function duelOptionsFor(run: RunState, versus?: OpponentId | null, atFull
   // Ren's stare eases off for someone who keeps coming back. Momo's never does, because that fight is rigged.
   const easedOff = !atFullStrength && opponent.style === "master" && lossesHere(run, versus) >= PRESS_GIVES_UP_AT;
   const gazing = run.gaze && opponent.style === "master";
-  const stare = gazing ? STARE_WITH_GAZE : opponent.presence;
+  const stare = gazing && opponent.presence ? stareWithGaze(opponent.presence) : opponent.presence;
   const presence = easedOff ? 0 : stare;
   return {
     kiMax: [playerKiMax(run), opponent.ki ?? KI_MAX],
