@@ -208,6 +208,8 @@ export const LINE_TITLE = "Line drill";
 export const LINE_WRONG = "Wrong opening!";
 export const LINE_SLOW = "Too slow!";
 export const LINE_PASSED_BY = "Walked past!";
+export const LINE_TOO_CLOSE = "Too close! Strike again";
+export const LINE_MISSED = "Miss!";
 export const LINE_HELP = "J men  K kote  L do  Space stomp";
 /** "Aki, Bo or Yui", "Bo or Yui", or just "Yui". */
 export const eitherOf = (names: string[]): string => (names.length > 1 ? `${names.slice(0, -1).join(", ")} or ${names.at(-1)}` : names[0] ?? "");
@@ -664,6 +666,8 @@ export function allContentLines(): string[] {
     LINE_WRONG,
     LINE_SLOW,
     LINE_PASSED_BY,
+    LINE_TOO_CLOSE,
+    LINE_MISSED,
     LINE_HELP,
     // The longest anyone's list of who's left can be.
     ...[...SENSEI_ROUND_DONE, ...SENSEI_WAITING].map((line) => line(eitherOf(["Aki", "Bo", "Yui"]))),

@@ -1,5 +1,5 @@
 import { createBrawl, stepBrawl, type BrawlEvent, type BrawlState } from "./brawl.ts";
-import { RANGE_MAX } from "./constants.ts";
+import { RANGE_MAX, RANGE_MIN } from "./constants.ts";
 import { nextRandom } from "./rival.ts";
 import type { FighterInput, Target } from "./rules.ts";
 
@@ -26,9 +26,15 @@ const FIRST_AT = 130;
 /** Far enough apart that sliding through one senpai carries you up to the next. */
 const SPACING = 84;
 const TARGETS: Target[] = ["men", "kote", "do"];
+/**
+ * Once a senpai has opened up, walking on stops here, comfortably inside striking distance. Holding D while you read
+ * the opening used to carry you close enough to lock hilts and then walk you past them: a miss for being slow to read.
+ */
+export const STRIKING_GAP = Math.round((RANGE_MIN + RANGE_MAX) / 2) + 2;
 
 export type LineResult = "clean" | "miss" | null;
-export type LineNote = "opened" | "slow" | "passed";
+/** `missed` comes with every miss, whatever the reason, so none of them goes unannounced. */
+export type LineNote = "opened" | "slow" | "passed" | "missed";
 export type LineState = {
   brawl: BrawlState;
   spec: LineSpec;
@@ -88,7 +94,9 @@ export function createLine(options: { tier: number; seed: number; kiMax?: number
 /** One step of the drill. Every senpai gets one try: anything but the whole combination on the right target is a miss. */
 export function stepLine(state: LineState, input: FighterInput): LineState {
   if (state.done) return { ...state, notes: [], events: [] };
-  const brawl = stepBrawl(state.brawl, { ...input, seme: false });
+  const waiting = state.active === null ? null : state.brawl.bullies[state.active];
+  const atDistance = !!waiting?.opening && !state.brawl.zanshin && input.move > 0 && waiting.x - state.brawl.player.x <= STRIKING_GAP;
+  const brawl = stepBrawl(state.brawl, { ...input, move: atDistance ? 0 : input.move, seme: false });
   const results = [...state.results];
   const notes: LineNote[] = [];
   let { active, windowLeft } = state;
@@ -96,6 +104,7 @@ export function stepLine(state: LineState, input: FighterInput): LineState {
   const resolve = (result: LineResult) => {
     if (active === null) return;
     results[active] = result;
+    if (result === "miss") notes.push("missed");
     const senpai = brawl.bullies[active];
     senpai.state = "down";
     senpai.opening = null;
