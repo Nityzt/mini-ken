@@ -10,7 +10,7 @@ import type { Search } from "../net/service.ts";
 import { createMenu } from "./choice.ts";
 import { primerNeeds } from "./teaching.ts";
 import { ONLINE_CONNECTING, ONLINE_CREATE_LOBBY, ONLINE_HISTORY, ONLINE_JOIN_LOBBY, ONLINE_PRACTICE_CUP, ONLINE_SIGN_IN, ONLINE_SIGN_IN_NOTE, ONLINE_SIGN_OUT, ONLINE_SIGNED_IN, ONLINE_UNREACHABLE } from "./online-lines.ts";
-import { ONLINE_BACK, ONLINE_CANCEL, ONLINE_DUEL, ONLINE_GATE, ONLINE_PRACTICE, ONLINE_PRIMER_NO, ONLINE_PRIMER_YES, ONLINE_RECORD, onlinePrimerNote, ONLINE_SEARCHING, ONLINE_TITLE, ONLINE_TOURNAMENT, ONLINE_TUTORIAL, ONLINE_TUTORIAL_AGAIN } from "./content.ts";
+import { ONLINE_BACK, ONLINE_CANCEL, ONLINE_DUEL, ONLINE_GATE, ONLINE_INVITE_GATE, ONLINE_PRACTICE, ONLINE_PRIMER_NO, ONLINE_PRIMER_YES, ONLINE_RECORD, onlinePrimerNote, ONLINE_SEARCHING, ONLINE_SKIP_TUTORIAL, ONLINE_TITLE, ONLINE_TOURNAMENT, ONLINE_TUTORIAL, ONLINE_TUTORIAL_AGAIN } from "./content.ts";
 
 const TITLE_Y = 26;
 
@@ -23,7 +23,7 @@ export function createOnlineScene(): Scene {
   let asked = false;
   /** Whether you were signed in when the menu was last drawn up. */
   let menuSignedIn: boolean | null = null;
-  /** What's being offered before going on to a real match, and where declining leads. */
+  /** What's being offered before going on (the pre-match tutorial, or the invite's tutorial-or-skip), and where declining leads. */
   let primerNote: string | null = null;
   let declinePrimer: (() => void) | null = null;
 
@@ -54,6 +54,21 @@ export function createOnlineScene(): Scene {
       game.go("training");
     });
   };
+  /** Someone with an invite who hasn't got in yet chooses: the tutorial, or skip it. Backing out drops the invite. */
+  const offerTutorial = (game: Game) => {
+    primerNote = ONLINE_INVITE_GATE;
+    declinePrimer = () => {
+      primerNote = null;
+      game.online.invite = null;
+      openMenu(game);
+    };
+    menu.open([{ id: "tutorial", label: ONLINE_TUTORIAL }, { id: "skip", label: ONLINE_SKIP_TUTORIAL }], (id) => {
+      primerNote = null;
+      // Skipping opens multiplayer, and the invite carries on to its lobby next tick.
+      if (id === "skip") game.online.finishTutorial();
+      else tutorial(game);
+    });
+  };
   const toLobby = (game: Game, intent: Game["online"]["lobbyIntent"]) => {
     game.online.lobbyIntent = intent;
     game.go("online-lobby");
@@ -63,12 +78,14 @@ export function createOnlineScene(): Scene {
     const { access, service, account } = game.online;
     const open = access().open;
     const tutorialItem = { id: "tutorial", label: open ? ONLINE_TUTORIAL_AGAIN : ONLINE_TUTORIAL };
+    // Until multiplayer's open, the tutorial can be skipped instead.
+    const gate = [tutorialItem, { id: "skip", label: ONLINE_SKIP_TUTORIAL }];
     const backItem = { id: "back", label: ONLINE_BACK };
     const customize = { id: "customize", label: "Customize appearance" };
-    if (!service.live) return open ? [{ id: "duel", label: ONLINE_DUEL }, { id: "tournament", label: ONLINE_TOURNAMENT }, tutorialItem, customize, backItem] : [tutorialItem, customize, backItem];
+    if (!service.live) return open ? [{ id: "duel", label: ONLINE_DUEL }, { id: "tournament", label: ONLINE_TOURNAMENT }, tutorialItem, customize, backItem] : [...gate, customize, backItem];
     const signedIn = !!account?.current();
     const signItem = signedIn ? { id: "sign-out", label: ONLINE_SIGN_OUT } : { id: "sign-in", label: ONLINE_SIGN_IN };
-    if (!open) return [tutorialItem, customize, signItem, backItem];
+    if (!open) return [...gate, customize, signItem, backItem];
     const cup = { id: "tournament", label: ONLINE_PRACTICE_CUP };
     if (!signedIn) return [signItem, cup, tutorialItem, customize, backItem];
     return [{ id: "create", label: ONLINE_CREATE_LOBBY }, { id: "join", label: ONLINE_JOIN_LOBBY }, { id: "history", label: ONLINE_HISTORY }, cup, tutorialItem, customize, signItem, backItem];
@@ -79,6 +96,10 @@ export function createOnlineScene(): Scene {
       if (id === "duel") offerPrimer(game, () => (search = game.online.service.findDuel()));
       else if (id === "tournament") game.go("online-bracket");
       else if (id === "tutorial") tutorial(game);
+      else if (id === "skip") {
+        game.online.finishTutorial();
+        openMenu(game);
+      }
       else if (id === "customize") game.go("online-appearance");
       else if (id === "create") offerPrimer(game, () => toLobby(game, { kind: "create" }));
       else if (id === "join") offerPrimer(game, () => toLobby(game, { kind: "type-code" }));
@@ -113,7 +134,7 @@ export function createOnlineScene(): Scene {
         return false;
       }
       game.online.inviteTutorialTried = true;
-      tutorial(game);
+      offerTutorial(game);
     } else {
       // The invite stays until they're really on their way, so taking the tutorial first doesn't lose it.
       offerPrimer(game, () => {
