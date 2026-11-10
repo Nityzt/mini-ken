@@ -895,6 +895,8 @@ export const HINT_MOVE = "Move";
 export const HINT_PAGE = "Page";
 export const HINT_PICK = "Pick";
 export const HINT_BACK = "Back";
+/** On a spare's card in the inventory: what equipping it would do to your ki. */
+export const equipChangeLine = (change: number) => (change === 0 ? "Same ki if equipped" : `Ki ${change > 0 ? "+" : ""}${change} if equipped`);
 export const HINT_USE = "Use";
 export const HINT_WEAR = "Wear";
 export const HINT_TAKE_OFF = "Take off";

@@ -32,7 +32,7 @@ function drawChallenges(ctx: CanvasRenderingContext2D, run: RunState, input: Inp
     const reward = done ? PROGRESS_OPEN_DONE : `${challenge.reward}`;
     drawText(ctx, reward, STAGE_W - 8 - measureText(reward), y, done ? UI.good : UI.accent);
   });
-  drawTextCentered(ctx, `${keyLabel(input, "confirm", "e")} back`, STAGE_W / 2, STAGE_H - 12, UI.dim);
+  drawTextCentered(ctx, `${keyLabel(input, "cancel", "x")} back`, STAGE_W / 2, STAGE_H - 12, UI.dim);
 }
 
 function drawControls(ctx: CanvasRenderingContext2D, run: RunState, input: Input): void {
@@ -42,7 +42,7 @@ function drawControls(ctx: CanvasRenderingContext2D, run: RunState, input: Input
     drawText(ctx, row.keys, 104 - measureText(row.keys), y, UI.accent);
     drawText(ctx, row.does, 114, y, UI.text);
   });
-  drawTextCentered(ctx, `${keyLabel(input, "confirm", "e")} back`, STAGE_W / 2, STAGE_H - 12, UI.dim);
+  drawTextCentered(ctx, `${keyLabel(input, "cancel", "x")} back`, STAGE_W / 2, STAGE_H - 12, UI.dim);
 }
 
 export function drawPauseMenu(ctx: CanvasRenderingContext2D, menu: PauseMenu, items: MenuItem[], run: RunState, input: Input): void {
@@ -55,7 +55,7 @@ export function drawPauseMenu(ctx: CanvasRenderingContext2D, menu: PauseMenu, it
 
 function drawPage(ctx: CanvasRenderingContext2D, menu: PauseMenu, items: MenuItem[], run: RunState, input: Input): void {
   if (menu.page === "progress") {
-    drawProgress(ctx, menu, run);
+    drawProgress(ctx, menu, run, keyLabel(input, "cancel", "x"));
     return;
   }
   if (menu.page === "inventory") {

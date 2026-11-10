@@ -1,4 +1,4 @@
-import { MODS, equip, equippedAt, equipmentInfo, isEquipment, modOn, type EquipmentId, type ModId } from "./equipment.ts";
+import { equip, equippedAt, equipmentEffects, equipmentInfo, isEquipment, modOn, type EquipmentId } from "./equipment.ts";
 import type { Gear } from "./art/kendoka.ts";
 import { type GearKey, type ShinaiId } from "./durability.ts";
 import { hasLetter, hasTicket, rankLabel } from "./ranks.ts";
@@ -27,10 +27,6 @@ const withoutName = (line: string) => {
   return rest[0].toUpperCase() + rest.slice(1);
 };
 
-const equipmentEffects = (key: EquipmentId, mod: ModId | null): string => {
-  const piece = equipmentInfo(key);
-  return `Ki +${piece.ki + (mod ? MODS[mod].ki : 0)}. Wear -${piece.wearReduction + (mod ? MODS[mod].wearReduction : 0)}/fight. ${mod ? MODS[mod].name : "No mod"}.`;
-};
 
 export function itemInfo(id: ItemId): ItemInfo {
   if (id === "gi") return { title: ITEM, name: "Spare gi", line: GI_LINE };

@@ -63,7 +63,12 @@ export const equipmentWear = (run: RunState, id: EquipmentId, amount: number): n
  const mod = modOn(run,id);
  return Math.max(0, amount - equipmentInfo(id).wearReduction - (mod ? MODS[mod].wearReduction : 0));
 };
-export function equipmentDescription(run: RunState, id: EquipmentId): string {
- const item = equipmentInfo(id), mod = modOn(run,id);
- return `Ki +${item.ki + (mod ? MODS[mod].ki : 0)}. Wear -${item.wearReduction + (mod ? MODS[mod].wearReduction : 0)} per fight. ${mod ? `Mod: ${MODS[mod].name}.` : 'No mod fitted.'}`;
+/** What a piece does with this mod on it, leaving out anything it doesn't do: "Wear -0 per fight" told nobody anything. */
+export function equipmentEffects(id: EquipmentId, mod: ModId | null): string {
+ const item = equipmentInfo(id);
+ const ki = item.ki + (mod ? MODS[mod].ki : 0);
+ const wear = item.wearReduction + (mod ? MODS[mod].wearReduction : 0);
+ const parts = [ki ? `Ki +${ki}.` : 'No ki bonus.', ...(wear ? [`Wears ${wear} less a fight.`] : []), mod ? `Mod: ${MODS[mod].name}.` : 'No mod.'];
+ return parts.join(' ');
 }
+export const equipmentDescription = (run: RunState, id: EquipmentId): string => equipmentEffects(id, modOn(run, id));

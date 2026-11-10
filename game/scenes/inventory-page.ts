@@ -7,14 +7,14 @@ import type { Input } from "../core/input.ts";
 import type { PauseMenu } from "../core/pause-menu.ts";
 import { STAGE_H, STAGE_W } from "../core/scale.ts";
 import { durabilityOf, FULL_DURABILITY, WORN_AT } from "../durability.ts";
-import { confirmDoes, inSlot, screenLayout, slotOf, SCREEN_SLOTS, type ScreenCell, type ScreenDoes } from "../equipment-screen.ts";
+import { confirmDoes, equipKiChange, inSlot, screenLayout, slotOf, SCREEN_SLOTS, type ScreenCell, type ScreenDoes } from "../equipment-screen.ts";
 import { equipmentInfo, modOn, type EquipmentSlot, type ModId } from "../equipment.ts";
 import { GRID_COLS } from "../inventory-grid.ts";
 import { asShinai, gearKeyOf, inventoryDescription, isColors, isUsable, isWorn, itemInfo, itemKind, type ItemId } from "../items.ts";
 import { moneyText } from "../money.ts";
 import { walkingGear, type RunState } from "../run-state.ts";
 import {
-  DURABILITY_LABEL, HINT_BACK, HINT_EQUIP, HINT_MOVE, HINT_SWAP, HINT_TAKE_OFF, HINT_USE, HINT_WEAR, INVENTORY_EMPTY, ITEM_FIGHTS_ONLY, ITEM_IN_HAND, ITEM_LOCKED,
+  DURABILITY_LABEL, equipChangeLine, HINT_BACK, HINT_EQUIP, HINT_MOVE, HINT_SWAP, HINT_TAKE_OFF, HINT_USE, HINT_WEAR, INVENTORY_EMPTY, ITEM_FIGHTS_ONLY, ITEM_IN_HAND, ITEM_LOCKED,
   ITEM_NOT_WORN, ITEM_PUT_AWAY, ITEM_READY, ITEM_WORN, SLOT_EMPTY, SLOT_EMPTY_LINE,
 } from "./content.ts";
 import { drawItemAt } from "./item-card.ts";
@@ -184,6 +184,8 @@ function drawCard(ctx: CanvasRenderingContext2D, cell: ScreenCell | null, color:
   const nameLines = wrapText(itemInfo(item).name, CARD_TEXT_WIDTH);
   nameLines.forEach((text, i) => drawText(ctx, text, CARD.x + 8, CARD.y + 48 + i * LINE_HEIGHT, UI.accent));
   wrapText(inventoryDescription(run, item), CARD_TEXT_WIDTH).forEach((text, i) => drawText(ctx, text, CARD.x + 8, CARD.y + 50 + (nameLines.length + i) * LINE_HEIGHT, UI.dim));
+  const change = equipKiChange(run, item);
+  if (change !== null) drawText(ctx, equipChangeLine(change), CARD.x + 8, CARD.y + CARD.h - 12, change > 0 ? UI.good : change < 0 ? UI.bad : UI.dim);
 }
 
 export function drawInventory(ctx: CanvasRenderingContext2D, menu: PauseMenu, run: RunState, input: Input): void {
