@@ -78,7 +78,12 @@ export function createShop(): ShopOverlay {
       }
       const id = stock[at];
       if (owns(game.run, id)) game.run = isEquipment(id) ? equip(game.run, id) : wear(game.run, id);
-      else if (canBuy(game.run, id)) { game.run = buy(game.run, id); game.audio.play("secret"); }
+      else if (canBuy(game.run, id)) {
+        game.run = buy(game.run, id);
+        game.audio.play("secret");
+        // Its card comes up straight away, over the shelves, rather than waiting for you to walk out.
+        game.showCards(() => {});
+      }
       else game.audio.play("blocked");
     },
     render(ctx, game) {
