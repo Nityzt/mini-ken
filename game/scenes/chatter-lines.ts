@@ -107,7 +107,7 @@ export const PEOPLE: Record<string, Person> = {
     ],
     advice: [
       "Senpai Momo: Rest before you go back out. You only lose health in fights away from home, and coming back here heals you.",
-      "Senpai Momo: Don't rush a rematch while you're hurt. Three bad losses in a row and you'll wake up on my bench.",
+      "Senpai Momo: Don't rush a rematch while you're hurt. Three bad losses in a row and you'll wake up on the floor by my door.",
       "Senpai Momo: If you can't see the opening, stop swinging. Nobody ever lost a point by watching.",
     ],
   },
@@ -598,7 +598,7 @@ export const AFTER_WINS: Record<string, { first: string[]; again: string[] }> = 
 
 /** Waking up at home after going down. */
 export const WAKE_UP: string[][] = [
-  ["You wake up on the bench at Pinecone, with a wet tenugui on your face. Everything hurts, then less so.", "Senpai Momo: There you are! Someone carried you in. You've been out for hours. Sit up slowly."],
-  ["You wake up on the same bench. Someone's drawn a small goose on your hand.", "Senpai Momo: Again, <name>? We're going to put your name on this bench. Sit up slowly."],
-  ["The ceiling of Pinecone Dojo. You know this ceiling by now.", "Sensei Kuma: You went out there hurt, and you know it. Get up when you can. Then we'll talk about your feet."],
+  ["You come round on the floor just inside Pinecone's door, with a wet tenugui on your face. Everything hurts, then less so.", "Senpai Momo: There you are! Someone carried you in and set you down by the door. You've been out for hours. Up slowly."],
+  ["You come round by the door again. Someone's drawn a small goose on your hand.", "Senpai Momo: Again, <name>? We're going to put your name on this doormat. Up slowly."],
+  ["The floorboards by Pinecone's door. You know these floorboards by now.", "Sensei Kuma: You went out there hurt, and you know it. Get up when you can. Then we'll talk about your feet."],
 ];

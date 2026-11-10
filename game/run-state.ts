@@ -19,10 +19,10 @@ const GANG_REWARD = 10;
 const TOWER_REWARD = 10;
 const LINE_REWARD = 5;
 /** Only this many passes of the line drill pay out in ki. */
-const LINE_REWARDED_PASSES = 3;
+export const LINE_REWARDED_PASSES = 3;
 /** The first few kirikaeshi passes grow your ki, as the line drill's do, so practice can't stand in for the ladder. */
 const KIRIKAESHI_REWARD = 5;
-const KIRIKAESHI_REWARDED_PASSES = 3;
+export const KIRIKAESHI_REWARDED_PASSES = 3;
 const SENPAI_WIN_REWARD = 5;
 const RIVAL_WIN_REWARD = 10;
 const CHAMPION_REWARD = 20;

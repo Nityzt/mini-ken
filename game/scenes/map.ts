@@ -181,11 +181,13 @@ function drawChooser(ctx: CanvasRenderingContext2D, routes: Route[], choice: num
   drawTextCentered(ctx, CHOOSE_HELP, STAGE_W / 2, top + height - 11, UI.dim);
 }
 
-function promptAt(id: NodeId, run: RunState): string {
+export function promptAt(id: NodeId, run: RunState): string {
   const { kind } = NODES[id];
   const lock = lockFor(run, id);
   if (lock) return `Locked: ${unmet(run, lock).join(", ")}`;
   if (kind === "gang" && run.cleared.includes(id)) return MAP_HELP.gangDone;
+  // You've been up already, and there's only the view left to go up for.
+  if (kind === "tower" && run.blessed) return MAP_HELP.towerDone;
   return MAP_HELP[kind];
 }
 
