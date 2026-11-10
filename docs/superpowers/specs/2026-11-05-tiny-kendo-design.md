@@ -243,7 +243,7 @@ Tournaments are where other dojos meet. **For now every other entrant is a bot s
 - Backing off or losing leaves the person waiting, and the fight can be tried again. Losing also knocks you out. Fights stay optional.
 
 **The streetcar**
-- A stop near the crossing has a destinations board, and each line opens as the ladder says. Press E to catch the streetcar. A short, skippable "Travelling" screen plays, showing the car on its way, then you arrive in another part of the city.
+- A stop near the crossing has a destinations board, and each line opens as the ladder says. The board names the part of the city each ride goes to (Cherry Park, the beach), as the ladder does, rather than the stop at the other end. Press E to catch the streetcar. A short, skippable "Travelling" screen plays, showing the car on its way, then you arrive in another part of the city.
 - One line goes to a neighbourhood by the beach, with its own map, one more Alley Cats fight and Angry Goose Dojo. Hana, its rival, attacks much more often than Ren and favours the big swing. The streetcar brings you back the same way.
 - A place's map shows only its own district.
 

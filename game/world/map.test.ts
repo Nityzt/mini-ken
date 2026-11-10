@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { DIRECTIONS, DISTRICTS, EDGES, exitsFrom, GANGS, neighbor, nodesIn, NODES, routesFrom, TOWER_HEIGHT, type NodeId } from "./map.ts";
+import { boardName, DIRECTIONS, DISTRICTS, EDGES, exitsFrom, GANGS, neighbor, nodesIn, NODES, routesFrom, TOWER_HEIGHT, type NodeId } from "./map.ts";
 import { createHallTrip } from "./trip.ts";
 
 const ALL = Object.keys(NODES) as NodeId[];
@@ -223,4 +223,11 @@ test('outlying districts offer new shops, secret detours, and optional dojos', (
   }
   assert.equal(NODES.lantern.kind, 'dojo');
   assert.equal(NODES.bamboo.kind, 'dojo');
+});
+
+test("the destinations board names the part of the city a ride goes to, as the ladder does", () => {
+  assert.equal(boardName("parkStop"), "Cherry Park");
+  assert.equal(boardName("beachStop"), "The beach");
+  assert.equal(boardName("stop"), "Downtown");
+  for (const from of Object.keys(NODES) as NodeId[]) for (const route of routesFrom(from)) assert.ok(boardName(route.to).length > 0);
 });
