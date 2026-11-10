@@ -375,6 +375,7 @@ export const INSIGNIA_ROWS = ["Symbol", "Cloth", "Mark"];
 export const SCREEN_LOOK = "An old bamboo screen, cracked right down the middle.";
 export const SCREEN_NO_SHINAI = "You've got nothing to hit it with anyway. Sensei hasn't let you near a shinai yet.";
 export const SCREEN_NEEDS_TRAINING = "Better not swing at the furniture on your first day. Not yet, anyway.";
+export const SCREEN_STRIKE = "Strike";
 export const SCREEN_HINT = "It's only cracked. A good strike might do it. J, K or L.";
 export const ARRIVAL = ["Thunder Radish Dojo. The whole place smells of pickles."];
 export type GangStory = {

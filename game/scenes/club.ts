@@ -24,7 +24,7 @@ import { offerBet } from "./bet-menu.ts";
 import { createMenu } from "./choice.ts";
 import { createShop } from "./shop.ts";
 import { findEgg } from "../money.ts";
-import { HELP_OFFER, MOMO_AT_DOOR, MOMO_STORAGE_OPEN, OFFER_OPTIONS, SCREEN_HINT, SCREEN_LOOK, SCREEN_NEEDS_TRAINING, SCREEN_NO_SHINAI, STORAGE_LOCKED, WAZA_OFFER, WHY_OPTIONS } from "./content.ts";
+import { HELP_OFFER, MOMO_AT_DOOR, MOMO_STORAGE_OPEN, OFFER_OPTIONS, SCREEN_HINT, SCREEN_LOOK, SCREEN_STRIKE, SCREEN_NEEDS_TRAINING, SCREEN_NO_SHINAI, STORAGE_LOCKED, WAZA_OFFER, WHY_OPTIONS } from "./content.ts";
 import { crowdDrawings, drawNamedChat, rankTagShown } from "./crowd.ts";
 import { drawInteractPrompt, drawObjective, drawTopBar } from "./ui.ts";
 import type { SenpaiId, Session } from "./curriculum.ts";
@@ -469,8 +469,9 @@ export function createClubScene(nameOf: () => string): Scene {
       }
 
       const front = tileInFront(walker, rows);
-      const struck = game.input.wasPressed("men") || game.input.wasPressed("kote") || game.input.wasPressed("do");
-      if (front === "C" && struck && game.run.momoBeaten) {
+      // Once Momo's stood aside, the prompt over the screen says Strike, so E does what it says as well as J, K or L.
+      const struck = game.input.wasPressed("men") || game.input.wasPressed("kote") || game.input.wasPressed("do") || game.input.wasPressed("confirm");
+      if (front === "C" && struck && game.run.momoBeaten && game.run.gear.shinai && !personAhead(walker, rows, CLUB_SOLID, PEOPLE)) {
         game.run = { ...game.run, screenBroken: true };
         game.debug.club = { screenBroken: true };
         game.audio.play("break");
@@ -621,7 +622,8 @@ export function createClubScene(nameOf: () => string): Scene {
       drawTopBar(ctx, "Pinecone Dojo", game.run);
       if (!dialogue.active && !menu.active) {
         drawObjective(ctx, currentObjective(game.run));
-        const label = interactionLabel(personAhead(walker, rows, CLUB_SOLID, PEOPLE)?.char ?? tileInFront(walker, rows), "home");
+        const facing = personAhead(walker, rows, CLUB_SOLID, PEOPLE)?.char ?? tileInFront(walker, rows);
+        const label = facing === "C" && game.run.momoBeaten && game.run.gear.shinai ? SCREEN_STRIKE : interactionLabel(facing, "home");
         if (label) drawInteractPrompt(ctx, label, walker.box.x + walker.box.w / 2 - cam.x, walker.box.y - cam.y, keyLabel(game.input, "confirm", "e"));
       }
       if (menToast !== null) drawMenToast(ctx, menToast, game.reducedMotion, { pause: keyLabel(game.input, "pause", "escape"), confirm: keyLabel(game.input, "confirm", "e") }, playerColors(game.run));
