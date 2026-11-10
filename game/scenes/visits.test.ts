@@ -159,6 +159,20 @@ test("Ren greets you differently in the final if you learned the gaze", () => {
   assert.deepEqual(challengeLines({ ...createRunState(), gaze: true }, "goose"), DOJOS.goose.challenge);
 });
 
+test("a head you've beaten doesn't greet a rematch as if you'd never met", () => {
+  for (const id of Object.keys(DOJOS) as (keyof typeof DOJOS)[]) {
+    for (const gaze of [false, true]) {
+      const first = challengeLines({ ...createRunState(), gaze }, id);
+      const again = challengeLines({ ...createRunState(), gaze, beaten: [id] }, id);
+      assert.notDeepEqual(again, first, id);
+      for (const line of again) {
+        assert.ok(line.startsWith(`${DOJOS[id].rival}: `), line);
+        assert.ok(wrapText(line, DIALOGUE_WIDTH).length <= DIALOGUE_LINES, line);
+      }
+    }
+  }
+});
+
 test("visitors stand on open floor, and block nothing", () => {
   const rows = clubRows({ storageOpen: true, screenBroken: false, momoGuards: false, visitor: true });
   assert.equal(findTiles(rows, "V").length, 1);

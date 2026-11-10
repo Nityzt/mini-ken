@@ -513,6 +513,16 @@ export const REN_FINAL_GAZE = [
   "Ren: There you are, <name>. Are you still looking at that far mountain?",
   "Ren: First to two points, and no favours this time. Rei, and then we begin.",
 ];
+/** What a dojo's head says when you come back for another match, having already beaten them. */
+export const REMATCH_LINES: Record<string, string> = {
+  raccoon: "Sora: Mm. You again? Fine. I'm awake now. First to two. Rei.",
+  goose: "Hana: You again! The goose remembers you. First to two. Rei!",
+  heron: "Mika: Again. Good. I've been standing here thinking about it. Rei.",
+  otter: "Kenji: AGAIN?! Yes! First to two points! Rei! Let's go!",
+  radish: "Ren: Again, <name>? Good. I won't make it easy twice. Rei.",
+  lantern: "Kiri: Back for the tide again? First to two. Rei!",
+  bamboo: "Nori: Again, then. Let's see what you notice this time. Rei!",
+};
 export const GAZE_ITEM_LINE = "You can see Ren's strikes coming, and their stare takes longer to shake you.";
 export const REN_POINT_TIP = "You flinched, and Ren barely moved.";
 export const REN_POINT_NEXT = "Ren lowers their shinai.";
