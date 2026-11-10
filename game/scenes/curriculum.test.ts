@@ -5,9 +5,10 @@ import type { Action, Input } from "../core/input.ts";
 import { RANGE_MAX } from "../duel/constants.ts";
 import { distance, skipBow, step, type AttackKind, type DuelState, type FighterInput } from "../duel/rules.ts";
 import {
-  challengeFor, CHALLENGE_REWARD, createLessonDuel, judge, lessonsFor, partnerName, SENPAI, SENPAI_IDS, SENSEI_ROUNDS, sessionPartner, sessionPlace, type Lesson, type SenpaiId,
+  afterMiss, challengeFor, CHALLENGE_REWARD, createLessonDuel, firstStep, judge, lessonsFor, partnerName, SENPAI, SENPAI_IDS, SENSEI_ROUNDS, sessionPartner, sessionPlace, type Lesson, type SenpaiId,
 } from "./curriculum.ts";
 import { createPlayerControl } from "./duel.ts";
+import { createRunState } from "../run-state.ts";
 
 const IDLE: FighterInput = { move: 0, block: false, attack: null };
 type Player = (duel: DuelState, tick: number) => FighterInput;
@@ -500,4 +501,27 @@ test("Yui's first challenge words would fail without the opening, which is the b
     return { ...IDLE, attack: "men", stomp: true };
   };
   assert.equal(play(lesson, withoutOpening, BEFORE[0], 1500, { literal: true }).passed, false);
+});
+
+test("Old Gen picks up from the step you left off on, and nobody else does (issue #40)", () => {
+  const run = { ...createRunState(), semeStep: 2 };
+  assert.equal(firstStep({ kind: "master" }, run), 2);
+  assert.equal(firstStep({ kind: "master" }, createRunState()), 0);
+  assert.equal(firstStep({ kind: "sensei", round: 0 }, run), 0);
+  assert.equal(firstStep({ kind: "waza" }, run), 0);
+  // A step from a save that's out of range still lands on a real one.
+  assert.equal(firstStep({ kind: "master" }, { ...run, semeStep: 99 }), lessonsFor({ kind: "master" }).length - 1);
+});
+
+test("a miss with Old Gen gives you back your ki, so the step's worth another go (issue #40)", () => {
+  const lesson = genStage("seme-hold");
+  const duel = skipBow(createLessonDuel(lesson));
+  duel.fighters[0].ki = 5;
+  duel.fighters[0].pressure = 40;
+  const after = afterMiss({ kind: "master" }, duel);
+  assert.equal(after.fighters[0].ki, after.fighters[0].kiMax);
+  assert.equal(after.fighters[0].pressure, 0);
+  assert.equal(duel.fighters[0].ki, 5, "the duel it was given is left alone");
+  // A senpai's challenge isn't Gen's, and keeps what you've spent.
+  assert.equal(afterMiss({ kind: "senpai", senpai: "aki", level: 0 }, duel).fighters[0].ki, 5);
 });

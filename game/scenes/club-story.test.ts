@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { answerOffer, cupOffer, doorResponse, finishSession, freeSenpai, freeSenpaiNames, interactionLabel, kirikaeshiOutcome, lineOutcome, lineOffer, pendingChallenge, senseiMenu, sparOutcome, talkToMomo, talkToSenpai, talkToSensei } from "./club-story.ts";
 import { recordLinePass, recordWin } from "../run-state.ts";
 import { isOpen, LINE_PASSES_TO_UNLOCK } from "../progress.ts";
-import { DIALOGUE_LINES, DIALOGUE_WIDTH, DRILL_PRAISE, GEAR_LINES, GEN_DONE, GEN_DONE_AFTER, KOTE_DONE, SENPAI_LINES, SENSEI_ROUND_DONE } from "./content.ts";
+import { DIALOGUE_LINES, DIALOGUE_WIDTH, DRILL_PRAISE, GEAR_LINES, GEN_AGAIN, GEN_DONE, GEN_DONE_AFTER, GEN_FAIL, GEN_LINES, KOTE_DONE, SENPAI_LINES, SENSEI_ROUND_DONE } from "./content.ts";
 import { wrapText } from "../art/font.ts";
 import { createRunState, type RunState } from "../run-state.ts";
 
@@ -269,13 +269,17 @@ test("Old Gen hands over seme, and explains what it costs once you've seen the c
 });
 
 test("Old Gen's words about seme fit the dialogue box", () => {
-  for (const line of [...GEN_DONE, ...GEN_DONE_AFTER]) assert.ok(wrapText(line, DIALOGUE_WIDTH).length <= DIALOGUE_LINES, line);
+  for (const line of [...GEN_DONE, ...GEN_DONE_AFTER, ...GEN_LINES, ...GEN_AGAIN, GEN_FAIL]) assert.ok(wrapText(line, DIALOGUE_WIDTH).length <= DIALOGUE_LINES, line);
 });
 
 test("learning from the hermit gives you seme", () => {
   const run = armored();
   assert.equal(run.seme, false);
   assert.equal(finishSession(run, { kind: "master" }).run.seme, true);
+});
+
+test("finishing with Old Gen forgets which step you'd got to (issue #40)", () => {
+  assert.equal(finishSession({ ...armored(), semeStep: 2 }, { kind: "master" }).run.semeStep, 0);
 });
 
 test("the notice board says what it takes while a cup is shut", () => {

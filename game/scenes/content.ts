@@ -58,9 +58,10 @@ export const MOMO_LOSE_NO_SEME = "Your spirit folds under Momo's aura.";
 export const MOMO_LOSE_SEME = "Hold I to push back. Answer the big swing.";
 export const GEN_LINES = [
   "Old Gen: A visitor! Fine armor, but where's your spirit? Come into my hut.",
-  "Old Gen: Seme is pressing with your ki until the other one flinches. Flinch too often, and we start over.",
+  "Old Gen: Seme is pressing with your ki until the other one flinches. Flinch too often, and you go and rest.",
 ];
-export const GEN_FAIL = "Old Gen: You flinched, or you flailed. Go and eat something. Then we start again from the top.";
+export const GEN_AGAIN = ["Old Gen: Back again? Good. We pick up where you fell over."];
+export const GEN_FAIL = "Old Gen: You flinched, or you flailed. Go and eat something. Then come back, and we'll carry on from this one.";
 export const GEN_DONE = ["Old Gen: That's it, <name>. That's seme, and now it's yours."];
 export const GEN_DONE_AFTER = [
   "Old Gen: Holding it costs ki and leaves you open, so let go when they move.",
@@ -677,6 +678,7 @@ export function allContentLines(): string[] {
     MOMO_LOSE_NO_SEME,
     MOMO_LOSE_SEME,
     ...GEN_LINES,
+    ...GEN_AGAIN,
     ...GEN_DONE,
     ...GEN_DONE_AFTER,
     ...SENSEI_RAIKO_LINES,

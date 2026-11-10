@@ -679,6 +679,13 @@ function stepLock(s: DuelState, inputs: FighterInput[]): void {
 
   if (fires.length) {
     for (const i of fires) firePull(s, i);
+    // Anyone still pulling back is caught with their hands down: that pull's lost, and nothing's held. Left in
+    // the lock's stance with no lock, they could never lock again, and the other side would walk into them forever (issue #39).
+    for (const f of s.fighters) {
+      if (f.stance !== "tsuba") continue;
+      f.stance = "guard";
+      f.stanceTicks = 0;
+    }
     s.lock = null;
     return;
   }
