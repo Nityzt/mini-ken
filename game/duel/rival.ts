@@ -1,4 +1,4 @@
-import { OPENING_MIN, OPENING_START_KI, RANGE_MAX, RANGE_MIN, TSUBA_BREAK } from "./constants.ts";
+import { OPENING_MIN, OPENING_START_KI, RANGE_MAX, RANGE_MIN, REPARRY_WINDOW, TSUBA_BREAK } from "./constants.ts";
 import { ATTACKS, distance, exposedTargets, exposes, KAMAE, ticksNext, type AttackKind, type DuelState, type Fighter, type FighterInput, type Opening, type Target } from "./rules.ts";
 
 /**
@@ -20,6 +20,8 @@ export type RivalConfig = {
   pressesGuard?: boolean;
   /** How likely they are to parry any one strike. */
   parry?: number;
+  /** How likely they are, once you've parried them, to parry your counter back (issue #41). */
+  reparry?: number;
   /** How often, instead of a strike, they charge straight into you and lock up. */
   charges?: number;
   /** How likely they are to meet any one strike with their own, so you both go through. */
@@ -48,6 +50,8 @@ export type RivalState = {
   luck: number;
   /** Whether they've decided to parry the strike that's coming. Null when there isn't one. */
   parryPlanned: boolean | null;
+  /** Knocked aside, whether they've decided to parry your counter back. Null when there isn't one coming. */
+  reparryPlanned: boolean | null;
   /** Whether they've decided to meet the strike that's coming with one of their own. */
   meetPlanned: boolean;
   /** How long it's been since the opponent last swung. */
@@ -69,29 +73,29 @@ export type RivalState = {
 type LockPlan = "push" | "hold" | "pull" | "out";
 
 const STYLES: Record<RivalStyle, Omit<RivalConfig, "tell"> & { baseTell: RivalConfig["tell"] }> = {
-  steady: { baseTell: { men: 30, kote: 30, bigMen: 46 }, habits: ["men", "kote", "bigMen"], habitMin: 60, habitSpread: 50, parry: 0.1, lockSkill: 0.5, meets: 0.65, bait: 0.15, bites: 0.3, openingMix: 0.5 },
-  fierce: { baseTell: { men: 28, kote: 28, bigMen: 44 }, habits: ["bigMen", "men", "bigMen", "kote", "bigMen"], habitMin: 34, habitSpread: 30, parry: 0.05, charges: 0.15, lockSkill: 0.3, meets: 0.75, bait: 0.05, bites: 0.5, openingMix: 0.3 },
+  steady: { baseTell: { men: 30, kote: 30, bigMen: 46 }, habits: ["men", "kote", "bigMen"], habitMin: 60, habitSpread: 50, parry: 0.1, reparry: 0.3, lockSkill: 0.5, meets: 0.65, bait: 0.15, bites: 0.3, openingMix: 0.5 },
+  fierce: { baseTell: { men: 28, kote: 28, bigMen: 44 }, habits: ["bigMen", "men", "bigMen", "kote", "bigMen"], habitMin: 34, habitSpread: 30, parry: 0.05, reparry: 0.2, charges: 0.15, lockSkill: 0.3, meets: 0.75, bait: 0.05, bites: 0.5, openingMix: 0.3 },
   rigged: { baseTell: { men: 30, kote: 30, bigMen: 46 }, habits: ["bigMen"], habitMin: 70, habitSpread: 50, rigged: true },
   demonstration: { baseTell: { men: 30, kote: 30, bigMen: 46 }, habits: ["bigMen"], habitMin: 70, habitSpread: 50, rigged: true, walksIn: true },
-  sneaky: { baseTell: { men: 42, kote: 42, bigMen: 56 }, habits: ["kote", "kote", "men"], habitMin: 50, habitSpread: 40, parry: 0.15, lockSkill: 0.5, meets: 0.55, bait: 0.1, bites: 0.1, openingMix: 0.5 },
-  patient: { baseTell: { men: 30, kote: 30, bigMen: 46 }, habits: ["men", "bigMen"], habitMin: 90, habitSpread: 60, parry: 0.25, lockSkill: 0.6, meets: 0.55, bait: 0.25, bites: 0.3, openingMix: 0.5 },
-  relentless: { baseTell: { men: 28, kote: 28, bigMen: 42 }, habits: ["men", "kote", "men"], habitMin: 36, habitSpread: 24, parry: 0.1, charges: 0.15, lockSkill: 0.4, meets: 0.75, bait: 0.1, bites: 0.4, openingMix: 0.3 },
-  master: { baseTell: { men: 30, kote: 30, bigMen: 46 }, habits: ["men", "kote", "bigMen", "kote"], habitMin: 44, habitSpread: 40, pressesGuard: true, parry: 0.3, lockSkill: 1, meets: 0.6, bait: 0.2, bites: 0.4, openingMix: 0.7 },
+  sneaky: { baseTell: { men: 42, kote: 42, bigMen: 56 }, habits: ["kote", "kote", "men"], habitMin: 50, habitSpread: 40, parry: 0.15, reparry: 0.35, lockSkill: 0.5, meets: 0.55, bait: 0.1, bites: 0.1, openingMix: 0.5 },
+  patient: { baseTell: { men: 30, kote: 30, bigMen: 46 }, habits: ["men", "bigMen"], habitMin: 90, habitSpread: 60, parry: 0.25, reparry: 0.4, lockSkill: 0.6, meets: 0.55, bait: 0.25, bites: 0.3, openingMix: 0.5 },
+  relentless: { baseTell: { men: 28, kote: 28, bigMen: 42 }, habits: ["men", "kote", "men"], habitMin: 36, habitSpread: 24, parry: 0.1, reparry: 0.25, charges: 0.15, lockSkill: 0.4, meets: 0.75, bait: 0.1, bites: 0.4, openingMix: 0.3 },
+  master: { baseTell: { men: 30, kote: 30, bigMen: 46 }, habits: ["men", "kote", "bigMen", "kote"], habitMin: 44, habitSpread: 40, pressesGuard: true, parry: 0.3, reparry: 0.5, lockSkill: 1, meets: 0.6, bait: 0.2, bites: 0.4, openingMix: 0.7 },
   // Sensei has no favourite and doesn't wait long, and won't let you hide. They've seen everything you've got, because they taught it.
-  sensei: { baseTell: { men: 28, kote: 28, bigMen: 44 }, habits: ["men", "kote", "bigMen", "men"], habitMin: 50, habitSpread: 40, pressesGuard: true, parry: 0.35, lockSkill: 1, meets: 0.6, bait: 0.2, bites: 0.4, openingMix: 0.7 },
+  sensei: { baseTell: { men: 28, kote: 28, bigMen: 44 }, habits: ["men", "kote", "bigMen", "men"], habitMin: 50, habitSpread: 40, pressesGuard: true, parry: 0.35, reparry: 0.55, lockSkill: 1, meets: 0.6, bait: 0.2, bites: 0.4, openingMix: 0.7 },
   // The senseis of other dojos: what their students do, only they leave you time to feel it. Nobody hides from any of them.
-  fury: { baseTell: { men: 28, kote: 28, bigMen: 42 }, habits: ["bigMen", "men", "bigMen", "kote", "bigMen"], habitMin: 50, habitSpread: 30, pressesGuard: true, parry: 0.3, charges: 0.2, lockSkill: 0.9, meets: 0.7, bait: 0.2, bites: 0.5, openingMix: 0.5 },
-  torrent: { baseTell: { men: 28, kote: 28, bigMen: 42 }, habits: ["men", "kote", "men", "kote"], habitMin: 50, habitSpread: 20, pressesGuard: true, parry: 0.2, lockSkill: 0.9, meets: 0.65, bait: 0.2, bites: 0.4, openingMix: 0.5 },
+  fury: { baseTell: { men: 28, kote: 28, bigMen: 42 }, habits: ["bigMen", "men", "bigMen", "kote", "bigMen"], habitMin: 50, habitSpread: 30, pressesGuard: true, parry: 0.3, reparry: 0.45, charges: 0.2, lockSkill: 0.9, meets: 0.7, bait: 0.2, bites: 0.5, openingMix: 0.5 },
+  torrent: { baseTell: { men: 28, kote: 28, bigMen: 42 }, habits: ["men", "kote", "men", "kote"], habitMin: 50, habitSpread: 20, pressesGuard: true, parry: 0.2, reparry: 0.4, lockSkill: 0.9, meets: 0.65, bait: 0.2, bites: 0.4, openingMix: 0.5 },
   // What Sora does, from someone who's been doing it for forty years and doesn't get caught at close quarters.
-  shadow: { baseTell: { men: 42, kote: 42, bigMen: 56 }, habits: ["kote", "kote", "men"], habitMin: 50, habitSpread: 40, parry: 0.25, lockSkill: 0.9, meets: 0.55, bait: 0.1, bites: 0.2, openingMix: 0.7 },
-  iron: { baseTell: { men: 26, kote: 26, bigMen: 40 }, habits: ["men", "bigMen"], habitMin: 70, habitSpread: 50, pressesGuard: true, parry: 0.5, lockSkill: 1, meets: 0.55, bait: 0.2, bites: 0.4, openingMix: 0.7 },
+  shadow: { baseTell: { men: 42, kote: 42, bigMen: 56 }, habits: ["kote", "kote", "men"], habitMin: 50, habitSpread: 40, parry: 0.25, reparry: 0.45, lockSkill: 0.9, meets: 0.55, bait: 0.1, bites: 0.2, openingMix: 0.7 },
+  iron: { baseTell: { men: 26, kote: 26, bigMen: 40 }, habits: ["men", "bigMen"], habitMin: 70, habitSpread: 50, pressesGuard: true, parry: 0.5, reparry: 0.6, lockSkill: 1, meets: 0.55, bait: 0.2, bites: 0.4, openingMix: 0.7 },
   // Strikes come quicker from up there, and they favour the men.
-  jodan: { baseTell: { men: 26, kote: 26, bigMen: 40 }, habits: ["men", "men", "kote"], habitMin: 50, habitSpread: 40, parry: 0.1, lockSkill: 0.6, meets: 0.55, bait: 0.15, bites: 0.3, openingMix: 0.3 },
+  jodan: { baseTell: { men: 26, kote: 26, bigMen: 40 }, habits: ["men", "men", "kote"], habitMin: 50, habitSpread: 40, parry: 0.1, reparry: 0.3, lockSkill: 0.6, meets: 0.55, bait: 0.15, bites: 0.3, openingMix: 0.3 },
   // Two swords take longer to bring round, so their tells last longer than anyone's at this level.
-  nito: { baseTell: { men: 34, kote: 34, bigMen: 48 }, habits: ["men", "kote", "men"], habitMin: 60, habitSpread: 40, parry: 0.2, lockSkill: 0.6, meets: 0.55, bait: 0.15, bites: 0.3, openingMix: 0.3 },
+  nito: { baseTell: { men: 34, kote: 34, bigMen: 48 }, habits: ["men", "kote", "men"], habitMin: 60, habitSpread: 40, parry: 0.2, reparry: 0.35, lockSkill: 0.6, meets: 0.55, bait: 0.15, bites: 0.3, openingMix: 0.3 },
   restless: { baseTell: { men: 46, kote: 46, bigMen: 60 }, habits: ["men", "kote", "bigMen"], habitMin: 36, habitSpread: 40, lockSkill: 0.1, meets: 0.55, bites: 0.2 },
-  wall: { baseTell: { men: 50, kote: 50, bigMen: 66 }, habits: ["bigMen", "men"], habitMin: 110, habitSpread: 70, parry: 0.1, lockSkill: 0.3, meets: 0.4, bites: 0.1 },
-  exact: { baseTell: { men: 46, kote: 46, bigMen: 60 }, habits: ["kote", "men", "kote", "bigMen"], habitMin: 70, habitSpread: 40, parry: 0.1, lockSkill: 0.3, meets: 0.45, bites: 0.2 },
+  wall: { baseTell: { men: 50, kote: 50, bigMen: 66 }, habits: ["bigMen", "men"], habitMin: 110, habitSpread: 70, parry: 0.1, reparry: 0.1, lockSkill: 0.3, meets: 0.4, bites: 0.1 },
+  exact: { baseTell: { men: 46, kote: 46, bigMen: 60 }, habits: ["kote", "men", "kote", "bigMen"], habitMin: 70, habitSpread: 40, parry: 0.1, reparry: 0.15, lockSkill: 0.3, meets: 0.45, bites: 0.2 },
 };
 /** The table above is in the old tells. These run a quarter longer, so there's time to answer now strikes are slower to land. */
 const TELL_STRETCH = 1.25;
@@ -122,8 +126,9 @@ export function rivalConfig(losses: number, style: RivalStyle = "steady"): Rival
   const pressing = habits.pressesGuard ? { pressesGuard: losses < PRESS_GIVES_UP_AT } : {};
   const easing = Math.max(PARRY_EASE_FLOOR, 1 - losses * PARRY_EASE_PER_LOSS);
   const parrying = habits.parry ? { parry: habits.parry * easing } : {};
+  const reparrying = habits.reparry ? { reparry: habits.reparry * easing } : {};
   const baiting = habits.bait ? { bait: habits.bait * easing } : {};
-  return { ...habits, ...pressing, ...parrying, ...baiting, tell: { men: stretched(baseTell.men) + ease, kote: stretched(baseTell.kote) + ease, bigMen: stretched(baseTell.bigMen) + ease } };
+  return { ...habits, ...pressing, ...parrying, ...reparrying, ...baiting, tell: { men: stretched(baseTell.men) + ease, kote: stretched(baseTell.kote) + ease, bigMen: stretched(baseTell.bigMen) + ease } };
 }
 
 const MOOD_SLOWEST = 1.25;
@@ -171,6 +176,7 @@ export function createRival(seed: number, config: RivalConfig): RivalState {
     semeSeen: 0,
     luck: seed ^ 0x2f6e2b1,
     parryPlanned: null,
+    reparryPlanned: null,
     meetPlanned: false,
     sinceSwing: MEET_PATIENCE,
     lockPlan: null,
@@ -227,6 +233,8 @@ function strikeNow(me: Fighter, attack: AttackKind, next: RivalState): { input: 
 }
 /** How close a strike has to be before they try to parry it. */
 const PARRY_AT = 6;
+/** A counter can only be parried in its last few ticks, so they wait for the first of them. */
+const REPARRY_AT = REPARRY_WINDOW - 1;
 /** Someone swinging again and again gets blocked and punished. Only a swing they've been building up to gets met. */
 const MEET_PATIENCE = 70;
 const LOCK_PLAN_MIN = 30;
@@ -319,6 +327,16 @@ function decide(duel: DuelState, rival: RivalState): { input: FighterInput; riva
   next.readsPull = null;
   // Struck, or knocked out of it. Plain guard or a block may only mean what they pressed hasn't arrived yet.
   if (next.plan && me.stance !== "opening" && ((me.stance !== "guard" && me.stance !== "block") || next.plan.waiting > PLAN_PATIENCE)) next.plan = null;
+
+  // Knocked aside, they get one try at parrying your counter back: decided once, by luck, and tapped right as it arrives.
+  if (me.stance !== "deflected" || me.reparryUsed || !opponent.countering || opponent.stance !== "windup") next.reparryPlanned = null;
+  else {
+    if (rival.reparryPlanned === null) next.reparryPlanned = rollLuck(next) < (rival.config.reparry ?? 0);
+    if (next.reparryPlanned && opponent.stanceTicks <= REPARRY_AT) {
+      next.reparryPlanned = false;
+      return { input: { ...IDLE, parry: true }, rival: next };
+    }
+  }
 
   // Deciding once per strike whether to go for the parry, then doing it right as it arrives.
   const swinging = opponent.stance === "windup" && dist >= RANGE_MIN && dist <= RANGE_MAX + KAMAE[opponent.kamae].reach;

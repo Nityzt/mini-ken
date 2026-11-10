@@ -817,6 +817,18 @@ function shout(s: DuelState, by: 0 | 1): void {
  * Pressure builds on the opponent while a fighter holds seme, and fades when they stop. A fighter
  * with a presence presses all the time, unless the opponent is holding seme against them.
  */
+/**
+ * Whether fighter i's presence is pressing the other right now: composed (in guard, a block, an opening, a swing
+ * or the lock), within reach, and facing someone who isn't holding seme against it or already flinching. The
+ * duel draws the glow from this, so a presence never presses unseen (issue #43).
+ */
+export function presencePressing(s: DuelState, i: 0 | 1): boolean {
+  const f = s.fighters[i];
+  const opponent = s.fighters[i === 0 ? 1 : 0];
+  const composed = f.stance === "guard" || f.stance === "block" || f.stance === "opening" || f.stance === "windup" || f.stance === "tsuba";
+  return (s.options.presence?.[i] ?? 0) > 0 && composed && distance(s) <= SEME_RANGE && opponent.stance !== "shaken" && opponent.stance !== "seme";
+}
+
 function applySeme(s: DuelState): void {
   s.fighters.forEach((f, i) => {
     const by = i as 0 | 1;
@@ -829,9 +841,7 @@ function applySeme(s: DuelState): void {
       return;
     }
     if (opponent.stance !== "seme") opponent.pressure = Math.max(0, opponent.pressure - SEME_DECAY);
-    const presence = s.options.presence?.[i] ?? 0;
-    const composed = f.stance === "guard" || f.stance === "block" || f.stance === "opening" || f.stance === "windup" || f.stance === "tsuba";
-    if (presence > 0 && composed && inReach && opponent.stance !== "seme") press(s, by, presence);
+    if (presencePressing(s, by)) press(s, by, s.options.presence![i]!);
   });
 }
 
