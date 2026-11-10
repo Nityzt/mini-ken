@@ -22,7 +22,7 @@ import { createDashDetector, legsFor } from "../duel/footwork.ts";
 import { clockLabel, fighterStatus, kiBarFill, kiBarWidth, promptsShown, targetPrompt, type StatusKind } from "../duel/hud.ts";
 import { ceremonyAt, closingAt, parryShine, poseFor, WALK_OFF_SPEED, windupCoil, type TsubaAction } from "../duel/poses.ts";
 import { createRival, moodOf, rivalAct, withMood, type RivalState } from "../duel/rival.ts";
-import { ATTACKS, createDuel, distance, exposedTargets, faceDir, screenX, skipBow, skipClosing, startX, step, type AttackKind, type DuelEvent, type DuelState, type Fighter, type FighterInput, type Opening, type Target } from "../duel/rules.ts";
+import { ATTACKS, createDuel, distance, exposedTargets, faceDir, presencePressing, screenX, skipBow, skipClosing, startX, step, type AttackKind, type DuelEvent, type DuelState, type Fighter, type FighterInput, type Opening, type Target } from "../duel/rules.ts";
 import { tipFor } from "../duel/tips.ts";
 import { gradingOutcome, recommendationOutcome, verificationOutcome, type GradingStage } from "../grading.ts";
 import { payBet, withFeat } from "../money.ts";
@@ -744,8 +744,8 @@ export function drawDuelStage(
     const toLine = startX(i) - fighter.x;
     const lineFlip = closing?.away ? i === 0 : duel.phase === "point" && Math.abs(toLine) > FACE_LINE_WITHIN ? toLine < 0 : undefined;
     const flip = lineFlip === undefined ? undefined : lineFlip !== !!options.presentationFlipped;
-    // A commanding presence glows all the time, not just when charging.
-    const pressing = !!duel.options.presence?.[i] && (fighter.stance === "guard" || fighter.stance === "block");
+    // A commanding presence glows whenever it's pressing you, opening and swing included, not just when charging (issue #43).
+    const pressing = presencePressing(duel, i);
     const charging = fighter.stance === "seme" || (pressing && duel.phase === "fight");
     const power = charging ? Math.min(1, Math.max(pressing ? 0.5 : 0, other.pressure / SEME_TICKS)) : 0;
     const tremble = charging && !reducedMotion && power > 0.5 && picture % (ANIMATION_HOLD * 2) === 0 ? 1 : 0;
