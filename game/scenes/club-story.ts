@@ -9,7 +9,7 @@ import { earn, maybeTip, withFeat } from "../money.ts";
 import { gainXp, PAY_DRILL, PAY_HELPING, recordKirikaeshiPass, recordLinePass, recordWin, XP_DRILL, type RunState } from "../run-state.ts";
 import {
   CUP_ENTER, CUP_WON_BEFORE, cupNotice, DOOR_LOCKED, DOOR_NEEDS_SPAR, DRILL_PRAISE, GEN_DONE, GEN_DONE_AFTER, GI_REMINDER, KOTE_DONE, LINE_AGAIN, LINE_FIRST, LINE_NO_KEYS, LINE_READY, LINE_STREETS_OPEN,
-  lineExtraRun, lineFailed, lineRunDone, MOMO_AFTER, MOMO_GOT_GI, MOMO_GUARD, MOMO_GUARD_SEME, MOMO_PRACTICE, MOMO_WELCOME, SENPAI_LINES, SENSEI_AGAIN, SENSEI_ALL_OPEN,
+  lineExtraRun, lineFailed, lineRunDone, MOMO_AFTER, MOMO_GOT_GI, MOMO_GUARD, MOMO_GUARD_SEME, momoPractice, MOMO_WELCOME, SENPAI_LINES, SENSEI_AGAIN, SENSEI_ALL_OPEN,
   helpPaid, HELP_FAILED, MENU_CHALLENGE, MENU_CHALLENGE_THEM, MENU_GRADE, MENU_HELP, MENU_LEAVE, MENU_LETTER, MENU_LINE, MENU_SPAR, MENU_TALK, MENU_WAZA, MENU_WAZA_AGAIN, QUICK_DONE, WAZA_AGAIN_DONE, WAZA_DONE, SENSEI_NEXT, SENSEI_NO_GI, SENSEI_ROUND_DONE, SENSEI_SHINAI, SENSEI_SHINAI_AFTER, SENSEI_WAITING, SHINAI_WAITING, SPAR_DOOR_OPEN, SPAR_KI,
   eitherOf, KIRIKAESHI_AGAIN, KIRIKAESHI_FIRST, KIRIKAESHI_LOST, KIRIKAESHI_READY, KIRIKAESHI_WINDED, kirikaeshiDone, kirikaeshiGrew, MENU_KIRIKAESHI, SENSEI_NOT_YET, SENSEI_OFFER, SENSEI_WHY, WHY_REPLY } from "./content.ts";
 import { CHALLENGE_REWARD, SENPAI, SENPAI_IDS, type SenpaiId, type Session } from "./curriculum.ts";
@@ -41,7 +41,7 @@ export const freeSenpaiNames = (run: RunState): string => eitherOf(freeSenpai(ru
 export function talkToMomo(run: RunState): { lines: string[]; run: RunState; fight: boolean; chats?: boolean; escort?: boolean } {
   if (run.momoBeaten) return { lines: MOMO_AFTER, run, fight: false, chats: true };
   if (run.trained) return { lines: run.seme ? MOMO_GUARD_SEME : MOMO_GUARD, run, fight: true };
-  if (run.gear.tare) return { lines: MOMO_PRACTICE, run, fight: false };
+  if (run.gear.tare) return { lines: momoPractice(freeSenpaiNames(run)), run, fight: false };
   if (run.gear.shinai) return { lines: SHINAI_WAITING, run, fight: false };
   if (run.gi) return { lines: MOMO_GOT_GI, run, fight: false };
   if (run.metSenpai) return { lines: GI_REMINDER, run, fight: false };
@@ -243,3 +243,7 @@ const LABELS = {
 
 /** What pressing E would do at this tile, if anything. Shown over your head, so nobody has to guess. */
 export const interactionLabel = (tile: string, place: keyof typeof LABELS): string | null => (LABELS[place] as Record<string, string>)[tile] ?? null;
+
+const HOME_NAMES: Record<string, string> = { M: "Momo", X: "Sensei", A: "Aki", B: "Bo", Y: "Yui", Z: "Nao" };
+/** At home people stand side by side, so the prompt says who E would talk to. A visitor stays "Talk": Ren hasn't always said who they are yet. */
+export const homeLabel = (tile: string): string | null => (HOME_NAMES[tile] ? `Talk to ${HOME_NAMES[tile]}` : interactionLabel(tile, "home"));

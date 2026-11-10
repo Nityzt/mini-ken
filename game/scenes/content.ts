@@ -13,19 +13,17 @@ export const GEAR_LINES: Record<keyof Gear, string> = {
 
 export const GI_LINE = "A spare gi and hakama. A little big, a little musty, and yours to borrow.";
 export const DOOR_WELCOME = [
-  "Nao: Welcome to Pinecone Dojo, <name>! I am Nao. This is where we practice kendo together.",
-  "Nao: Walk with the movement keys and press E near someone to talk. You can explore, practice and challenge other dojos as you grow.",
-  "Nao: Look for Momo on the left side of the hall. Her name appears when you get close. She will help you get started!",
+  "Nao: Welcome to Pinecone Dojo, <name>! I'm Nao. This is where we practice kendo together.",
+  "Nao: Walk with WASD or the arrow keys. Face someone and press E to talk.",
+  "Nao: Senpai Momo will get you started. She's on the left side of the hall, and her name shows when you get close.",
 ];
+/** Nao has already said welcome and how to move, so Momo goes straight to what kendo is and how you get on here. */
 export const MOMO_WELCOME = [
-  "Senpai Momo: Welcome to Pinecone Dojo! You must be <name>, the new one. I'm Momo. I've been here longer than the paint.",
-  "Senpai Momo: Kendo is bamboo sword practice. We learn posture, footwork and timing.",
-  "Senpai Momo: We treat our partners with respect, too. A bow starts and ends every practice.",
-  "Senpai Momo: Practice with Sensei, earn your armor, and challenge people here and beyond the dojo.",
-  "Senpai Momo: Take it one step at a time.",
-  "Senpai Momo: First practice? Lovely. Kendo starts with manners, and that means the right clothes. Not those ones.",
-  "Senpai Momo: Sensei likes everyone in a proper gi. Even the beginners. Especially the beginners.",
-  "Senpai Momo: We keep a spare in storage. It's a little big and a little musty, but it's clean enough. Come on, I'll show you.",
+  "Senpai Momo: You must be <name>, the new one! I'm Momo. I've been here longer than the paint.",
+  "Senpai Momo: Kendo is bamboo sword practice: posture, footwork and timing. A bow starts and ends every practice.",
+  "Senpai Momo: Sensei teaches, we senpai test you, and every test you pass earns armor. Then come the dojos beyond ours.",
+  "Senpai Momo: But kendo starts with manners, and manners start with a proper gi. Not those clothes.",
+  "Senpai Momo: We keep a spare in storage. A little big and a little musty, but clean enough. Come on, I'll show you.",
 ];
 export const MOMO_AT_DOOR = [
   "Senpai Momo: Here we are. This is the storage room.",
@@ -38,7 +36,8 @@ export const MOMO_STORAGE_OPEN = [
 export const GI_REMINDER = ["Senpai Momo: The spare gi is in storage, through the door in the back wall."];
 export const MOMO_GOT_GI = ["Senpai Momo: Looking sharp, <name>! Now go and greet Sensei. Bow first."];
 export const SHINAI_WAITING = ["Senpai Momo: Sensei lent you the old shinai? You must be lucky. Don't step over it, and don't lose it!"];
-export const MOMO_PRACTICE = ["Senpai Momo: Aki, Bo and Yui will each test you in their own way. You only need to pass one of them."];
+/** Every piece after the tare comes from a different senpai (issue #16), so Momo names whoever's still left. */
+export const momoPractice = (left: string): string[] => [`Senpai Momo: Each piece of armor comes from a different senpai, and we all test you our own way. Still to go: ${left}.`];
 export const MOMO_AFTER = ["Senpai Momo: You pushed me right back, <name>! Go on, the screen's all yours. And say hello to Ren for me."];
 export const MOMO_GUARD = [
   "Senpai Momo: Full bogu already? Then you've found me out. Sensei's keepsake is behind this screen.",
@@ -69,6 +68,9 @@ export const GEN_DONE_AFTER = [
 export const GEN_AFTER = ["Old Gen: Press with your ki. Let go when they move. That's all I know, and it took me fifty years."];
 export const SENSEI_NO_GI = "Sensei Kuma: Not in those clothes. Go and see Momo first.";
 export const SENSEI_WHY = ["Sensei Kuma: So you're <name>. Momo says you're joining us. Why kendo?"];
+/** What's being asked, kept on top of the choices while you pick. */
+export const WHY_QUESTION = "Why kendo?";
+export const OFFER_QUESTION = "Borrow Sensei's old shinai?";
 export const WHY_OPTIONS = [
   { id: "hit", label: "I want to hit people" },
   { id: "cool", label: "It looked cool" },
@@ -485,7 +487,7 @@ export const REN_LINES = [
   "Ren: So you're <name>, the one going around beating everybody. I've been expecting you.",
   "Ren: First to two points. Mind my stare, and press back. Rei, and then we begin.",
 ];
-/** Ren's first visit, while you're still in your first bits of armor. The line about your tare goes after the first. */
+/** Ren's first visit, while you're still in your first bits of armor. The line about your tare goes after the second, once Ren's said who they are. */
 export const REN_FIRST = [
   "Someone you don't know has been watching your drills from across the hall. Now they've walked over.",
   "Ren: Don't stop on my account. I'm Ren, from Thunder Radish. I used to sweep this floor.",
@@ -594,6 +596,8 @@ export function allContentLines(): string[] {
     SENSEI_NO_GI,
     ...SENSEI_SHINAI,
     ...SENSEI_WHY,
+    WHY_QUESTION,
+    OFFER_QUESTION,
     ...WHY_OPTIONS.map((option) => option.label),
     ...Object.values(WHY_REPLY),
     ...SENSEI_OFFER,
@@ -667,7 +671,7 @@ export function allContentLines(): string[] {
     ...Object.values(DRILL_PRAISE),
     ...Object.values(LESSON_PROMPTS),
     ...Object.values(SENPAI_LINES).flatMap((s) => [s.intro, ...s.chat, s.seeSensei, ...s.prompts, s.spar, s.sparWin, s.sparAgain, s.pass, s.fail, s.given("kote", eitherOf(["Aki", "Bo"]))]),
-    ...MOMO_PRACTICE,
+    ...momoPractice(eitherOf(["Aki", "Bo", "Yui"])),
     ...MOMO_GUARD,
     ...MOMO_GUARD_SEME,
     ...MOMO_CRUSHED,

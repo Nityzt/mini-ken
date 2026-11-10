@@ -48,8 +48,9 @@ export function homeArrival(run: RunState): Talk | null {
   if (lesson) return lesson;
   if (run.trained) return hasSeen(run, SEEN_BOGU) ? null : { lines: REN_BOGU, run: markSeen(run, SEEN_BOGU), fight: true, teaches: false };
   if (hasSeen(run, SEEN_FIRST)) return null;
-  const [before, ...after] = REN_FIRST;
-  return { lines: [before, renNoticesTare(run.insignia.symbol), ...after], run: markSeen(run, SEEN_FIRST), fight: false, teaches: false };
+  // Ren walks over, says who they are, and only then looks you up and down.
+  const [walksOver, introduces, ...after] = REN_FIRST;
+  return { lines: [walksOver, introduces, renNoticesTare(run.insignia.symbol), ...after], run: markSeen(run, SEEN_FIRST), fight: false, teaches: false };
 }
 
 /** Walking up to a visitor and pressing E. */

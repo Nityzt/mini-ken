@@ -44,3 +44,36 @@ export function moveAndCollide(box: Box, dx: number, dy: number, map: TileMap): 
   }
   return { box: next, hitX, hitY };
 }
+
+function overlapsSolid(box: Box, map: TileMap): boolean {
+  const { tile } = map;
+  for (let row = Math.floor(box.y / tile); row <= Math.floor((box.y + box.h - EDGE) / tile); row++) {
+    for (let col = Math.floor(box.x / tile); col <= Math.floor((box.x + box.w - EDGE) / tile); col++) if (isSolidAt(map, col, row)) return true;
+  }
+  return false;
+}
+
+/**
+ * Walking straight at a wall a few pixels to one side of a gap, such as a one-tile doorway, eases you sideways into
+ * the gap instead of stopping you dead. Doorways are exactly one tile wide, so lining up by eye is fiddly otherwise.
+ * Only within `slack` pixels, and only when walking along one axis.
+ */
+export function slideIntoGap(box: Box, dx: number, dy: number, map: TileMap, slack: number): Box {
+  const moved = moveAndCollide(box, dx, dy, map);
+  if ((dx !== 0) === (dy !== 0)) return moved.box;
+  const blocked = dx !== 0 ? moved.hitX && Math.abs(moved.box.x - box.x) < Math.abs(dx) : moved.hitY && Math.abs(moved.box.y - box.y) < Math.abs(dy);
+  if (!blocked) return moved.box;
+  const speed = Math.abs(dx || dy);
+  for (let offset = 1; offset <= slack; offset++) {
+    for (const sign of [-1, 1]) {
+      const side = dx !== 0 ? { ...box, y: box.y + sign * offset } : { ...box, x: box.x + sign * offset };
+      if (overlapsSolid(side, map)) continue;
+      const through = { ...side, x: side.x + dx + Math.sign(dx), y: side.y + dy + Math.sign(dy) };
+      if (overlapsSolid(through, map)) continue;
+      // Step towards the gap at walking pace, rather than jumping into it.
+      const step = sign * Math.min(speed, offset);
+      return moveAndCollide(box, dx !== 0 ? 0 : step, dx !== 0 ? step : 0, map).box;
+    }
+  }
+  return moved.box;
+}
