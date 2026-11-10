@@ -249,7 +249,8 @@ export function createRivalDojoScene(nameOf: () => string): Scene {
           else if (id === "challenge") challenge(game, dojo.sensei.id);
           else if (id === 'secret') {
             game.run = discoverDungeon(game.run);
-            dialogue.open(['Sensei Raiko: You felt it too? There is an old passage behind the shinai rack.', 'Sensei Raiko: I thought it was sealed. Look at the rack along the north wall. Be careful down there.']);
+            // Short enough that each fits over Raiko's head, where it's plain who's speaking.
+            dialogue.open(['Sensei Raiko: You felt it too? There is an old passage behind the shinai rack.', 'Sensei Raiko: I thought it was sealed. Look at the rack along the north wall.', 'Sensei Raiko: Be careful down there.']);
           }
         });
       }
