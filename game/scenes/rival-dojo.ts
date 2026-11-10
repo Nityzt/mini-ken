@@ -274,6 +274,10 @@ export function createRivalDojoScene(nameOf: () => string): Scene {
       ctx.fillRect(0, 0, viewW, viewH);
       drawRoom(ctx, room, cam, true, dojoFor(game.run.node));
       const tags: (() => void)[] = [];
+      // Whoever E would talk to is named in the prompt, so their own tag steps aside for it.
+      const talking = dialogue.active || menu.active;
+      const ahead = talking ? null : personAhead(walker, room, dojo.solid, PEOPLE);
+      const names: Record<string, string> = {};
       const you: Figure = figureAt(ctx, walker.box.x + walker.box.w / 2 - cam.x, walker.box.y - 12 - cam.y, walker.box.y + 8 - cam.y);
       const figures: Record<string, Figure | undefined> = {};
       const person = (char: string, id: Exclude<PersonId, "examiner">, standing: "down" | "side", gear: Gear, look: { colors?: Record<string, string>; flip?: boolean; held?: HeldShinai }) => {
@@ -286,7 +290,8 @@ export function createRivalDojoScene(nameOf: () => string): Scene {
           ? facingToward({ x: x + 8, y: y + 16 }, { x: walker.box.x + walker.box.w / 2 - cam.x, y: walker.box.y + walker.box.h / 2 - cam.y })
           : { facing: standing, flip: look.flip };
         const dan = personDan(id);
-        const near = rankTagShown({ x: walker.box.x + walker.box.w / 2 - cam.x, y: walker.box.y - cam.y }, { x: x + 8, y: y + 16 });
+        names[char] = opponentById(id).rival;
+        const near = char !== ahead?.char && rankTagShown({ x: walker.box.x + walker.box.w / 2 - cam.x, y: walker.box.y - cam.y }, { x: x + 8, y: y + 16 });
         if (near) tags.push(() => drawRankTag(ctx, opponentById(id).rival, x + 8, y - 8, presenceOf(dan) > 0));
         return {
           y: spot.row * TILE,
@@ -321,10 +326,11 @@ export function createRivalDojoScene(nameOf: () => string): Scene {
       }
       if (!dialogue.active && !menu.active) tags.forEach((tag) => tag());
       drawTopBar(ctx, dojo.name, game.run);
-      if (!dialogue.active && !menu.active) {
+      if (!talking) {
         drawObjective(ctx, currentObjective(game.run));
         const front = tileInFront(walker, room);
-        const label = canEnterDungeon(game.run, front) ? 'Inspect the hidden passage' : interactionLabel(personAhead(walker, room, dojo.solid, PEOPLE)?.char ?? front, "rival");
+        const named = ahead && names[ahead.char];
+        const label = canEnterDungeon(game.run, front) ? 'Inspect the hidden passage' : named ? `Talk to ${named}` : interactionLabel(ahead?.char ?? front, "rival");
         if (label) drawInteractPrompt(ctx, label, walker.box.x + walker.box.w / 2 - cam.x, walker.box.y - cam.y, keyLabel(game.input, "confirm", "e"));
       }
       // Everybody here goes by a name their own line can be matched to.
