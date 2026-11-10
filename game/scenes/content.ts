@@ -876,8 +876,8 @@ export const CARD_TRAVEL = "Travel now";
 export const CARD_KEEP = "Keep it";
 /** The note at the side once you're home with your new men. The keys are drawn as keycaps between these. */
 export const MEN_TOAST_TITLE = "Your men is in your inventory";
-export const MEN_TOAST_OPEN = "Inventory";
-export const MEN_TOAST_WEAR = "wear it";
+export const MEN_TOAST_OPEN = "Inventory, then";
+export const MEN_TOAST_WEAR = "to wear it";
 export const CHOICE_HINT = "E choose   X back";
 export const MENU_LINE = "Line drill";
 export const MENU_GRADE = "Ask about grading";
