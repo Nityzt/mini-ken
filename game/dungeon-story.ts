@@ -58,8 +58,9 @@ export function parseDungeonTrial(raw: unknown, validateEscrow: (value: Record<s
  let progress: DungeonState | null = null;
  if (value.progress !== null) {
   if (stage !== 'active') return null;
+  // Progress from an older trial, or one that can't be trusted, only costs the trial: it starts again from
+  // the cell, and the escrowed equipment and the rest of the story are kept.
   progress = parseDungeonState(value.progress);
-  if (!progress) return null;
  }
  return { stage, progress, escrow };
 }

@@ -25,7 +25,7 @@ test('resuming a captive run uses its checkpoint and leaving safely restores the
   const { createDungeon } = await import('../dungeon.ts');
   const original = { ...createRunState(), node: 'radish' as const, beaten: ['raiko'] as const, gear: { shinai: true, tare: true, do: true, men: true, kote: true }, money: 123 };
   const run = captureDungeon(enterDungeon(discoverDungeon({ ...original, beaten: [...original.beaten] })));
-  const progress = createDungeon(1, { shinai: true, armor: false, collected: ['cell-shinai'] });
+  const progress = createDungeon(1, { shinai: true, collected: ['cell-shinai'] });
   const scenes: string[] = [];
   const game = {
     run: saveDungeonProgress(run, progress),
@@ -54,8 +54,8 @@ test('a shared interaction binding picks up gear without also jumping or attacki
   const { createDungeon } = await import('../dungeon.ts');
   const original = { ...createRunState(), node: 'radish' as const, beaten: ['raiko' as const] };
   const progress = createDungeon(0, { shinai: true, collected: ['cell-shinai'] });
-  progress.player.x = 280;
-  progress.player.y = 68;
+  progress.player.x = 80;
+  progress.player.y = 24;
   const game = {
     run: saveDungeonProgress(captureDungeon(enterDungeon(discoverDungeon(original))), progress),
     debug: {},
@@ -67,8 +67,29 @@ test('a shared interaction binding picks up gear without also jumping or attacki
   scene.enter!(game);
   scene.update(game);
   const state = game.run.dungeon.progress!;
-  assert.ok(state.collected.includes('cell-egg'));
-  assert.equal(state.player.y, 68, 'interaction keeps the player on the shelf');
+  assert.ok(state.collected.includes('cell-crane'));
+  assert.equal(state.player.y, 24, 'interaction keeps the player on the shelf');
   assert.equal(state.player.grounded, true);
   assert.equal(state.player.attackTicks, 0, 'interaction suppresses the overlapping attack');
+});
+
+test('in the ambush Ren strikes only after a raised tell, and a held guard turns every one aside', () => {
+  let state = createAmbush();
+  let tells = 0;
+  for (let tick = 0; tick < 400; tick++) {
+    const before = state.ren;
+    state = stepAmbush(state, { move: 0, attack: false, block: true });
+    if (before !== 'tell' && state.ren === 'tell') tells++;
+    if (state.ren === 'strike') assert.ok(before === 'tell' || before === 'strike');
+  }
+  assert.ok(tells >= 3);
+  assert.equal(state.hp, 3, 'nothing gets through a held guard');
+  assert.ok(state.parries >= 3);
+  assert.equal(state.phase, 'fight', 'the smoke, not a hit, ends it');
+});
+
+test('you cannot walk through Ren in the ambush', () => {
+  let state = createAmbush();
+  for (let tick = 0; tick < 200; tick++) state = stepAmbush(state, { move: 1, attack: false, block: true });
+  assert.ok(state.renX - state.x >= 19);
 });
