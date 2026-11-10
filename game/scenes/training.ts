@@ -8,7 +8,7 @@ import type { Game, Scene } from "../core/scene.ts";
 import { parryShine } from "../duel/poses.ts";
 import { screenX, skipBow, step } from "../duel/rules.ts";
 import { finishSession } from "./club-story.ts";
-import { FORFEIT_TRAINING, GEN_FAIL, LESSON_GOOD, LESSON_WRONG, PARRY_NOW } from "./content.ts";
+import { FORFEIT_TRAINING, FORFEIT_TUTORIAL, GEN_FAIL, LESSON_GOOD, LESSON_WRONG, PARRY_NOW } from "./content.ts";
 import { wasTaught } from "./teaching.ts";
 import { createLessonDuel, judge, lessonsFor, partnerColors, partnerName, SENPAI, sessionPartner, sessionPlace, type Lesson, type Session } from "./curriculum.ts";
 import { figureAt } from "./bubble.ts";
@@ -134,8 +134,12 @@ export function createTrainingScene(nameOf: () => string): Scene {
   const failed = () => lesson().misses !== undefined && misses >= lesson().misses!;
 
   return {
-    forfeitLabel: () => (dialogue.active || ended ? null : FORFEIT_TRAINING),
-    forfeit: leave,
+    forfeitLabel: () => (dialogue.active || ended ? null : quick() ? FORFEIT_TUTORIAL : FORFEIT_TRAINING),
+    // Leaving the short tutorial early is skipping it: multiplayer opens anyway.
+    forfeit: (game) => {
+      if (quick()) game.online.finishTutorial();
+      leave(game);
+    },
     outsideStory: () => quick(),
     // Anything earned here waits for the end, so a lesson is never interrupted.
     busy: () => true,

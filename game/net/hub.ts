@@ -32,6 +32,7 @@ export type OnlineHub = {
   profile(): OnlineProfile;
   identity(): Identity;
   access(): ReturnType<typeof onlineAccess>;
+  /** Done with the short tutorial, by finishing it or skipping it. Either way multiplayer opens, and the pre-match offer counts as asked. */
   finishTutorial(): void;
   /** They've been offered the bits of the tutorial they missed, whichever way they answered. */
   primerAsked(): void;

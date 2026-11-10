@@ -577,6 +577,7 @@ export const PROGRESS_CHAMPION = "Champion";
 export const FORFEIT_MATCH = "Forfeit match";
 export const FORFEIT_GANG = "Back off";
 export const FORFEIT_TRAINING = "Stop training";
+export const FORFEIT_TUTORIAL = "Skip the rest of the tutorial";
 export const FORFEIT_LINE = "Stop the drill";
 export const DOOR_LOCKED = "You only just got here! Have a word with Senpai Momo.";
 
@@ -750,6 +751,7 @@ export function allContentLines(): string[] {
     FORFEIT_MATCH,
     FORFEIT_GANG,
     FORFEIT_TRAINING,
+    FORFEIT_TUTORIAL,
     FORFEIT_LINE,
   ];
 }
@@ -1044,8 +1046,10 @@ export const onlinePrimerNote = (needs: readonly string[]): string => {
   return `You don't know ${missing} yet, and the other player will use them. Want a quick tutorial first?`;
 };
 export const ONLINE_TUTORIAL_AGAIN = "Short tutorial again";
+export const ONLINE_SKIP_TUTORIAL = "Skip the tutorial";
+export const ONLINE_INVITE_GATE = "You've been invited to a match. Multiplayer is for 1st dan and up: take the short tutorial first, or skip it and go straight in.";
 export const ONLINE_BACK = "Back";
-export const ONLINE_GATE = "Multiplayer is for 1st dan and up. Earn it in the story, with Sensei's waza lesson, or take the short tutorial and go straight in.";
+export const ONLINE_GATE = "Multiplayer is for 1st dan and up. Earn it in the story, with Sensei's waza lesson, or take the short tutorial (or skip it) and go straight in.";
 export const ONLINE_PRACTICE = "Nobody's online yet: you'll play stand-ins, over the same connection a real match would use.";
 export const ONLINE_LIVE = "Connected to the server.";
 export const ONLINE_RECORD = (wins: number, losses: number): string => `${wins} won ${losses} lost`;
