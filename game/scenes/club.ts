@@ -538,11 +538,11 @@ export function createClubScene(nameOf: () => string): Scene {
       const you: Figure = figureAt(ctx, walker.box.x + walker.box.w / 2 - cam.x, walker.box.y - 12 - cam.y, walker.box.y + 8 - cam.y);
       const figures: Record<string, Figure | undefined> = {};
       const walkingFigure = (w: Walker) => figureAt(ctx, w.box.x + w.box.w / 2 - cam.x, w.box.y - 12 - cam.y, w.box.y + 8 - cam.y);
-      const person = (char: string, id: Exclude<PersonId, "examiner">, standing: "down" | "side", gear: typeof FULL_GEAR, colors?: Record<string, string>) => {
+      const person = (char: string, id: Exclude<PersonId, "examiner">, standing: "down" | "side", gear: typeof FULL_GEAR, colors?: Record<string, string>, lying = false) => {
         const spot = findTiles(rows, char)[0];
         const x = spot.col * TILE - cam.x;
         const y = spot.row * TILE - 4 - cam.y;
-        figures[char] = figureAt(ctx, x + 8, y, y + 20);
+        figures[char] = lying ? figureAt(ctx, x + 8, y + 8, y + 20) : figureAt(ctx, x + 8, y, y + 20);
         // Whoever you're talking to looks at you. Sora's asleep.
         const turned = talkingTo === char && !(char === "V" && visitorHere(game) === "sora")
           ? facingToward({ x: x + 8, y: y + 16 }, { x: walker.box.x + walker.box.w / 2 - cam.x, y: walker.box.y + walker.box.h / 2 - cam.y })
@@ -554,7 +554,14 @@ export function createClubScene(nameOf: () => string): Scene {
           y: spot.row * TILE,
           draw: () => {
             drawPresence(ctx, x + 8, y + 20, tick, presenceOf(dan), game.reducedMotion);
-            drawKendoka(ctx, x, y, turned.facing, 0, gear, { colors, flip: turned.flip });
+            if (lying) {
+              // Flat out on the floor, head to the left, so a nap reads as a nap and leaves the people above in plain sight.
+              ctx.save();
+              ctx.translate(x - 2, y + 20);
+              ctx.rotate(-Math.PI / 2);
+              drawKendoka(ctx, 0, 0, "down", 0, gear, { colors });
+              ctx.restore();
+            } else drawKendoka(ctx, x, y, turned.facing, 0, gear, { colors, flip: turned.flip });
           },
         };
       };
@@ -594,7 +601,7 @@ export function createClubScene(nameOf: () => string): Scene {
         const { walker: comer } = visit;
         figures.V = walkingFigure(comer);
         people.push({ y: comer.box.y - 8, draw: () => drawWalker(ctx, comer, cam, { ...FULL_GEAR, men: false }, DOJOS.radish.colors) });
-      } else if (visitor) people.push(person("V", visitor === "ren" ? "renVisit" : "raccoon", "down", { ...FULL_GEAR, men: false }, visitor === "ren" ? DOJOS.radish.colors : DOJOS.raccoon.colors));
+      } else if (visitor) people.push(person("V", visitor === "ren" ? "renVisit" : "raccoon", "down", { ...FULL_GEAR, men: false }, visitor === "ren" ? DOJOS.radish.colors : DOJOS.raccoon.colors, visitor === "sora"));
       people.sort((a, b) => a.y - b.y).forEach((p) => p.draw());
       if (!game.reducedMotion) {
         // The senpai standing near each other talk, too.
