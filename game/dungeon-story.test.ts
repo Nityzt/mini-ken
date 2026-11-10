@@ -35,6 +35,12 @@ test('active escrow and full trial progress survive saves, older saves remain va
  assert.equal(resumeScene(parsed), 'dungeon');
  assert.deepEqual(parsed.dungeon.escrow, captive.dungeon.escrow);
  assert.equal(parseRun({ ...captive, dungeon: { ...captive.dungeon, escrow: null } }), null);
+ // Progress saved by the first version of the trial restarts it, but keeps the story and the escrowed gear.
+ const firstVersion = parseRun(JSON.parse(JSON.stringify({ ...captive, dungeon: { ...captive.dungeon, progress: { room: 1, tick: 9, collected: [], shinai: true, armor: false, materials: 0, phase: 'playing', checkpoint: 1 } } })));
+ assert.ok(firstVersion);
+ assert.equal(firstVersion.dungeon.stage, 'active');
+ assert.equal(firstVersion.dungeon.progress, null);
+ assert.deepEqual(firstVersion.dungeon.escrow, captive.dungeon.escrow);
  const old: Record<string, unknown> = { ...ready() }; delete old.dungeon;
  assert.equal(parseRun(old)?.dungeon.stage, 'locked');
 });
