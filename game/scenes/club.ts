@@ -15,7 +15,7 @@ import { currentObjective } from "../objective.ts";
 import { DOJOS, opponentById } from "../world/dojos.ts";
 import { askToGrade, showLetter, type Asker } from "../grading.ts";
 import { hasLetter, personDan, presenceOf, type PersonId } from "../ranks.ts";
-import { answerOffer, answerWhy, cupOffer, doorResponse, interactionLabel, kirikaeshiOffer, lineOffer, senpaiMenu, senseiMenu, talkToMomo, talkToSenpai, talkToSensei } from "./club-story.ts";
+import { answerOffer, answerWhy, cupOffer, doorResponse, interactionLabel, kirikaeshiOffer, lineOffer, promptFor, senpaiMenu, senseiMenu, talkToMomo, talkToSenpai, talkToSensei } from "./club-story.ts";
 import { rest } from "../health.ts";
 import { talkToChallenger } from "./challengers.ts";
 import { openTopics } from "./chatter.ts";
@@ -540,6 +540,10 @@ export function createClubScene(nameOf: () => string): Scene {
       }
 
       const tags: (() => void)[] = [];
+      // Whoever you're facing is named in the prompt over your head, so their own tag stays out of its way.
+      const prompting = !dialogue.active && !menu.active;
+      const ahead = prompting ? personAhead(walker, rows, CLUB_SOLID, PEOPLE)?.char ?? null : null;
+      const names: Record<string, string> = { Z: "Nao" };
       const you: Figure = figureAt(ctx, walker.box.x + walker.box.w / 2 - cam.x, walker.box.y - 12 - cam.y, walker.box.y + 8 - cam.y);
       const figures: Record<string, Figure | undefined> = {};
       const walkingFigure = (w: Walker) => figureAt(ctx, w.box.x + w.box.w / 2 - cam.x, w.box.y - 12 - cam.y, w.box.y + 8 - cam.y);
@@ -553,7 +557,8 @@ export function createClubScene(nameOf: () => string): Scene {
           ? facingToward({ x: x + 8, y: y + 16 }, { x: walker.box.x + walker.box.w / 2 - cam.x, y: walker.box.y + walker.box.h / 2 - cam.y })
           : { facing: standing, flip: false };
         const dan = personDan(id);
-        const near = rankTagShown({ x: walker.box.x + walker.box.w / 2 - cam.x, y: walker.box.y - cam.y }, { x: x + 8, y: y + 16 });
+        names[char] = opponentById(id).rival;
+        const near = char !== ahead && rankTagShown({ x: walker.box.x + walker.box.w / 2 - cam.x, y: walker.box.y - cam.y }, { x: x + 8, y: y + 16 });
         if (near) tags.push(() => drawRankTag(ctx, opponentById(id).rival, x + 8, y - 8, presenceOf(dan) > 0));
         return {
           y: spot.row * TILE,
@@ -567,7 +572,7 @@ export function createClubScene(nameOf: () => string): Scene {
       const greeterX = greeterSpot.col * TILE - cam.x;
       const greeterY = greeterSpot.row * TILE - 4 - cam.y;
       figures.Z = figureAt(ctx, greeterX + 8, greeterY, greeterY + 20);
-      if (rankTagShown({ x: walker.box.x + walker.box.w / 2 - cam.x, y: walker.box.y - cam.y }, { x: greeterX + 8, y: greeterY + 16 })) tags.push(() => drawRankTag(ctx, "Nao", greeterX + 8, greeterY - 8, false));
+      if (ahead !== "Z" && rankTagShown({ x: walker.box.x + walker.box.w / 2 - cam.x, y: walker.box.y - cam.y }, { x: greeterX + 8, y: greeterY + 16 })) tags.push(() => drawRankTag(ctx, "Nao", greeterX + 8, greeterY - 8, false));
       const people = [
         { y: greeterSpot.row * TILE, draw: () => drawKendoka(ctx, greeterX, greeterY, "down", 0, { ...FULL_GEAR, men: false }, { colors: TEAM_COLORS.pinecone! }) },
         ...(escort
@@ -617,10 +622,10 @@ export function createClubScene(nameOf: () => string): Scene {
       }
 
       drawTopBar(ctx, "Pinecone Dojo", game.run);
-      if (!dialogue.active && !menu.active) {
+      if (prompting) {
         drawObjective(ctx, currentObjective(game.run));
-        const label = interactionLabel(personAhead(walker, rows, CLUB_SOLID, PEOPLE)?.char ?? tileInFront(walker, rows), "home");
-        if (label) drawInteractPrompt(ctx, label, walker.box.x + walker.box.w / 2 - cam.x, walker.box.y - cam.y, keyLabel(game.input, "confirm", "e"));
+        const label = interactionLabel(ahead ?? tileInFront(walker, rows), "home");
+        if (label) drawInteractPrompt(ctx, promptFor(label, ahead ? names[ahead] : undefined), walker.box.x + walker.box.w / 2 - cam.x, walker.box.y - cam.y, keyLabel(game.input, "confirm", "e"));
       }
       if (menToast !== null) drawMenToast(ctx, menToast, game.reducedMotion, { pause: keyLabel(game.input, "pause", "escape"), confirm: keyLabel(game.input, "confirm", "e") }, playerColors(game.run));
       dialogue.render(ctx, speakersIn(figures, SPEAKERS, you, talkingTo));

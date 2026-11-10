@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { answerOffer, cupOffer, doorResponse, finishSession, freeSenpai, freeSenpaiNames, interactionLabel, kirikaeshiOffer, kirikaeshiOutcome, lineOutcome, lineOffer, pendingChallenge, senseiMenu, sparOutcome, talkToMomo, talkToSenpai, talkToSensei } from "./club-story.ts";
+import { answerOffer, cupOffer, doorResponse, finishSession, freeSenpai, freeSenpaiNames, interactionLabel, kirikaeshiOffer, promptFor, kirikaeshiOutcome, lineOutcome, lineOffer, pendingChallenge, senseiMenu, sparOutcome, talkToMomo, talkToSenpai, talkToSensei } from "./club-story.ts";
 import { recordLinePass, recordWin } from "../run-state.ts";
 import { isOpen, LINE_PASSES_TO_UNLOCK } from "../progress.ts";
 import { DIALOGUE_LINES, DIALOGUE_WIDTH, DRILL_PRAISE, GEAR_LINES, GEN_DONE, GEN_DONE_AFTER, KOTE_DONE, LINE_FIRST, LINE_NO_KEYS, SENPAI_LINES, SENSEI_ROUND_DONE } from "./content.ts";
@@ -470,4 +470,12 @@ test("a record that reuses a senpai, or names all three, never strands the playe
   const stuck = { ...waitingFor(2, {}), armorFrom: { do: "aki", men: "bo", kote: "yui" } } as RunState;
   assert.deepEqual(freeSenpai(stuck), ["aki", "bo", "yui"]);
   assert.deepEqual(talkToSenpai(stuck, "aki").session, { kind: "senpai", senpai: "aki", level: 2 });
+});
+
+test("the prompt over your head says who you'd be talking to, since their own name tag is hidden behind it", () => {
+  assert.equal(promptFor("Talk", "Bo"), "Talk to Bo");
+  assert.equal(promptFor("Talk", "Sensei Kuma"), "Talk to Sensei Kuma");
+  // Anything that isn't a person keeps its own word.
+  assert.equal(promptFor("Leave"), "Leave");
+  assert.equal(promptFor("Notice board"), "Notice board");
 });

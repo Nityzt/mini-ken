@@ -247,5 +247,11 @@ const LABELS = {
   rival: { $: "Merch", X: "Talk", G: "Talk", E: "Talk", V: "Talk", R: "Talk", J: "Challenge", N: "Notice board", D: "Leave" },
 } satisfies Record<string, Record<string, string>>;
 
+/**
+ * The words over your head. Facing someone, it names them: their own tag would sit right beside it, or on top
+ * of you when they're below, so it's hidden and the prompt says who it is instead.
+ */
+export const promptFor = (label: string, name?: string): string => (name && label === "Talk" ? `Talk to ${name}` : label);
+
 /** What pressing E would do at this tile, if anything. Shown over your head, so nobody has to guess. */
 export const interactionLabel = (tile: string, place: keyof typeof LABELS): string | null => (LABELS[place] as Record<string, string>)[tile] ?? null;
