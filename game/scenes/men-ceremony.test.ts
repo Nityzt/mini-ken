@@ -128,3 +128,25 @@ test("nobody's in kamae for the handing over: both shinai are down at the hip, a
   assert.equal(POSES[senpai].rightHand, undefined);
   assert.equal(POSES[senpai].angle, POSES[you].angle);
 });
+
+test("the men ceremony starts where the drill left you both, turned to face each other", async () => {
+  const { createDuel, faceDir, screenX, skipBow } = await import("../duel/rules.ts");
+  const { facingWhereTheyStand } = await import("./training.ts");
+  const fresh = () => skipBow(createDuel());
+  const onScreen = (s: ReturnType<typeof fresh>) => s.fighters.map((f) => screenX(s, f.x));
+  // Halfway through a slide-through: you've gone past the senpai, and you're back to back.
+  const sliding = fresh();
+  sliding.fighters[0].x = 160;
+  sliding.fighters[1].x = 129;
+  const passed = facingWhereTheyStand(sliding, fresh());
+  assert.deepEqual(onScreen(passed), [160, 129], "nobody snaps back to their mark");
+  assert.equal(faceDir(passed, 0), -1, "you turn round to face the senpai");
+  assert.equal(faceDir(passed, 1), 1);
+  // Anywhere else, it's just where they are.
+  const apart = fresh();
+  apart.fighters[0].x = 90;
+  apart.fighters[1].x = 170;
+  const calm = facingWhereTheyStand(apart, fresh());
+  assert.deepEqual(onScreen(calm), [90, 170]);
+  assert.equal(faceDir(calm, 0), 1);
+});

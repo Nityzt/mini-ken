@@ -7,7 +7,7 @@ import { PALETTE, UI } from "../art/palette.ts";
 import { onGui, onStage, stageX, stageY, viewW } from "../core/scale.ts";
 import type { Game, Scene } from "../core/scene.ts";
 import { parryShine } from "../duel/poses.ts";
-import { screenX, skipBow, step } from "../duel/rules.ts";
+import { screenX, skipBow, step, type DuelState } from "../duel/rules.ts";
 import { finishSession } from "./club-story.ts";
 import { FORFEIT_TRAINING, GEN_FAIL, LESSON_GOOD, LESSON_WRONG, PARRY_NOW } from "./content.ts";
 import { wasTaught } from "./teaching.ts";
@@ -25,6 +25,17 @@ const FIGHTER_TOP = 42;
 const PAUSE_TICKS = 70;
 /** How far from you the senpai stops to put your men on. */
 const CEREMONY_REACH = 30;
+
+/**
+ * A fresh, calm duel with both fighters on the spots `now` shows them on, facing each other.
+ * Partway through a slide-through they're back to back, so the sides are swapped to turn them round.
+ */
+export function facingWhereTheyStand(now: DuelState, fresh: DuelState): DuelState {
+  const [you, them] = now.fighters.map((f) => screenX(now, f.x));
+  const crossed = you > them;
+  const at = (x: number) => screenX({ crossed }, x);
+  return { ...fresh, crossed, crossTo: null, fighters: [{ ...fresh.fighters[0], x: at(you) }, { ...fresh.fighters[1], x: at(them) }] };
+}
 
 /** One session with one partner: Sensei's drills, a senpai's challenge, or Old Gen's seme. */
 export function createTrainingScene(nameOf: () => string): Scene {
@@ -55,12 +66,13 @@ export function createTrainingScene(nameOf: () => string): Scene {
     const [you, them] = duel.fighters;
     // They stop a little short of you, close enough to reach your head.
     const senpaiX = them.x + (you.x + CEREMONY_REACH - them.x) * frame.approach;
+    const walking = frame.beat === "approach" && Math.abs(you.x + CEREMONY_REACH - them.x) > 1;
     // Settled in those poses from the first frame: a blend would swing both shinai down through the men.
     const still = (pose: DuelPose) => ({ now: pose, was: pose, age: CEREMONY_TICKS });
     const moved: DuelView = {
       ...shown,
       duel: { ...duel, fighters: [you, { ...them, x: senpaiX }] },
-      moving: [false, frame.beat === "approach"],
+      moving: [false, walking],
       poses: [still(CEREMONY_POSES[0]), still(CEREMONY_POSES[1])],
     };
     drawDuelStage(ctx, moved, sessionPlace(session), {
@@ -129,8 +141,8 @@ export function createTrainingScene(nameOf: () => string): Scene {
   };
 
   const startCeremony = (then: () => void) => {
-    // Everyone back to where they'd stand to begin, whatever the drill left them doing.
-    ceremonyView = createDuelView(skipBow(createLessonDuel(lesson())));
+    // It starts where the drill left you both, often just past each other after a slide-through, turned to face each other.
+    ceremonyView = createDuelView(facingWhereTheyStand(view.duel, skipBow(createLessonDuel(lesson()))));
     ceremony = { state: createCeremony(), then };
   };
 
