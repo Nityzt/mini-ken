@@ -157,7 +157,7 @@ export function finishSession(before: RunState, session: Session): { run: RunSta
   if (session.kind === "waza" && before.waza) return { run: before, lines: WAZA_AGAIN_DONE };
   const run = earn(gainXp(before, XP_DRILL), PAY_DRILL);
   if (session.kind === "waza") return { run: { ...run, waza: true }, lines: WAZA_DONE };
-  if (session.kind === "master") return { run: { ...run, seme: true }, lines: GEN_DONE, after: GEN_DONE_AFTER };
+  if (session.kind === "master") return { run: { ...run, seme: true, semeStep: 0 }, lines: GEN_DONE, after: GEN_DONE_AFTER };
   if (session.kind === "senpai") {
     const earned = CHALLENGE_REWARD[session.level];
     const gear = { ...run.gear, [earned]: true };

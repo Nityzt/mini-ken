@@ -240,3 +240,24 @@ test("without a presence, nobody's pressure builds in a lock", () => {
   for (let i = 0; i < 60; i++) s = step(s, HOLD, HOLD);
   assert.equal(s.fighters[0].pressure, 0);
 });
+
+test("hiki: whoever's still pulling when the other's strike springs is caught with their hands down, not left holding a lock that's gone (issue #39)", () => {
+  // The other side starts a slower pull a moment later, so the first one fires while theirs is still going.
+  let s = step(locked(), { ...IDLE, attack: "men" }, IDLE);
+  s = step(s, IDLE, { ...IDLE, attack: "bigMen" });
+  assert.ok(s.lock?.pulling[0] && s.lock.pulling[1]);
+  for (let i = 0; i < 60 && s.lock; i++) s = step(s, IDLE, IDLE);
+  assert.equal(s.lock, null);
+  assert.equal(s.fighters[0].stance, "windup");
+  assert.notEqual(s.fighters[1].stance, "tsuba");
+  // And once it's all over, walking back in locks them together again.
+  for (let i = 0; i < 200 && !s.lock; i++) s = step(s, IDLE, s.fighters[1].stance === "guard" ? PUSH_B : IDLE);
+  assert.ok(s.lock, "should lock again");
+});
+
+test("hiki: two pulls springing on the same tick both go", () => {
+  let s = step(locked(), { ...IDLE, attack: "men" }, { ...IDLE, attack: "men" });
+  for (let i = 0; i < 60 && s.lock; i++) s = step(s, IDLE, IDLE);
+  assert.equal(s.lock, null);
+  assert.deepEqual(s.fighters.map((f) => f.stance === "tsuba"), [false, false]);
+});
