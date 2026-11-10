@@ -226,7 +226,12 @@ export function createClubScene(nameOf: () => string): Scene {
     }
     dialogue.open(reply.lines, () => {
       menu.open(senseiMenu(game.run), (id) => {
-        if (id === "line") dialogue.open(lineOffer(game.run), () => game.go("line"));
+        if (id === "line") {
+          // With nothing for Sensei to add, the drill's own card does the talking.
+          const offer = lineOffer(game.run);
+          if (offer.length) dialogue.open(offer, () => game.go("line"));
+          else game.go("line");
+        }
         else if (id === "kirikaeshi") dialogue.open(kirikaeshiOffer(game.run), () => game.go("kirikaeshi"));
         else if (id === "waza") dialogue.open(WAZA_OFFER, () => {
           game.session = { kind: "waza" };
