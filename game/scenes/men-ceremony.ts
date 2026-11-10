@@ -1,3 +1,4 @@
+import type { DuelPose } from "../art/duel-sprites.ts";
 import { spriteFor } from "../art/sprite.ts";
 import { TILE, TILE_GRIDS } from "../art/tiles.ts";
 import { PALETTE, UI } from "../art/palette.ts";
@@ -21,6 +22,11 @@ export const CEREMONY_BEATS: { beat: CeremonyBeat; ticks: number }[] = [
   { beat: "worn", ticks: 40 },
 ];
 export const CEREMONY_TICKS = CEREMONY_BEATS.reduce((sum, { ticks }) => sum + ticks, 0);
+/**
+ * How you and the senpai stand for it: the drill's over, so both shinai come down to the hip rather than staying
+ * crossed in kamae. Yours leaves your right hand free; theirs is the arm the ceremony draws, holding the men.
+ */
+export const CEREMONY_POSES: [DuelPose, DuelPose] = ["taitoFree", "taitoHold"];
 /** E can cut it short, but not with the press that closed the line before it. */
 export const CEREMONY_SKIP_AFTER = 30;
 /** The white burst as the men first catches the light. */

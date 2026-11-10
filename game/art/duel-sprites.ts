@@ -17,7 +17,7 @@ export type DuelPose =
   | "tellHandsUp" | "tellTipDip" | "tellBigRaise"
   | "strikeMen" | "strikeKote" | "strikeDo"
   | "zanshin" | "recover" | "stunned"
-  | "walkHome" | "sonkyoTurn" | "sonkyoTuck" | "sonkyoSheathe" | "taitoFree" | "bowTaito" | "hit"
+  | "walkHome" | "sonkyoTurn" | "sonkyoTuck" | "sonkyoSheathe" | "taitoFree" | "taitoHold" | "bowTaito" | "hit"
   | "parry" | "suriage" | "deflected" | "stumble"
   | "tsuba" | "tsubaPush" | "tsubaGuard" | "tsubaPull" | "tsubaPart"
   | "hikiMen" | "hikiKote" | "hikiDo"
@@ -314,6 +314,8 @@ export const POSES: Record<DuelPose, PoseDef> = {
   sonkyoSheathe: { ...HIP_CROUCHED, rightHand: [20, 34] },
   // Standing, and all the way out of the ring: the same hold at the waist, with the right hand free at the thigh.
   taitoFree: { hand: [14, 23], angle: TIP_BEHIND, handBelowTsuba: HAND_BELOW_TSUBA, sheathed: true, rightHand: [18, 31] },
+  // The same hold, with the right arm drawn by whatever it's doing: a senpai handing over your men.
+  taitoHold: { hand: [14, 23], angle: TIP_BEHIND, handBelowTsuba: HAND_BELOW_TSUBA, sheathed: true },
   bowTaito: { hand: [15, 23], angle: TIP_BEHIND, handBelowTsuba: HAND_BELOW_TSUBA, head: [4, 4], torso: [2, 1], sheathed: true, rightHand: [20, 31] },
   // Taking one: nobody reels or drops their hands. The head gives a little and the hands come up, too late.
   hit: { hand: [24, 23], angle: -40, head: [-2, 0] },
