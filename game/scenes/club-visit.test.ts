@@ -30,6 +30,11 @@ function fakeGame(run: RunState) {
   return { game, went, press: (on: boolean) => { pressing = on; } };
 }
 
+/** Holding a direction down, for a game whose keys are all up otherwise. */
+function holding(game: Game, key: string) {
+  (game.input as { isDown: (k: string) => boolean }).isDown = (k: string) => k === key;
+}
+
 const boxOf = (game: Game) => game.debug.visitor as { x: number; y: number } | null;
 const spot = (game: Game) => { const box = boxOf(game)!; return { x: box.x, y: box.y }; };
 
@@ -106,4 +111,26 @@ test("someone who hasn't arrived yet isn't already standing in the room", () => 
   assert.equal(boxOf(game), null);
   assert.equal(homeVisitor(game.run), "ren");
   assert.equal((game.debug as { visitorStanding?: boolean }).visitorStanding, false);
+});
+
+test("Ren walking over doesn't stop you moving, or swallow the press meant for someone else", () => {
+  const { game, press } = fakeGame(bogu());
+  const scene = createClubScene(() => "you");
+  game.returning = true;
+  scene.enter!(game);
+  scene.update(game);
+  assert.ok(boxOf(game), "Ren's on the way");
+  const start = { ...(game.debug.walker as { x: number; y: number }) };
+  holding(game, "right");
+  for (let i = 0; i < 10; i++) scene.update(game);
+  holding(game, "");
+  assert.notEqual((game.debug.walker as { x: number }).x, start.x, "you can walk while Ren does");
+  assert.equal(game.debug.talking, false);
+  // You're free until Ren gets to you, and then Ren talks.
+  let ticks = 0;
+  while (!game.debug.talking) {
+    scene.update(game);
+    assert.ok(++ticks < 2000, "Ren never got there");
+  }
+  press(false);
 });

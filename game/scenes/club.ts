@@ -99,6 +99,8 @@ export function createClubScene(nameOf: () => string): Scene {
   /** How long the note about your new men has been showing, if it is. It never stops you doing anything. */
   let menToast: number | null = null;
 
+  /** Who can be talked to right now. Someone still walking over isn't at their spot yet. */
+  const peopleHere = () => (visit?.phase === "coming" ? PEOPLE.replace("V", "") : PEOPLE);
   const visitorHere = (game: Game) => (arriving ? null : lingering ?? homeVisitor(game.run));
   const rowsFor = (game: Game) => {
     const rows = clubRows({ storageOpen: game.run.metSenpai, screenBroken: game.run.screenBroken, momoGuards: game.run.trained && !game.run.momoBeaten, visitor: visitorHere(game) !== null });
@@ -181,7 +183,8 @@ export function createClubScene(nameOf: () => string): Scene {
   const comeOver = (game: Game, talk: Talk, from?: { col: number; row: number }) => {
     const rows = rowsFor(game).map((row) => row.replace("V", "."));
     const door = place("D");
-    visit = createVisit({ rows, solid: CLUB_SOLID, start: from ?? door, door, player: walker });
+    // You're free to get on with things while they walk over, and they follow you until you stop to listen.
+    visit = createVisit({ rows, solid: CLUB_SOLID, start: from ?? door, door, player: walker, follows: true });
     visitTalk = talk;
   };
   /** It's yours once Sensei's said so. Backing out before then means nothing's changed hands. */
@@ -386,6 +389,8 @@ export function createClubScene(nameOf: () => string): Scene {
       game.debug.menToast = menToast;
       game.debug.visitor = visit?.walker.box ?? null;
       game.debug.talking = dialogue.active || menu.active || shop.active;
+      // Someone on their way over keeps walking whatever you're up to. They wait until you're free to say their piece.
+      if (visit?.phase === "coming") visit.update(walker);
       if (dialogue.active) {
         dialogue.update(game.input, game.audio);
         return;
@@ -422,15 +427,16 @@ export function createClubScene(nameOf: () => string): Scene {
         }
         return;
       }
-      if (visit) {
-        const before = visit.phase;
-        visit.update(walker);
-        if (before === "coming" && visit.phase === "talking") {
+      if (visit && visitTalk) {
+        // They've got to you. If you're already on your way to someone else, they let you finish.
+        if (visit.phase === "talking" && !stride) {
           const talk = visitTalk;
           visitTalk = null;
-          if (talk) playTalk(game, talk);
+          playTalk(game, talk);
           return;
         }
+      } else if (visit) {
+        if (visit.phase !== "coming") visit.update(walker);
         // They've said what they came to say.
         if (visit.phase === "talking") visit.leave(findTiles(rowsFor(game), "V")[0] ?? place("D"));
         if (visit.done) visit = null;
@@ -482,7 +488,7 @@ export function createClubScene(nameOf: () => string): Scene {
         return;
       }
       if (!game.input.wasPressed("confirm")) return;
-      const ahead = personAhead(walker, rows, CLUB_SOLID, PEOPLE);
+      const ahead = personAhead(walker, rows, CLUB_SOLID, peopleHere());
       if (ahead) {
         stride = { ...createStride(walker, ahead.stand), char: ahead.char };
         talkingTo = ahead.char;
@@ -542,7 +548,7 @@ export function createClubScene(nameOf: () => string): Scene {
       const tags: (() => void)[] = [];
       // Whoever you're facing is named in the prompt over your head, so their own tag stays out of its way.
       const prompting = !dialogue.active && !menu.active;
-      const ahead = prompting ? personAhead(walker, rows, CLUB_SOLID, PEOPLE)?.char ?? null : null;
+      const ahead = prompting ? personAhead(walker, rows, CLUB_SOLID, peopleHere())?.char ?? null : null;
       const names: Record<string, string> = { Z: "Nao" };
       const you: Figure = figureAt(ctx, walker.box.x + walker.box.w / 2 - cam.x, walker.box.y - 12 - cam.y, walker.box.y + 8 - cam.y);
       const figures: Record<string, Figure | undefined> = {};

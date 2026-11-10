@@ -111,6 +111,24 @@ test("the player stays put until they've finished talking, then they can move", 
   assert.equal(visit.blocking, false);
 });
 
+test("someone who follows you doesn't hold you up, and catches you up wherever you've gone", () => {
+  const player = walkerAt(8, 5, "up");
+  const door = findTiles(CLUB_MAP, "D")[0];
+  const visit = createVisit({ rows: CLUB_MAP, solid: CLUB_SOLID, start: door, door, player, follows: true });
+  assert.equal(visit.blocking, false);
+  for (let i = 0; i < 20; i++) visit.update(player);
+  // You walk off across the hall while they're on their way.
+  player.box = { ...player.box, ...createWalker(14, 7).box };
+  let ticks = 0;
+  while (visit.phase === "coming") {
+    visit.update(player);
+    assert.ok(++ticks < 2000, "never caught up");
+  }
+  const at = tileOf(visit.walker);
+  assert.equal(Math.abs(at.col - 14) + Math.abs(at.row - 7), 1, `ended up at ${at.col},${at.row}`);
+  assert.equal(visit.blocking, true, "and you stop to hear what they came to say");
+});
+
 test("afterwards they go to their spot, or back out the door", () => {
   for (const to of [{ col: 6, row: 3 }, findTiles(CLUB_MAP, "D")[0]]) {
     const player = walkerAt(8, 5, "up");
