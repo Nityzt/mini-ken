@@ -64,11 +64,14 @@ export function askAway(run: RunState, who: OpponentId): { lines: string[]; figh
 }
 
 /** How the bout went. At home, winning earns the ticket. Anywhere else, it earns a letter to bring home. It doesn't go on your record as anything else. */
-export function recommendationOutcome(run: RunState, won: boolean, awayFrom?: string): { run: RunState; lines: string[] } {
+export function recommendationOutcome(run: RunState, won: boolean, awayFrom?: string, by?: string): { run: RunState; lines: string[] } {
   if (awayFrom) return won ? { run: gainXp({ ...run, letter: run.dan + 1, letterFrom: awayFrom }, XP_RECOMMENDED), lines: [awayWon(awayFrom)] } : { run, lines: [awayLost(awayFrom)] };
-  if (!won) return { run, lines: RECOMMEND_LOST };
-  return { run: gainXp({ ...run, ticket: run.dan + 1 }, XP_RECOMMENDED), lines: RECOMMEND_WON };
+  if (!won) return { run, lines: saidBy(by, RECOMMEND_LOST) };
+  return { run: gainXp({ ...run, ticket: run.dan + 1 }, XP_RECOMMENDED), lines: saidBy(by, RECOMMEND_WON) };
 }
+
+/** Whoever just tested you says how it went, so it isn't you saying it. */
+export const saidBy = (by: string | undefined, lines: string[]): string[] => (by ? lines.map((line) => `${by}: ${line}`) : lines);
 
 /** How likely each person at home is to take a letter at its word, or want to test it. Whatever's left over is a no. */
 const LETTER_ODDS: Record<Asker, { yes: number; test: number }> = {
@@ -90,8 +93,8 @@ export function showLetter(run: RunState, asker: Asker, roll: number): { run: Ru
 }
 
 /** How the one point went. Losing keeps your letter, so you can always ask again. */
-export function verificationOutcome(run: RunState, won: boolean): { run: RunState; lines: string[] } {
-  return won ? { run: gainXp({ ...run, ticket: run.letter, letter: 0, letterFrom: "" }, XP_RECOMMENDED), lines: VERIFY_WON } : { run, lines: VERIFY_LOST };
+export function verificationOutcome(run: RunState, won: boolean, by?: string): { run: RunState; lines: string[] } {
+  return won ? { run: gainXp({ ...run, ticket: run.letter, letter: 0, letterFrom: "" }, XP_RECOMMENDED), lines: saidBy(by, VERIFY_WON) } : { run, lines: saidBy(by, VERIFY_LOST) };
 }
 
 /** What the panel says, and what comes next. It wants to see your basics, and then a bout. */

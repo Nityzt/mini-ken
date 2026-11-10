@@ -517,7 +517,9 @@ export function createGame(
     noticeChanges();
     // Items wait until any fade has finished and nobody's mid-sentence.
     if (!card && waitingItems.length && !flow.fadingTo && flow.fadeTicks === 0 && (afterCards || !scene().busy?.(game))) showNextCard();
-    if (notices.length && ++noticeTicks >= NOTICE_TICKS) {
+    // Someone mid-sentence has the top of the screen, so what changed waits its turn rather than sitting on their words.
+    // Scenes with people in them say when a conversation or menu is up; a drill's always "busy", so that can't be the test.
+    if (notices.length && !game.debug.talking && ++noticeTicks >= NOTICE_TICKS) {
       notices.shift();
       noticeTicks = 0;
     }
@@ -540,7 +542,7 @@ export function createGame(
         ctx.fillRect(viewW - 30, 21, 28, 11);
         drawTextCentered(ctx, "Mute", viewW - 16, 22, UI.text);
       }
-      if (notices.length) {
+      if (notices.length && !game.debug.talking) {
         const width = measureText(notices[0]);
         ctx.fillStyle = UI.panel;
         ctx.fillRect((viewW - width) / 2 - 4, 21, width + 8, 11);

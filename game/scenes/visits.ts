@@ -1,7 +1,7 @@
 import { isOpen } from "../progress.ts";
 import type { RunState } from "../run-state.ts";
 import { DOJOS, dojoFor, type DojoId } from "../world/dojos.ts";
-import { REN_AT_OTTER_LESSON, REN_AT_OTTER_NO_LESSON, REN_BOGU, REN_FINAL_GAZE, REN_FIRST, renNoticesTare, REN_POINT_LESSON, REN_POINT_LESSON_AFTER, REN_POINT_LOST, REN_POINT_WON, REN_READY, REN_TEA, SORA_NAP, SORA_NAP_AGAIN, SORA_REMEMBERS, VISITOR_LINES } from "./content.ts";
+import { REN_AT_OTTER_LESSON, REN_AT_OTTER_NO_LESSON, REN_BOGU, REN_FINAL_GAZE, REN_FIRST, renNoticesTare, REN_POINT_LESSON, REN_POINT_LESSON_AFTER, REN_POINT_LOST, REN_POINT_WON, REN_READY, REMATCH_LINES, REN_TEA, SORA_NAP, SORA_NAP_AGAIN, SORA_REMEMBERS, VISITOR_LINES } from "./content.ts";
 
 /** You meet the people you'll fight long before you fight them. All of it is plain state, so it survives a refresh. */
 
@@ -96,8 +96,9 @@ export function dojoArrival(run: RunState, host: DojoId): { lines: string[]; run
   return { lines: visitorLines(run, visitor), run: markSeen(run, id) };
 }
 
-/** How a dojo's head greets you. Ren remembers. */
+/** How a dojo's head greets you. Ren remembers, and anyone you've beaten knows you're back for another. */
 export function challengeLines(run: RunState, id: DojoId): string[] {
+  if (run.beaten.includes(id)) return [REMATCH_LINES[id]];
   if (id === "radish" && run.gaze) return REN_FINAL_GAZE;
   // Sora told you to come at Pinecone, so a Sora who's met you knows who's turned up.
   if (id === "raccoon" && hasSeen(run, SEEN_SORA_WOKEN)) return [SORA_REMEMBERS, ...DOJOS.raccoon.challenge.slice(1)];

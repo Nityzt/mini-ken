@@ -24,7 +24,7 @@ import { ceremonyAt, closingAt, parryShine, poseFor, WALK_OFF_SPEED, windupCoil,
 import { createRival, moodOf, rivalAct, withMood, type RivalState } from "../duel/rival.ts";
 import { ATTACKS, createDuel, distance, exposedTargets, faceDir, screenX, skipBow, skipClosing, startX, step, type AttackKind, type DuelEvent, type DuelState, type Fighter, type FighterInput, type Opening, type Target } from "../duel/rules.ts";
 import { tipFor } from "../duel/tips.ts";
-import { gradingOutcome, recommendationOutcome, verificationOutcome, type GradingStage } from "../grading.ts";
+import { gradingOutcome, recommendationOutcome, saidBy, verificationOutcome, type GradingStage } from "../grading.ts";
 import { payBet, withFeat } from "../money.ts";
 import { danLabel, personDan, rankLabel } from "../ranks.ts";
 import { duelOptionsFor, lossesHere, recordCupMatch, recordLoss, recordWin, rivalConfigFor } from "../run-state.ts";
@@ -34,7 +34,7 @@ import { hpAfterMatch, HP_PER_POINT, matchHurts, reclaim, whoHolds } from "../he
 import { afterWinLines } from "./chatter.ts";
 import { goDown } from "./knockout.ts";
 import { createTeachCards } from "./teach-card.ts";
-import { duelMoments, momentCard, teachOnce, tipCard } from "./teaching.ts";
+import { duelMoments, momentCard, teachOnce, tipCard, wasTaught } from "./teaching.ts";
 import { recordMatch } from "../world/tournament.ts";
 import { challengerHome, challengerWin, isChallenger } from "./challengers.ts";
 import { sparOutcome } from "./club-story.ts";
@@ -854,6 +854,8 @@ export function createDuelScene(): Scene {
   let stage: GradingStage | null = null;
   /** What you can tell about them from across the court, shown as you bow. */
   let moodText: string | null = null;
+  /** The point whose tip just had its own card, so it isn't printed under IPPON as well. */
+  let tipCarded: DuelState["lastScore"] = null;
   /** What's riding on this match. It's already been paid, so walking away just loses it. */
   let stake = 0;
   /** Whether this match costs you health, and whether what it cost has been taken yet. */
@@ -896,7 +898,7 @@ export function createDuelScene(): Scene {
       game.versus = null;
       game.go("club");
     } else if (stage === "recommendation" || stage === "verification") {
-      game.message = [stage === "verification" ? VERIFY_WALKED : RECOMMEND_WALKED];
+      game.message = saidBy(opponentById(opposing).rival, [stage === "verification" ? VERIFY_WALKED : RECOMMEND_WALKED]);
       game.versus = null;
       game.grading = null;
       game.go(game.run.node === "pinecone" ? "club" : "rival-dojo");
@@ -954,6 +956,7 @@ export function createDuelScene(): Scene {
     for (const moment of duelMoments(duel, { waza: game.run.waza, tellsShown: tellsShown(game) })) teachOnce(game, cards, moment, momentCard(moment, duel));
     if (duel.phase === "point" && duel.lastScore?.by === 1 && duel.winner === null) {
       const tip = tipText(game, duel.lastScore);
+      if (!wasTaught(game.run, `tip:${tip}`)) tipCarded = duel.lastScore;
       teachOnce(game, cards, `tip:${tip}`, tipCard(tip));
     }
   };
@@ -999,7 +1002,7 @@ export function createDuelScene(): Scene {
             game.go("club");
           } else if (stage) {
             const home = game.run.node === "pinecone";
-            const reply = stage === "recommendation" ? recommendationOutcome(game.run, won, home ? undefined : opponentById(opposing).rival) : stage === "verification" ? verificationOutcome(game.run, won) : gradingOutcome(game.run, won);
+            const reply = stage === "recommendation" ? recommendationOutcome(game.run, won, home ? undefined : opponentById(opposing).rival, opponentById(opposing).rival) : stage === "verification" ? verificationOutcome(game.run, won, opponentById(opposing).rival) : gradingOutcome(game.run, won);
             game.run = reply.run;
             game.message = reply.lines;
             game.versus = null;
@@ -1089,7 +1092,7 @@ export function createDuelScene(): Scene {
         }
         // There's no wait after a point any more, so what to try next stays up a little way into the next one.
         const showTip = duel.lastScore?.by === 1 && duel.winner === null && (duel.phase === "point" || (duel.phase === "fight" && view.sincePoint < TIP_LINGER_TICKS));
-        if (showTip && duel.lastScore) {
+        if (showTip && duel.lastScore && duel.lastScore !== tipCarded) {
           const room = Math.min(viewW - 16, WIDE_TEXT);
           const lines = wrapText(tipText(game, duel.lastScore), room - 8);
           const top = duel.phase === "point" ? 52 : 22;
