@@ -32,8 +32,8 @@ export function currentObjective(run: RunState): string {
   }
   if (hasLetter(run)) return OBJECTIVES.showLetter;
   if (gradingReady(run)) return OBJECTIVES.grading(danLabel(run.dan + 1));
-  const shinai = shinaiObjective(run);
-  if (shinai) return shinai;
+  // Sensei's old shinai is an errand, and nothing on the ladder waits on it, so it never takes the line from the ladder.
+  // It's named as a way to more ki, and once the ladder's done, as something left to do.
   const goal = nextGoal(run);
   if (goal) {
     const step = stepBefore(run, goal);
@@ -44,7 +44,8 @@ export function currentObjective(run: RunState): string {
     if (left.length === 1 && left[0] === `ki ${need}`) return OBJECTIVES.moreKi(playerKiMax(run), need, kiSource(run));
     return `${goal.label}: ${shortNeeds(run, goal)}`;
   }
-  return run.champion ? "" : OBJECTIVES.grandTaikai;
+  if (!run.champion) return OBJECTIVES.grandTaikai;
+  return shinaiObjective(run) ?? "";
 }
 
 const SENPAI = ["aki", "bo", "yui"] as const;
@@ -78,6 +79,7 @@ export function kiSource(run: RunState): string {
   if (SENPAI.some((id) => !run.beaten.includes(id))) return OBJECTIVES.kiSenpai;
   const cup = LADDER.find((unlock) => unlock.id.startsWith("cup:") && isOpen(run, unlock.id) && !run.cups.includes(unlock.id.slice(4) as CupId));
   if (cup) return OBJECTIVES.kiCup(cup.label);
+  if (shinaiObjective(run)) return OBJECTIVES.kiShinai;
   if (equipmentKi(run) < GEAR_KI_CAP) return OBJECTIVES.kiGear;
   return OBJECTIVES.kiLevels;
 }

@@ -82,3 +82,23 @@ test("the line never stops at a bare ki number, and never sends you to a street 
         assert.ok(measureText(line) <= STAGE_W - 14, line);
       }
 });
+
+test("Sensei's old shinai never takes the line from the ladder (late-game playtest)", () => {
+  // 1st dan, Sora beaten, and Sensei wants the shinai back: Hana's next, and nothing on the ladder needs the shinai.
+  const firstDan: RunState = {
+    ...start, metSenpai: true, gi: true, senseiRounds: 3, trained: true, gear: FULL_GEAR, gaze: true, seme: true, linePasses: 3, dan: 1, waza: true,
+    beaten: ["aki", "bo", "yui", "raccoon"], cups: ["pinecone"], blessed: true, kirikaeshiPasses: 3, bonusKi: 100, visited: ["pinecone", "crossroads", "stop", "parkStop", "raccoon", "beachStop"],
+  };
+  for (const quest of [{ shinaiQuest: "" }, { shinaiQuest: "asked" }, { shinaiQuest: "gotBamboo" }, { shinaiQuest: "gotBamboo", madeShinai: true }]) {
+    const line = currentObjective({ ...firstDan, ...quest });
+    assert.doesNotMatch(line, /shinai|Fumi|bamboo|See Sensei/i, line);
+    assert.ok(measureText(line) <= STAGE_W - 14, line);
+  }
+  // Short of ki for Hana with nothing quicker to do, the errand is named alongside, since it's worth ki too.
+  const short = { ...firstDan, cups: ["pinecone", "raccoon"] as RunState["cups"], bonusKi: 50, shinaiQuest: "asked" };
+  assert.match(currentObjective(short), /^More ki \(\d+\/170\): .*shinai/);
+  assert.ok(measureText(currentObjective(short)) <= STAGE_W - 14, currentObjective(short));
+  // Later, with the whole ladder done, it's the one thing left to say.
+  const done: RunState = { ...firstDan, dan: 3, bonusKi: 200, beaten: ["aki", "bo", "yui", "raccoon", "goose", "heron", "otter", "radish"], champion: true, shinaiQuest: "asked" };
+  assert.match(currentObjective(done), /shinai/i);
+});

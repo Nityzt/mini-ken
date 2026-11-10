@@ -369,6 +369,7 @@ export const OBJECTIVES = {
   kiLine: "the line drill with Sensei",
   kiSenpai: "beat a senpai at home",
   kiCup: (cup: string) => `win the ${cup}`,
+  kiShinai: "Sensei's old shinai",
   kiGear: "gear at the Bogu Shop",
   kiLevels: "spar and drill to level up",
 };
