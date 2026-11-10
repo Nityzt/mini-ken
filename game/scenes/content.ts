@@ -358,6 +358,17 @@ export const OBJECTIVES = {
   showLetter: "Show your letter to Sensei at home",
   feeShort: (fee: number, money: number) => `Grading fee: ${fee} kensen. You have ${money}`,
   grandTaikai: "Win the Grand Taikai",
+  seeGen: "See Old Gen on Ravine Trail",
+  ride: (line: string) => `Ride the ${line[0].toLowerCase()}${line.slice(1)}`,
+  /** The next place only wants more ki, so say where to get some. Never a street fight: those stay your own idea. */
+  moreKi: (have: number, need: number, how: string) => `More ki (${have}/${need}): ${how}`,
+  kiTower: "ride up the Tower",
+  kiKirikaeshi: "kirikaeshi with Sensei",
+  kiLine: "the line drill with Sensei",
+  kiSenpai: "beat a senpai at home",
+  kiCup: (cup: string) => `win the ${cup}`,
+  kiGear: "gear at the Bogu Shop",
+  kiLevels: "spar and drill to level up",
 };
 export const CONTROLS_TITLE = "Controls";
 export const CONTROL_ROWS: { keys: string; does: string; needsSeme?: boolean }[] = [

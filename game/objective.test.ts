@@ -54,3 +54,31 @@ test("it always fits on one line", () => {
   }
   assert.ok(LADDER.length > 0);
 });
+
+test("after the Pinecone Cup it walks you to Old Gen and Cherry Park, rather than straight to a ki number", () => {
+  const cupWon: RunState = {
+    ...start, metSenpai: true, gi: true, senseiRounds: 3, trained: true, gear: FULL_GEAR, gaze: true, linePasses: 3,
+    beaten: ["aki", "bo", "yui"], cups: ["pinecone"], bonusKi: 30, visited: ["pinecone", "crossroads", "market", "stop"],
+  };
+  assert.equal(currentObjective(cupWon), "See Old Gen on Ravine Trail");
+  const taught = { ...cupWon, seme: true };
+  assert.equal(currentObjective(taught), "Ride the streetcar to Cherry Park");
+  const there = { ...taught, visited: [...taught.visited, "parkStop" as const] };
+  // Sora wants more ki than this, so it says where to get some.
+  assert.match(currentObjective(there), /^More ki \(\d+\/145\): ride up the Tower$/);
+  assert.match(currentObjective({ ...there, blessed: true }), /kirikaeshi/);
+});
+
+test("the line never stops at a bare ki number, and never sends you to a street fight", () => {
+  const armored: RunState = { ...start, metSenpai: true, gi: true, senseiRounds: 3, trained: true, gear: FULL_GEAR, gaze: true, linePasses: 3, shinaiQuest: "returned" };
+  const streets = /Market|Viaduct|Harbour|Picnic|Boardwalk|Foundry|Gorge|Alley/;
+  for (const bonusKi of [0, 10, 20, 30, 40, 50, 60, 80, 100, 130])
+    for (const extra of [{}, { seme: true }, { blessed: true, kirikaeshiPasses: 3 }, { blessed: true, kirikaeshiPasses: 3, cups: ["pinecone"] as RunState["cups"] }])
+      for (const beaten of [[], ["aki", "bo", "yui"], ["aki", "bo", "yui", "raccoon"]] as RunState["beaten"][]) {
+        const run = { ...armored, bonusKi, beaten, ...extra };
+        const line = currentObjective(run);
+        assert.doesNotMatch(line, /: ki \d+$/, line);
+        assert.doesNotMatch(line, streets, line);
+        assert.ok(measureText(line) <= STAGE_W - 14, line);
+      }
+});
