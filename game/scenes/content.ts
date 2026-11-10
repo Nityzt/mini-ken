@@ -262,6 +262,11 @@ export const LESSON_PROMPTS = {
   semeRead: "Old Gen: Press me, and I'll lose patience. When my arms go up, let go! L and Space, and slide through.",
 };
 const NEEDS_FOLLOW = "Then slide through!";
+/**
+ * Past the first level the senpai hit back with a do as well. Its tell is the tip dipping, as in Sensei's block
+ * lesson, and it's the only strike to block: the other one is the one you're there to counter.
+ */
+const BLOCK_THE_DO = "Tip dips? That's my do: hold S!";
 /** Each senpai's way of being, and their own take on each level's drill. */
 export const SENPAI_LINES = {
   aki: {
@@ -273,8 +278,8 @@ export const SENPAI_LINES = {
     seeSensei: "Aki: You've earned that! Go and see what Sensei has for you next.",
     prompts: [
       `Aki: Catch me! Stay in range, hold E, then J and Space. ${NEEDS_FOLLOW}`,
-      `Aki: Hands high? Hold W, then L and Space. I can hit your do now, so hold S! ${NEEDS_FOLLOW}`,
-      `Aki: Hands rising? Hold Q, then K and Space. I can hit your men and do, so hold S! ${NEEDS_FOLLOW}`,
+      `Aki: Hands high? Hold W, then L and Space. ${NEEDS_FOLLOW} ${BLOCK_THE_DO}`,
+      `Aki: Hands rising? Hold Q, then K and Space. ${NEEDS_FOLLOW} ${BLOCK_THE_DO}`,
     ],
     spar: "Aki: A real match? Yes! First to two, and I won't slow down. E to start, X to leave.",
     sparWin: "Aki: You got me! I'm telling everyone. Everyone!",
@@ -289,8 +294,8 @@ export const SENPAI_LINES = {
     seeSensei: "Bo: Mm. Good. Sensei next.",
     prompts: [
       `Bo: Hold E and wait for my guard to drop, then J and Space. Don't hit the wall. ${NEEDS_FOLLOW}`,
-      `Bo: Hands high? Hold W, then L and Space. I can hit your do now, so hold S! ${NEEDS_FOLLOW}`,
-      `Bo: Hands rising? Hold Q, then K and Space. I can hit your men and do, so hold S! ${NEEDS_FOLLOW}`,
+      `Bo: Hands high? Hold W, then L and Space. ${NEEDS_FOLLOW} ${BLOCK_THE_DO}`,
+      `Bo: Hands rising? Hold Q, then K and Space. ${NEEDS_FOLLOW} ${BLOCK_THE_DO}`,
     ],
     spar: "Bo: Mm. A real match. First to two. I rarely swing. E to start, X to leave.",
     sparWin: "Bo: Mm. The wall came down.",
@@ -305,8 +310,8 @@ export const SENPAI_LINES = {
     seeSensei: "Yui: Acceptable. Sensei will want you now.",
     prompts: [
       `Yui: Slide into range, hold E, then J and Space, exactly. ${NEEDS_FOLLOW}`,
-      `Yui: Hands high? Hold W, then L and Space. I can hit your do now, so hold S! ${NEEDS_FOLLOW}`,
-      `Yui: Hands rising? Hold Q, then K and Space. I can hit your men and do, so hold S! ${NEEDS_FOLLOW}`,
+      `Yui: Hands high? Hold W, then L and Space. ${NEEDS_FOLLOW} ${BLOCK_THE_DO}`,
+      `Yui: Hands rising? Hold Q, then K and Space. ${NEEDS_FOLLOW} ${BLOCK_THE_DO}`,
     ],
     spar: "Yui: A real match, first to two. I'm after your wrists. E to start, X to leave.",
     sparWin: "Yui: That was correct. I'll allow it.",

@@ -53,10 +53,10 @@ const OPEN_FIRST: TeachKey = ["W Q E", "hold an opening first"];
 
 const TARGET_KEY: Record<Target, string> = { men: "J", kote: "K", do: "L" };
 const CHALLENGE_TITLE = (name: string) => `${name}'s challenge`;
-/** A senpai's challenge names a target, and past the first one they hit back. */
+/** A senpai's challenge names a target, and past the first one they hit back. The block comes last, as it does in their words, since it's for a different strike. */
 export const challengeText = (name: string, target: Target, canBeHit: boolean): { title: string; keys: TeachKey[] } => ({
   title: CHALLENGE_TITLE(name),
-  keys: [MOVE, OPEN_FIRST, strike(TARGET_KEY[target], target), ...(canBeHit ? [["S", "hold to block"] as TeachKey] : []), SLIDE],
+  keys: [MOVE, OPEN_FIRST, strike(TARGET_KEY[target], target), SLIDE, ...(canBeHit ? [["S", "block their do"] as TeachKey] : [])],
 });
 
 export const KIRIKAESHI_CARD: TeachCard = {
