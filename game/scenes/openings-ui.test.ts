@@ -128,6 +128,15 @@ test("lessons have no clock", () => {
   for (const lesson of [...SENSEI_ROUNDS[0], ...lessonsFor({ kind: "quick" }), challengeFor("aki", 0)]) assert.equal(createLessonDuel(lesson).clock, null, lesson.id);
 });
 
+test("the launch lesson's card doesn't ask for the opening Sensei says it doesn't need (issue #14)", () => {
+  const launch = SENSEI_ROUNDS[2].find((lesson) => lesson.id === "launch")!;
+  assert.match(launch.prompt, /No opening needed/);
+  assert.ok(!launch.keys.some(([key]) => key === "W Q E"), JSON.stringify(launch.keys));
+  // The counters it's taught alongside still start from one.
+  const kote = SENSEI_ROUNDS[2].find((lesson) => lesson.id === "kote")!;
+  assert.ok(kote.keys.some(([key]) => key === "W Q E"));
+});
+
 test("street fights and the line drill need no opening, and a late press still counts", () => {
   const control = createPlayerControl({ openings: false });
   assert.equal(control(keys([], ["men"]), { stance: "recovery" }).attack, null);
