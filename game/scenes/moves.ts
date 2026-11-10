@@ -49,9 +49,9 @@ export function createStride(walker: Walker, stand: Tile): { update(walker: Walk
   };
 }
 
-/** You stepping in through the door, to where you'd have started anyway. */
-export function createEntrance(walker: Walker, door: Tile, start: Tile, map: TileMap): { update(): boolean } {
-  const trail = trailOf(door, [start]);
+/** You stepping in through the door, to where you'd have started anyway, or along `start` when it's a whole way in. */
+export function createEntrance(walker: Walker, door: Tile, start: Tile | Tile[], map: TileMap): { update(): boolean } {
+  const trail = trailOf(door, Array.isArray(start) ? start : [start]);
   walker.box = { ...walker.box, ...createWalker(door.col, door.row).box };
   return {
     update() {

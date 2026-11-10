@@ -52,6 +52,12 @@ type Clothes = { gi: boolean; gear: Gear };
 type Dressing = { tick: number; before: Clothes; after: Clothes; held: string | null; sounded: boolean; then: () => void };
 const HELD_ICON: Partial<Record<keyof Gear, string>> = { do: "iconDo", men: "iconMen", kote: "iconKote", shinai: "iconShinai" };
 
+/**
+ * On your first day you carry on past the start spot, so coming in reads as walking in, and stop where Nao's
+ * welcome can sit beside her without covering you. Offsets from the start spot.
+ */
+const FIRST_STEPS_IN: [number, number][] = [[0, 1], [0, 2]];
+
 const newWalker = (): Walker => ({ ...createWalker(place("@").col, place("@").row), facing: "down" });
 
 /** The storage door rattles in its frame, then slides aside to show the room behind it. */
@@ -367,10 +373,17 @@ export function createClubScene(nameOf: () => string): Scene {
         game.message = null;
       } else if ((!game.run.metSenpai || game.run.trained) && !game.returning) {
         walker = newWalker();
-        entrance = createEntrance(walker, place("D"), place("@"), { rows: CLUB_MAP, solid: "", tile: TILE });
+        const first = doorWelcome(game.run) !== null;
+        // The very first time, you walk a little way into the hall and turn to Nao, who's come to say hello.
+        const start = place("@");
+        const way = first ? [start, ...FIRST_STEPS_IN.map(([dc, dr]) => ({ col: start.col + dc, row: start.row + dr }))] : start;
+        entrance = createEntrance(walker, place("D"), way, { rows: CLUB_MAP, solid: "", tile: TILE });
         afterEntrance = () => {
           const welcome = doorWelcome(game.run);
           if (welcome) {
+            // Turned to Nao, side on, so you're looking at her rather than at the wall.
+            walker.facing = "side";
+            walker.flip = place("Z").col * TILE + TILE / 2 < walker.box.x + walker.box.w / 2;
             game.run = welcome.run;
             dialogue.open(welcome.lines, greet, greet);
           } else greet();
@@ -412,6 +425,7 @@ export function createClubScene(nameOf: () => string): Scene {
           next?.();
         }
         game.debug.walker = walker.box;
+        game.debug.facing = walker.facing;
         return;
       }
       if (dressing) {

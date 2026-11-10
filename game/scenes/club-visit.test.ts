@@ -134,3 +134,23 @@ test("Ren walking over doesn't stop you moving, or swallow the press meant for s
   }
   press(false);
 });
+
+test("on your first day you walk in through the door, a few steps into the hall, and turn to Nao before she speaks", async () => {
+  const { CLUB_MAP, findTiles } = await import("./levels.ts");
+  const { TILE } = await import("../art/tiles.ts");
+  const { game } = fakeGame(createRunState());
+  const scene = createClubScene(() => "you");
+  scene.enter!(game);
+  const door = findTiles(CLUB_MAP, "D")[0];
+  const start = findTiles(CLUB_MAP, "@")[0];
+  const row = () => Math.floor(((game.debug.walker as { y: number; h: number }).y + 4) / TILE);
+  assert.equal(row(), door.row, "you start in the doorway");
+  let ticks = 0;
+  while (!game.debug.talking) {
+    scene.update(game);
+    assert.ok(++ticks < 400, "Nao never spoke");
+  }
+  assert.ok(ticks > 40, `the walk in took only ${ticks} ticks`);
+  assert.equal(row(), start.row + 2);
+  assert.equal(game.debug.facing, "side");
+});
