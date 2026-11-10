@@ -468,11 +468,11 @@ The owner played the duel on 2026-11-05: "definitely is fun and feels like kendo
 
 ## Every dojo is its own place
 
-A match happens in the room you were just standing in. The room seen from above and the court seen from the side share one set of data (`art/looks.ts`): floor, walls, what's outside the windows, decorations, and the crest. A new dojo is one more row.
+A match happens in the room you were just standing in. In the side-on court, nothing stands on the floor in the fighters' head band, so the home hall's plant sits on a wall shelf (playtest, 2026-11-10); a hall with decorations of its own has those in that spot instead. The room seen from above and the court seen from the side share one set of data (`art/looks.ts`): floor, walls, what's outside the windows, decorations, and the crest. A new dojo is one more row.
 
 | Place | Floor | Walls | Outside | On the wall |
 |---|---|---|---|---|
-| Pinecone (home) | Honey boards | Paper screens | Bamboo | Rack and plant |
+| Pinecone (home) | Honey boards | Paper screens | Bamboo | Rack, and a plant on a wall shelf |
 | Thunder Radish | Dark lacquer | Black and gold panels | A storm | Taiko drums |
 | Angry Goose | Pale parquet | Plaster, orange bands | A pond | Footprint signs |
 | Sleepy Raccoon | Tatami | Paper screens at dusk | Moon and stars | Paper lanterns |

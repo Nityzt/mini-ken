@@ -462,6 +462,20 @@ const DECOR_SPOTS = [87, STAGE_W - 104];
 const DECOR_Y = 42;
 const MARK_SPACING = 83;
 
+/**
+ * A potted plant on a little wall shelf, for a hall with no decorations of its own. It used to stand on the floor,
+ * at head height right where the fighters stand, and read as a sprout growing out of somebody's men.
+ */
+function paintPlantShelf(c: CanvasRenderingContext2D, fill: Fill, tint: Tint, x: number, look: DojoLook): void {
+  const top = DECOR_Y + 15;
+  fill(x + 1, top, 14, 2, tint("b"));
+  fill(x + 2, top, 12, 1, tint("O"));
+  // Two brackets under the board.
+  fill(x + 3, top + 2, 1, 3, tint("b"));
+  fill(x + 12, top + 2, 1, 3, tint("b"));
+  drawSprite(c, TILE_GRIDS.plant, x, top - 15, { colors: look.room });
+}
+
 /** Paints the hall for a canvas this size, with the stage in the middle of it. The people come afterward, since they depend on who's fighting. */
 function paintHall(crest: Crest, width: number, height: number, originX: number, originY: number): HTMLCanvasElement {
   const look = lookOf(crest);
@@ -479,8 +493,8 @@ function paintHall(crest: Crest, width: number, height: number, originX: number,
   paintFloor(fill, bounds, look);
   if (look.banner) paintBanner(c, fill, crest, look.banner);
   drawSprite(c, TILE_GRIDS.rack, 87, FLOOR_Y - 16, { colors: look.room });
-  drawSprite(c, TILE_GRIDS.plant, STAGE_W - 104, FLOOR_Y - 16, { colors: look.room });
   if (look.decor) for (const x of DECOR_SPOTS) drawSprite(c, TILE_GRIDS[look.decor.tile], x, DECOR_Y);
+  else paintPlantShelf(c, fill, tintOf(look), DECOR_SPOTS[1], look);
   if (look.mark && look.markOnCourt) {
     // A few of whatever ends up on the floor here.
     let row = 0;
