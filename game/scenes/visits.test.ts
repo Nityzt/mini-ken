@@ -314,3 +314,17 @@ test("Ren hands over the gaze, and only then tells you where you'll need it", ()
   assert.deepEqual(lesson.after, REN_POINT_LESSON_AFTER);
   assert.ok(!lesson.lines.some((line) => REN_POINT_LESSON_AFTER.includes(line)));
 });
+
+test("Sora, woken at Pinecone, rolls over after the first time and remembers you at Sleepy Raccoon", () => {
+  const home = { ...createRunState(), trained: true, gear: { ...createRunState().gear, shinai: true, tare: true, do: true, men: true, kote: true }, beaten: ["aki"] as RunState["beaten"], linePasses: 3, gaze: true };
+  assert.equal(homeVisitor(home), "sora");
+  assert.match(challengeLines(home, "raccoon")[0], /A visitor/);
+  const woken = talkToVisitor(home);
+  assert.equal(woken.lines.length, 2);
+  const again = talkToVisitor(woken.run);
+  assert.equal(again.lines.length, 1);
+  assert.doesNotMatch(again.lines[0], /kettle/);
+  const at = challengeLines(again.run, "raccoon");
+  assert.match(at[0], /from Pinecone/);
+  assert.equal(at.length, challengeLines(home, "raccoon").length);
+});

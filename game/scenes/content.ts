@@ -531,6 +531,8 @@ export const REN_AT_OTTER_NO_LESSON = ["Ren: Four dojos, and you never did give 
 export const RACCOON_ARRIVAL = ["Sleepy Raccoon Dojo. Nobody's awake, and someone has been through the bins."];
 export const NIKO_LINES = ["Niko: Sora hardly seems to be awake. Then, snap! Watch those hands."];
 export const RIO_LINES = ["Rio: Sora goes for the same small target again and again. It's almost rude."];
+export const SORA_NAP_AGAIN = "Sora: Zzz... Still noon? Sleepy Raccoon. Cherry Park. Zzz.";
+export const SORA_REMEMBERS = "Sora: Mmf? Oh, it's you, from Pinecone. You really came. And it's not even noon.";
 export const SORA_LINES = [
   "Sora: Mmf? A visitor. Is it morning?",
   "Sora: First to two points. Rei, and then I can go back to sleep.",
@@ -727,7 +729,7 @@ export function allContentLines(): string[] {
     ...GOOSE_ARRIVAL,
     ...HANA_LINES,
     ...HANA_WIN_LINES,
-    ...RACCOON_ARRIVAL, ...NIKO_LINES, ...RIO_LINES, ...SORA_LINES, ...SORA_WIN_LINES,
+    ...RACCOON_ARRIVAL, ...NIKO_LINES, ...RIO_LINES, ...SORA_LINES, SORA_NAP_AGAIN, SORA_REMEMBERS, ...SORA_WIN_LINES,
     ...HERON_ARRIVAL, ...TEO_LINES, ...UMA_LINES, ...MIKA_LINES, ...MIKA_WIN_LINES,
     ...OTTER_ARRIVAL, ...VAL_LINES, ...WES_LINES, ...KENJI_LINES, ...KENJI_WIN_LINES,
     TAIKAI_STEP_UP, TAIKAI_OUT, TAIKAI_CHAMPION, TAIKAI_CHAMPION_LINE, TAIKAI_CHAMPION_AGAIN, TAIKAI_LOST, TAIKAI_WITHDRAW, SEME_ITEM_LINE, CUP_ENTER, CUP_WON_BEFORE, cupNotice("Thunder Open", true), cupLeft("Grand Taikai"), cupWonLine("Thunder Open"), CHARACTER_TITLE, INSIGNIA_TITLE, INSIGNIA_NOTE, CHOOSE_TITLE, CHOOSE_HELP,
