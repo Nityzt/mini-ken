@@ -52,6 +52,12 @@ type Clothes = { gi: boolean; gear: Gear };
 type Dressing = { tick: number; before: Clothes; after: Clothes; held: string | null; sounded: boolean; then: () => void };
 const HELD_ICON: Partial<Record<keyof Gear, string>> = { do: "iconDo", men: "iconMen", kote: "iconKote", shinai: "iconShinai" };
 
+/**
+ * On your first day you carry on past the start spot, so coming in reads as walking in, and stop where Nao's
+ * welcome can sit beside her without covering you. Offsets from the start spot.
+ */
+const FIRST_STEPS_IN: [number, number][] = [[0, 1], [0, 2]];
+
 const newWalker = (): Walker => ({ ...createWalker(place("@").col, place("@").row), facing: "down" });
 
 /** The storage door rattles in its frame, then slides aside to show the room behind it. */
@@ -99,6 +105,8 @@ export function createClubScene(nameOf: () => string): Scene {
   /** How long the note about your new men has been showing, if it is. It never stops you doing anything. */
   let menToast: number | null = null;
 
+  /** Who can be talked to right now. Someone still walking over isn't at their spot yet. */
+  const peopleHere = () => (visit?.phase === "coming" ? PEOPLE.replace("V", "") : PEOPLE);
   const visitorHere = (game: Game) => (arriving ? null : lingering ?? homeVisitor(game.run));
   const rowsFor = (game: Game) => {
     const rows = clubRows({ storageOpen: game.run.metSenpai, screenBroken: game.run.screenBroken, momoGuards: game.run.trained && !game.run.momoBeaten, visitor: visitorHere(game) !== null });
@@ -181,7 +189,8 @@ export function createClubScene(nameOf: () => string): Scene {
   const comeOver = (game: Game, talk: Talk, from?: { col: number; row: number }) => {
     const rows = rowsFor(game).map((row) => row.replace("V", "."));
     const door = place("D");
-    visit = createVisit({ rows, solid: CLUB_SOLID, start: from ?? door, door, player: walker });
+    // You're free to get on with things while they walk over, and they follow you until you stop to listen.
+    visit = createVisit({ rows, solid: CLUB_SOLID, start: from ?? door, door, player: walker, follows: true });
     visitTalk = talk;
   };
   /** It's yours once Sensei's said so. Backing out before then means nothing's changed hands. */
@@ -364,10 +373,17 @@ export function createClubScene(nameOf: () => string): Scene {
         game.message = null;
       } else if ((!game.run.metSenpai || game.run.trained) && !game.returning) {
         walker = newWalker();
-        entrance = createEntrance(walker, place("D"), place("@"), { rows: CLUB_MAP, solid: "", tile: TILE });
+        const first = doorWelcome(game.run) !== null;
+        // The very first time, you walk a little way into the hall and turn to Nao, who's come to say hello.
+        const start = place("@");
+        const way = first ? [start, ...FIRST_STEPS_IN.map(([dc, dr]) => ({ col: start.col + dc, row: start.row + dr }))] : start;
+        entrance = createEntrance(walker, place("D"), way, { rows: CLUB_MAP, solid: "", tile: TILE });
         afterEntrance = () => {
           const welcome = doorWelcome(game.run);
           if (welcome) {
+            // Turned to Nao, side on, so you're looking at her rather than at the wall.
+            walker.facing = "side";
+            walker.flip = place("Z").col * TILE + TILE / 2 < walker.box.x + walker.box.w / 2;
             game.run = welcome.run;
             dialogue.open(welcome.lines, greet, greet);
           } else greet();
@@ -386,6 +402,8 @@ export function createClubScene(nameOf: () => string): Scene {
       game.debug.menToast = menToast;
       game.debug.visitor = visit?.walker.box ?? null;
       game.debug.talking = dialogue.active || menu.active || shop.active;
+      // Someone on their way over keeps walking whatever you're up to. They wait until you're free to say their piece.
+      if (visit?.phase === "coming") visit.update(walker);
       if (dialogue.active) {
         dialogue.update(game.input, game.audio);
         return;
@@ -407,6 +425,7 @@ export function createClubScene(nameOf: () => string): Scene {
           next?.();
         }
         game.debug.walker = walker.box;
+        game.debug.facing = walker.facing;
         return;
       }
       if (dressing) {
@@ -422,15 +441,16 @@ export function createClubScene(nameOf: () => string): Scene {
         }
         return;
       }
-      if (visit) {
-        const before = visit.phase;
-        visit.update(walker);
-        if (before === "coming" && visit.phase === "talking") {
+      if (visit && visitTalk) {
+        // They've got to you. If you're already on your way to someone else, they let you finish.
+        if (visit.phase === "talking" && !stride) {
           const talk = visitTalk;
           visitTalk = null;
-          if (talk) playTalk(game, talk);
+          playTalk(game, talk);
           return;
         }
+      } else if (visit) {
+        if (visit.phase !== "coming") visit.update(walker);
         // They've said what they came to say.
         if (visit.phase === "talking") visit.leave(findTiles(rowsFor(game), "V")[0] ?? place("D"));
         if (visit.done) visit = null;
@@ -483,7 +503,7 @@ export function createClubScene(nameOf: () => string): Scene {
         return;
       }
       if (!game.input.wasPressed("confirm")) return;
-      const ahead = personAhead(walker, rows, CLUB_SOLID, PEOPLE);
+      const ahead = personAhead(walker, rows, CLUB_SOLID, peopleHere());
       if (ahead) {
         stride = { ...createStride(walker, ahead.stand), char: ahead.char };
         talkingTo = ahead.char;
@@ -543,7 +563,7 @@ export function createClubScene(nameOf: () => string): Scene {
       const tags: (() => void)[] = [];
       // Whoever you're facing is named in the prompt over your head, so their own tag stays out of its way.
       const prompting = !dialogue.active && !menu.active;
-      const ahead = prompting ? personAhead(walker, rows, CLUB_SOLID, PEOPLE)?.char ?? null : null;
+      const ahead = prompting ? personAhead(walker, rows, CLUB_SOLID, peopleHere())?.char ?? null : null;
       const names: Record<string, string> = { Z: "Nao" };
       const you: Figure = figureAt(ctx, walker.box.x + walker.box.w / 2 - cam.x, walker.box.y - 12 - cam.y, walker.box.y + 8 - cam.y);
       const figures: Record<string, Figure | undefined> = {};

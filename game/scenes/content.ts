@@ -163,7 +163,7 @@ export const OWN_SHINAI_LINE = "You split, shaved and tied this one yourself. Ne
 export const SENSEI_SHINAI_AFTER = ["Sensei Kuma: Armor is earned. Show me some drills."];
 export const SENSEI_AGAIN = ["Sensei Kuma: From the top, then."];
 export const SENSEI_ALL_OPEN = "Sensei Kuma: There's nothing left I can point you at. Keep your back straight.";
-export const KOTE_DONE = "Sensei Kuma: Full bogu! Before that door opens, beat a senpai in a real match. Aki, Bo or Yui will spar.";
+export const KOTE_DONE = "Sensei Kuma: Full bogu! Ren from Thunder Radish is here for one point from you. After that, beat a senpai in a real match.";
 export const DOOR_NEEDS_SPAR = "Sensei's rule: nobody goes out until they can beat a senpai. Aki, Bo or Yui will spar with you.";
 export const SPAR_DOOR_OPEN = "Sensei Kuma: I saw that. You can hold your own now. The front door is open.";
 export const SPAR_KI = "Your spirit grows: ki +5.";
@@ -210,6 +210,8 @@ export const LINE_TITLE = "Line drill";
 export const LINE_WRONG = "Wrong opening!";
 export const LINE_SLOW = "Too slow!";
 export const LINE_PASSED_BY = "Walked past!";
+export const LINE_TOO_CLOSE = "Too close! Strike again";
+export const LINE_MISSED = "Miss!";
 export const LINE_HELP = "J men  K kote  L do  Space stomp";
 /** "Aki, Bo or Yui", "Bo or Yui", or just "Yui". */
 export const eitherOf = (names: string[]): string => (names.length > 1 ? `${names.slice(0, -1).join(", ")} or ${names.at(-1)}` : names[0] ?? "");
@@ -669,6 +671,8 @@ export function allContentLines(): string[] {
     LINE_WRONG,
     LINE_SLOW,
     LINE_PASSED_BY,
+    LINE_TOO_CLOSE,
+    LINE_MISSED,
     LINE_HELP,
     // The longest anyone's list of who's left can be.
     ...[...SENSEI_ROUND_DONE, ...SENSEI_WAITING].map((line) => line(eitherOf(["Aki", "Bo", "Yui"]))),

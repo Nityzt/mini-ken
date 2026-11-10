@@ -1,7 +1,7 @@
 import type { Facing, Gear } from "../art/kendoka.ts";
 import { TILE } from "../art/tiles.ts";
 import type { TileMap } from "../core/collision.ts";
-import { findPath, tileOf, trailOf, walk, type Tile } from "./club-intro.ts";
+import { findPath, pointOf, tileOf, trailOf, walk, type Tile } from "./club-intro.ts";
 import { createWalker, type Walker } from "./topdown.ts";
 
 /** How people move about when something's going on: walking up to talk, dropping by, and getting changed. */
@@ -49,9 +49,9 @@ export function createStride(walker: Walker, stand: Tile): { update(walker: Walk
   };
 }
 
-/** You stepping in through the door, to where you'd have started anyway. */
-export function createEntrance(walker: Walker, door: Tile, start: Tile, map: TileMap): { update(): boolean } {
-  const trail = trailOf(door, [start]);
+/** You stepping in through the door, to where you'd have started anyway, or along `start` when it's a whole way in. */
+export function createEntrance(walker: Walker, door: Tile, start: Tile | Tile[], map: TileMap): { update(): boolean } {
+  const trail = trailOf(door, Array.isArray(start) ? start : [start]);
   walker.box = { ...walker.box, ...createWalker(door.col, door.row).box };
   return {
     update() {
@@ -74,7 +74,7 @@ export type VisitPhase = "coming" | "talking" | "going" | "done";
 export type Visit = {
   readonly walker: Walker;
   readonly phase: VisitPhase;
-  /** You wait for them to get to you, and stay for what they've got to say. */
+  /** You wait for them to get to you (unless they follow you), and stay for what they've got to say. */
   readonly blocking: boolean;
   readonly done: boolean;
   update(player: Walker): void;
@@ -86,22 +86,25 @@ export type Visit = {
  * Somebody coming over to you and then going on their way. `rows` needs their usual spot to be open floor.
  * They walk freely, so nothing you've done with the furniture can leave them stuck.
  */
-export function createVisit(setup: { rows: string[]; solid: string; start: Tile; door: Tile; player: Walker; alreadyHere?: boolean }): Visit {
+export function createVisit(setup: { rows: string[]; solid: string; start: Tile; door: Tile; player: Walker; alreadyHere?: boolean; follows?: boolean }): Visit {
   const { solid, start, door, player } = setup;
   // The door's a way in and out for them, and a wall for everyone else.
   const rows = setup.rows.map((line, row) => (row === door.row ? line.slice(0, door.col) + "." + line.slice(door.col + 1) : line));
   const free: TileMap = { rows, solid: "", tile: TILE };
   const walker: Walker = { ...createWalker(start.col, start.row), facing: "down" };
-  const you = tileOf(player);
-  const open = NEIGHBOURS.map(([dc, dr]) => ({ col: you.col + dc, row: you.row + dr })).filter((t) => {
-    const char = setup.rows[t.row]?.[t.col];
-    return char !== undefined && !solid.includes(char);
-  });
-  const routes = open.map((t) => ({ to: t, path: findPath(rows, solid, start, t, [you]) }));
-  const walkable = routes.filter((r) => r.path).sort((a, b) => a.path!.length - b.path!.length)[0];
-  // Shut off from the door somehow, they're simply on their way over regardless.
-  const path = walkable?.path ?? [open[0] ?? start];
-  let trail = trailOf(start, path);
+  /** The shortest way from `from` to a free spot beside you. */
+  const routeTo = (from: Tile, you: Tile): Tile[] => {
+    const open = NEIGHBOURS.map(([dc, dr]) => ({ col: you.col + dc, row: you.row + dr })).filter((t) => {
+      const char = setup.rows[t.row]?.[t.col];
+      return char !== undefined && !solid.includes(char);
+    });
+    const routes = open.map((t) => ({ to: t, path: findPath(rows, solid, from, t, [you]) }));
+    const walkable = routes.filter((r) => r.path).sort((a, b) => a.path!.length - b.path!.length)[0];
+    // Shut off from the door somehow, they're simply on their way over regardless.
+    return walkable?.path ?? [open[0] ?? from];
+  };
+  let heading = tileOf(player);
+  let trail = trailOf(start, routeTo(start, heading));
   let phase: VisitPhase = setup.alreadyHere ? "talking" : "coming";
   if (setup.alreadyHere) faceEachOther(walker, player);
 
@@ -111,12 +114,21 @@ export function createVisit(setup: { rows: string[]; solid: string; start: Tile;
       return phase;
     },
     get blocking() {
-      return phase === "coming" || phase === "talking";
+      return (phase === "coming" && !setup.follows) || phase === "talking";
     },
     get done() {
       return phase === "done";
     },
     update(current) {
+      // Someone who follows you changes course whenever you've moved on to another tile.
+      const you = tileOf(current);
+      if (phase === "coming" && setup.follows && (you.col !== heading.col || you.row !== heading.row)) {
+        heading = you;
+        // They finish the step they're on rather than turn back mid-tile.
+        const next = trail.points[trail.at];
+        const from = next ? { col: Math.round((next.x - pointOf(start).x) / TILE) + start.col, row: Math.round((next.y - pointOf(start).y) / TILE) + start.row } : tileOf(walker);
+        trail = trailOf(from, routeTo(from, you));
+      }
       if (phase === "coming" && walk(walker, trail, free)) {
         faceEachOther(walker, current);
         phase = "talking";

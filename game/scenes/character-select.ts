@@ -15,6 +15,10 @@ import { dimScreen, drawHints } from "./ui.ts";
 const COLUMN = 40;
 const ROW_Y = 26;
 const TITLE_BASELINE = 19;
+/** Across the close-up: the armored fighter, the one in the gi (drawn twice size), and the name and blurb. */
+const PREVIEW_ARMORED_X = 27;
+const PREVIEW_GI_X = 66;
+const PREVIEW_TEXT_X = 104;
 /** Light enough that black hair still shows against it. */
 const PANEL = "#4A505E";
 
@@ -76,13 +80,14 @@ export function createCharacterScene(): Scene {
       const top = 68;
       ctx.fillStyle = PANEL;
       ctx.fillRect(8, top, STAGE_W - 16, 56);
-      drawFighter(ctx, 34, top + 54, "guard", "player", 0, FULL_GEAR, { colors: colorsOf(choice, true) });
+      // Far enough apart that the armored one's shinai points at the one in the gi without touching them.
+      drawFighter(ctx, PREVIEW_ARMORED_X, top + 54, "guard", "player", 0, FULL_GEAR, { colors: colorsOf(choice, true) });
       ctx.save();
-      ctx.translate(58, top + 6);
+      ctx.translate(PREVIEW_GI_X, top + 6);
       ctx.scale(2, 2);
       drawKendoka(ctx, 0, 0, "down", 0, NO_GEAR, { colors: colorsOf(choice, true) });
       ctx.restore();
-      const name = guiPoint(ctx, 98, top + 8);
+      const name = guiPoint(ctx, PREVIEW_TEXT_X, top + 8);
       const lineEnd = guiPoint(ctx, STAGE_W - 12, 0).x;
       onGui(ctx, () => {
         drawText(ctx, person.name, name.x, name.y, UI.accent, 2);

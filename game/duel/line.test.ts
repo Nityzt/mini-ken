@@ -195,3 +195,33 @@ test("stepLine doesn't change the state it was given", () => {
   stepLine(s, { ...IDLE, move: 1 });
   assert.deepEqual(s, before);
 });
+
+test("holding D while you read the opening stops you at striking distance, so a slow read isn't a lock", () => {
+  // Still walking, and well over half a second to react: it's the window that decides, not how close you've drifted.
+  let waited = 0;
+  const slowWalker: Player = (s) => {
+    const target = open(s);
+    if (!target || s.brawl.zanshin || !canAct(s)) {
+      if (!target) waited = 0;
+      return { ...IDLE, move: 1 };
+    }
+    return waited++ < 45 ? { ...IDLE, move: 1 } : { ...IDLE, move: 1, attack: target, stomp: true };
+  };
+  for (let tier = 0; tier < LINE_TIERS.length; tier++) {
+    const s = play(slowWalker, tier, 3);
+    assert.ok(s.results.every((r) => r === "clean"), `tier ${tier}: ${s.results}`);
+  }
+});
+
+test("every miss is announced, whatever caused it", () => {
+  for (const player of [() => ({ ...IDLE, move: 1 as const }), reader({ wrong: true }), reader({ stomp: false }), reader({ slide: false })]) {
+    let s = createLine({ tier: 0, seed: 1 });
+    let missed = 0;
+    for (let t = 0; t < 7200 && !s.done; t++) {
+      s = stepLine(s, player(s));
+      missed += s.notes.filter((n) => n === "missed").length;
+    }
+    assert.equal(missed, s.results.filter((r) => r === "miss").length);
+    assert.ok(missed > 0);
+  }
+});

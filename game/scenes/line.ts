@@ -15,7 +15,7 @@ import { LINE_PASSES_TO_UNLOCK } from "../progress.ts";
 import { playerKiMax } from "../run-state.ts";
 import { kihonOutcome } from "../grading.ts";
 import { lineOutcome } from "./club-story.ts";
-import { FORFEIT_LINE, HELP_TITLE, KIHON_LEFT, KIHON_TITLE, LINE_HELP, LINE_LEFT, LINE_PASSED_BY, LINE_SLOW, LINE_TITLE, LINE_WRONG, NO_STOMP, NO_ZANSHIN } from "./content.ts";
+import { FORFEIT_LINE, HELP_TITLE, KIHON_LEFT, KIHON_TITLE, LINE_HELP, LINE_LEFT, LINE_MISSED, LINE_PASSED_BY, LINE_SLOW, LINE_TITLE, LINE_TOO_CLOSE, LINE_WRONG, NO_STOMP, NO_ZANSHIN } from "./content.ts";
 import { createPlayerControl, drawKeyPrompt, drawZanshinMeter, KIAI } from "./duel.ts";
 import { createTeachCards } from "./teach-card.ts";
 import { LINE_CARD, LINE_NO_KEYS_CARD, teachOnce } from "./teaching.ts";
@@ -67,6 +67,7 @@ export function createLineScene(): Scene {
 
   const react = (game: Game) => {
     const play = (name: "swing" | "stomp" | "clean" | "flag" | "blocked") => game.audio.play(name);
+    const before = floaters.length;
     for (const e of state.events) {
       if (e.type === "kiai" && e.target) {
         striking = e.target;
@@ -89,7 +90,7 @@ export function createLineScene(): Scene {
         float(NO_ZANSHIN, UI.accent);
         play("blocked");
       } else if (e.type === "whiff") float("Too far", UI.dim);
-      else if (e.type === "lock") float("Too close!", UI.dim);
+      else if (e.type === "lock") float(LINE_TOO_CLOSE, UI.accent);
     }
     for (const note of state.notes) {
       if (note === "slow") {
@@ -99,6 +100,11 @@ export function createLineScene(): Scene {
         float(LINE_PASSED_BY, UI.accent);
         play("blocked");
       }
+    }
+    // Every miss says so. Anything that didn't already give its reason just says it missed.
+    if (state.notes.includes("missed") && floaters.length === before) {
+      float(LINE_MISSED, UI.bad);
+      play("blocked");
     }
   };
 
