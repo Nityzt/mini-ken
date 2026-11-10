@@ -100,8 +100,13 @@ export function createShop(): ShopOverlay {
       const picked = Math.min(at, Math.max(0, rows.length - 1));
       const { start, end } = shopWindow(rows.length, picked);
       onGui(ctx, () => {
-        dimScreen(ctx, 0.9);
+        dimScreen(ctx, 0.94);
         onStage(ctx, () => {
+          // A solid panel, so chatter and prompts drawn underneath can't show through the shelves.
+          ctx.fillStyle = UI.edge;
+          ctx.fillRect(0, 0, STAGE_W, STAGE_H);
+          ctx.fillStyle = UI.panel;
+          ctx.fillRect(1, 1, STAGE_W - 2, STAGE_H - 2);
           drawText(ctx, SHOP_TITLES[stall!], 8, 6, UI.accent);
           const purse = moneyText(game.run.money);
           drawText(ctx, purse, STAGE_W - 8 - measureText(purse), 6, UI.accent);
@@ -121,7 +126,7 @@ export function createShop(): ShopOverlay {
           const line = notice || (rows.length ? `${rows[picked].line}${target ? " Replaces current mod." : ""}` : "No compatible gear. Buy or earn equipment first.");
           wrapText(line, STAGE_W - 16).slice(0, 4).forEach((text, i) => drawText(ctx, text, 8, 94 + i * LINE_HEIGHT, UI.dim));
           const help = target ? "E fit mod   X back   Left/right tabs" : tab === "browse" ? "E buy or equip   X leave   Left/right tabs" : "E choose gear   X leave   Left/right tabs";
-          drawTextCentered(ctx, help, STAGE_W / 2, STAGE_H - 10, UI.dim);
+          drawTextCentered(ctx, help, STAGE_W / 2, STAGE_H - 11, UI.dim);
         });
       });
     },
