@@ -12,6 +12,7 @@ import { askAway, showLetter, verificationOutcome } from "./grading.ts";
 import { atLeastDan, hasLetter, personDan } from "./ranks.ts";
 import { senpaiMenu, senseiMenu } from "./scenes/club-story.ts";
 import { MENU_LETTER } from "./scenes/content.ts";
+import { speakerOf } from "./scenes/bubble.ts";
 
 const start = createRunState();
 const ready: RunState = { ...start, linePasses: 3, waza: true, beaten: ["raccoon"] };
@@ -50,6 +51,15 @@ test("winning that bout earns a ticket, not a rank, and nothing else", () => {
   const lost = recommendationOutcome(ready, false);
   assert.equal(lost.run.ticket, 0);
   assert.ok(lost.lines.length > 0);
+});
+
+test("whoever tested you says how it went, so it isn't you saying it", () => {
+  for (const won of [true, false]) {
+    for (const line of recommendationOutcome(ready, won, undefined, "Yui").lines) assert.equal(speakerOf(line), "Yui");
+    const holding = { ...ready, letter: 1, letterFrom: "Rio" };
+    for (const line of verificationOutcome(holding, won, "Sensei Kuma").lines) assert.equal(speakerOf(line), "Sensei Kuma");
+  }
+  assert.equal(speakerOf(recommendationOutcome(ready, true, "Rio", "Rio").lines[0]), "Rio");
 });
 
 test("beating Sensei to earn a ticket isn't also an exception", () => {
@@ -233,6 +243,8 @@ test("everything said about grading fits in one dialogue box, whatever the numbe
   }
   recommendationOutcome(ready, true).lines.forEach(fits);
   recommendationOutcome(ready, false).lines.forEach(fits);
+  recommendationOutcome(ready, true, undefined, "Sensei Kuma").lines.forEach(fits);
+  recommendationOutcome(ready, false, undefined, "Sensei Kuma").lines.forEach(fits);
   kihonOutcome(true).lines.forEach(fits);
   kihonOutcome(false).lines.forEach(fits);
   fits(exceptionLine("3rd dan"));

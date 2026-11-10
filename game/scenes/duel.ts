@@ -24,7 +24,7 @@ import { ceremonyAt, closingAt, parryShine, poseFor, WALK_OFF_SPEED, windupCoil,
 import { createRival, moodOf, rivalAct, withMood, type RivalState } from "../duel/rival.ts";
 import { ATTACKS, createDuel, distance, exposedTargets, faceDir, screenX, skipBow, skipClosing, startX, step, type AttackKind, type DuelEvent, type DuelState, type Fighter, type FighterInput, type Opening, type Target } from "../duel/rules.ts";
 import { tipFor } from "../duel/tips.ts";
-import { gradingOutcome, recommendationOutcome, verificationOutcome, type GradingStage } from "../grading.ts";
+import { gradingOutcome, recommendationOutcome, saidBy, verificationOutcome, type GradingStage } from "../grading.ts";
 import { payBet, withFeat } from "../money.ts";
 import { danLabel, personDan, rankLabel } from "../ranks.ts";
 import { duelOptionsFor, lossesHere, recordCupMatch, recordLoss, recordWin, rivalConfigFor } from "../run-state.ts";
@@ -896,7 +896,7 @@ export function createDuelScene(): Scene {
       game.versus = null;
       game.go("club");
     } else if (stage === "recommendation" || stage === "verification") {
-      game.message = [stage === "verification" ? VERIFY_WALKED : RECOMMEND_WALKED];
+      game.message = saidBy(opponentById(opposing).rival, [stage === "verification" ? VERIFY_WALKED : RECOMMEND_WALKED]);
       game.versus = null;
       game.grading = null;
       game.go(game.run.node === "pinecone" ? "club" : "rival-dojo");
@@ -999,7 +999,7 @@ export function createDuelScene(): Scene {
             game.go("club");
           } else if (stage) {
             const home = game.run.node === "pinecone";
-            const reply = stage === "recommendation" ? recommendationOutcome(game.run, won, home ? undefined : opponentById(opposing).rival) : stage === "verification" ? verificationOutcome(game.run, won) : gradingOutcome(game.run, won);
+            const reply = stage === "recommendation" ? recommendationOutcome(game.run, won, home ? undefined : opponentById(opposing).rival, opponentById(opposing).rival) : stage === "verification" ? verificationOutcome(game.run, won, opponentById(opposing).rival) : gradingOutcome(game.run, won);
             game.run = reply.run;
             game.message = reply.lines;
             game.versus = null;
