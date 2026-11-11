@@ -5,10 +5,11 @@ import { createRunState } from "../run-state.ts";
 import { createOnlineScene } from "./online.ts";
 import { DEFAULT_APPEARANCE } from "../net/appearance.ts";
 
-function setup(invite: string | null, signedIn = true) {
+function setup(invite: string | null, signedIn = true, open = true) {
   let pressed: string[] = [];
   const went: string[] = [];
   let asked = false;
+  let finished = false;
   const account = { status: () => "signed-in", current: () => (signedIn ? { name: "you" } : null) };
   const game = {
     run: createRunState(),
@@ -23,11 +24,15 @@ function setup(invite: string | null, signedIn = true) {
       returnTo: "title",
       account,
       service: { live: true },
-      access: () => ({ open: true, via: "story" }),
+      access: () => (open || finished ? { open: true, via: open ? "story" : "tutorial" } : { open: false, via: null }),
       storySettled: () => true,
       accountUi: () => false,
       profile: () => ({ primer: asked, appearance: DEFAULT_APPEARANCE }),
       primerAsked: () => (asked = true),
+      finishTutorial: () => {
+        finished = true;
+        asked = true;
+      },
     },
   } as unknown as Game;
   const scene = createOnlineScene();
@@ -37,7 +42,7 @@ function setup(invite: string | null, signedIn = true) {
     scene.update(game);
     pressed = [];
   };
-  return { game, went, update, account, isAsked: () => asked };
+  return { game, went, update, account, isAsked: () => asked, isFinished: () => finished };
 }
 
 test("an invite waits while a new player chooses their appearance", () => {
@@ -93,4 +98,46 @@ test("backing out of the offer counts as saying no", () => {
   assert.equal(isAsked(), true);
   assert.deepEqual(went, ["online-lobby"]);
   assert.deepEqual(game.online.lobbyIntent, { kind: "join", code: "ABCDE" });
+});
+
+test("before multiplayer's open, the tutorial can be skipped from the menu", () => {
+  const { game, went, update, isFinished } = setup(null, true, false);
+  assert.equal(game.online.access().open, false);
+  update("down");
+  update("confirm");
+  assert.equal(isFinished(), true);
+  assert.equal(game.online.access().open, true);
+  assert.deepEqual(went, []);
+});
+
+test("an invite before multiplayer's open offers the tutorial or skipping it", () => {
+  const { game, went, update } = setup("ABCDE", true, false);
+  update();
+  assert.deepEqual(went, []);
+  update("confirm");
+  assert.deepEqual(went, ["training"]);
+  assert.equal(game.session?.kind, "quick");
+  assert.equal(game.online.invite, "ABCDE");
+});
+
+test("skipping the tutorial from an invite goes straight to that lobby, with no second offer", () => {
+  const { game, went, update, isFinished } = setup("ABCDE", true, false);
+  update();
+  update("down");
+  update("confirm");
+  assert.equal(isFinished(), true);
+  update();
+  assert.deepEqual(game.online.lobbyIntent, { kind: "join", code: "ABCDE" });
+  assert.deepEqual(went, ["online-lobby"]);
+  assert.equal(game.online.invite, null);
+});
+
+test("backing out of the invite's tutorial-or-skip drops the invite", () => {
+  const { game, went, update, isFinished } = setup("ABCDE", true, false);
+  update();
+  update("cancel");
+  update();
+  assert.equal(isFinished(), false);
+  assert.equal(game.online.invite, null);
+  assert.deepEqual(went, []);
 });

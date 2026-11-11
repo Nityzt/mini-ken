@@ -9,9 +9,9 @@ import type { Game, Scene } from "../core/scene.ts";
 import { parryShine } from "../duel/poses.ts";
 import { screenX, skipBow, step, type DuelState } from "../duel/rules.ts";
 import { finishSession } from "./club-story.ts";
-import { FORFEIT_TRAINING, GEN_FAIL, LESSON_GOOD, LESSON_WRONG, PARRY_NOW } from "./content.ts";
+import { FORFEIT_TRAINING, FORFEIT_TUTORIAL, GEN_FAIL, LESSON_GOOD, LESSON_WRONG, PARRY_NOW } from "./content.ts";
 import { wasTaught } from "./teaching.ts";
-import { createLessonDuel, judge, lessonsFor, partnerColors, partnerName, SENPAI, sessionPartner, sessionPlace, type Lesson, type Session } from "./curriculum.ts";
+import { afterMiss, createLessonDuel, firstStep, judge, lessonsFor, partnerColors, partnerName, SENPAI, sessionPartner, sessionPlace, type Lesson, type Session } from "./curriculum.ts";
 import { figureAt } from "./bubble.ts";
 import { createDialogue } from "./dialogue.ts";
 import { applyEvents, createDuelView, createPlayerControl, drawDuelHud, drawDuelStage, drawKeyPrompt, playDuelSounds, playSemeHum, playShineTing, tickView, WIDE_TEXT, type DuelView } from "./duel.ts";
@@ -109,6 +109,8 @@ export function createTrainingScene(nameOf: () => string): Scene {
     lessonIndex = index;
     // Sensei's teaching it right now, so nobody needs the card that explains it to older saves.
     if (lesson().id === "opening" && !wasTaught(game.run, "openings")) game.run = { ...game.run, seen: [...game.run.seen, "taught:openings"] };
+    // Old Gen remembers the step you've reached, so leaving or failing picks up here next time.
+    if (session.kind === "master" && game.run.semeStep !== index) game.run = { ...game.run, semeStep: index };
     reps = 0;
     misses = 0;
     startRep(game);
@@ -154,8 +156,12 @@ export function createTrainingScene(nameOf: () => string): Scene {
   const failed = () => lesson().misses !== undefined && misses >= lesson().misses!;
 
   return {
-    forfeitLabel: () => (dialogue.active || ended ? null : FORFEIT_TRAINING),
-    forfeit: leave,
+    forfeitLabel: () => (dialogue.active || ended ? null : quick() ? FORFEIT_TUTORIAL : FORFEIT_TRAINING),
+    // Leaving the short tutorial early is skipping it: multiplayer opens anyway.
+    forfeit: (game) => {
+      if (quick()) game.online.finishTutorial();
+      leave(game);
+    },
     outsideStory: () => quick(),
     // Anything earned here waits for the end, so a lesson is never interrupted.
     busy: () => true,
@@ -168,7 +174,7 @@ export function createTrainingScene(nameOf: () => string): Scene {
       ceremonyView = null;
       menWaiting = false;
       cards.clear(game);
-      startLesson(game, 0);
+      startLesson(game, firstStep(session, game.run));
     },
     update(game) {
       game.debug.talking = dialogue.active;
@@ -227,6 +233,7 @@ export function createTrainingScene(nameOf: () => string): Scene {
         misses++;
         game.debug.reps = { reps, misses };
         if (failed()) pause = PAUSE_TICKS;
+        else view.duel = afterMiss(session, view.duel);
       } else if (view.duel.phase === "point") {
         message = LESSON_WRONG;
         pause = PAUSE_TICKS;

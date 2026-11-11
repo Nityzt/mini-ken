@@ -901,3 +901,60 @@ test("crossings actually happen in ordinary matches, and more than once", () => 
   }
   assert.ok(crossings / matches >= 0.5, `${crossings} in ${matches} matches`);
 });
+
+/** The rival swings, you parry it, and then you counter. What happened to the counter? (issue #41) */
+function counterOnce(reparry: number, seed: number): { parried: boolean; reparried: boolean; hit: boolean } {
+  let duel = atGap(40);
+  let rival = createRival(seed, { ...rivalConfig(0, "steady"), parry: 0, meets: 0, bait: 0, bites: 0, charges: 0, openingMix: 0, habits: ["men"], habitMin: 1, habitSpread: 1, reparry });
+  const out = { parried: false, reparried: false, hit: false };
+  let countered = false;
+  for (let t = 0; t < 400 && duel.phase === "fight"; t++) {
+    const act = rivalAct(duel, rival);
+    rival = act.rival;
+    const [you, them] = duel.fighters;
+    let input: FighterInput = { move: 0, block: false, attack: null, stomp: true };
+    if (!out.parried && them.stance === "windup" && them.stanceTicks <= 5) input = { ...input, block: true, parry: true };
+    else if (them.stance === "deflected" && you.counterTicks > 0 && !countered) {
+      countered = true;
+      input = { ...input, attack: "men" };
+    }
+    duel = step(duel, input, act.input);
+    for (const e of duel.events) {
+      if (e.type === "parry" && e.by === 0) out.parried = true;
+      if (e.type === "parry" && e.by === 1 && countered) out.reparried = true;
+      if ((e.type === "hit" || e.type === "clean") && e.by === 0) out.hit = true;
+    }
+    if (out.reparried || out.hit) break;
+  }
+  return out;
+}
+
+test("a rival who's been parried can parry your counter back, right on time (issue #41)", () => {
+  for (let seed = 1; seed <= 10; seed++) {
+    const r = counterOnce(1, seed);
+    assert.ok(r.parried, `seed ${seed}: the first parry`);
+    assert.ok(r.reparried && !r.hit, `seed ${seed}`);
+  }
+});
+
+test("a rival who doesn't parry counters back never does", () => {
+  for (let seed = 1; seed <= 10; seed++) {
+    const r = counterOnce(0, seed);
+    assert.ok(r.parried && r.hit && !r.reparried, `seed ${seed}`);
+  }
+});
+
+test("how often they parry a counter back is a matter of luck", () => {
+  let back = 0;
+  for (let seed = 1; seed <= 100; seed++) if (counterOnce(0.4, seed).reparried) back++;
+  assert.ok(back > 25 && back < 55, `${back}`);
+});
+
+test("most rivals can parry a counter back, the best more often, and less after beating you; scripted fights can't", () => {
+  for (const style of ["steady", "fierce", "sneaky", "patient", "relentless", "master", "sensei", "fury", "torrent", "shadow", "iron", "jodan", "nito"] as const) assert.ok((rivalConfig(0, style).reparry ?? 0) > 0, style);
+  assert.equal(rivalConfig(0, "rigged").reparry ?? 0, 0);
+  assert.equal(rivalConfig(0, "demonstration").reparry ?? 0, 0);
+  assert.equal(rivalConfig(0, "restless").reparry ?? 0, 0);
+  assert.ok((rivalConfig(0, "sensei").reparry ?? 0) > (rivalConfig(0, "steady").reparry ?? 0));
+  assert.ok((rivalConfig(3, "sensei").reparry ?? 0) < (rivalConfig(0, "sensei").reparry ?? 0));
+});

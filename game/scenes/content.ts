@@ -60,11 +60,12 @@ export const MOMO_LOSE_NO_SEME = "Your spirit folds under Momo's aura.";
 export const MOMO_LOSE_SEME = "Hold I to push back. Answer the big swing.";
 export const GEN_LINES = [
   "Old Gen: A visitor! Fine armor, but where's your spirit? Come into my hut.",
-  "Old Gen: Seme is pressing with your ki until the other one flinches. Flinch too often, and we start over.",
+  "Old Gen: Seme is pressing with your ki until the other one flinches. Flinch too often, and you go and rest.",
 ];
-/** Coming back after being sent away. Gen remembers you, and what the first stage was. */
-export const GEN_AGAIN = ["Old Gen: Back? Good. Fed? Good. From the top, then: hold I until I flinch."];
-export const GEN_FAIL = "Old Gen: You flinched, or you flailed. Go and eat something. Then we start again from the top.";
+/** Coming back after being sent away from the first step. Gen remembers you, and what the first stage was. */
+export const GEN_FROM_TOP = ["Old Gen: Back? Good. Fed? Good. From the top, then: hold I until I flinch."];
+export const GEN_AGAIN = ["Old Gen: Back again? Good. We pick up where you fell over."];
+export const GEN_FAIL = "Old Gen: You flinched, or you flailed. Go and eat something. Then come back, and we'll carry on from this one.";
 export const GEN_DONE = ["Old Gen: That's it, <name>. That's seme, and now it's yours."];
 export const GEN_DONE_AFTER = [
   "Old Gen: Holding it costs ki and leaves you open, so let go when they move.",
@@ -665,6 +666,7 @@ export const PROGRESS_CHAMPION = "Champion";
 export const FORFEIT_MATCH = "Forfeit match";
 export const FORFEIT_GANG = "Back off";
 export const FORFEIT_TRAINING = "Stop training";
+export const FORFEIT_TUTORIAL = "Skip the rest of the tutorial";
 export const FORFEIT_LINE = "Stop the drill";
 export const DOOR_LOCKED = "You only just got here! Have a word with Senpai Momo.";
 
@@ -848,6 +850,7 @@ export function allContentLines(): string[] {
     FORFEIT_MATCH,
     FORFEIT_GANG,
     FORFEIT_TRAINING,
+    FORFEIT_TUTORIAL,
     FORFEIT_LINE,
   ];
 }
@@ -1205,8 +1208,10 @@ export const onlinePrimerNote = (needs: readonly string[]): string => {
   return `You don't know ${missing} yet, and the other player will use them. Want a quick tutorial first?`;
 };
 export const ONLINE_TUTORIAL_AGAIN = "Short tutorial again";
+export const ONLINE_SKIP_TUTORIAL = "Skip the tutorial";
+export const ONLINE_INVITE_GATE = "You've been invited to a match. Multiplayer is for 1st dan and up: take the short tutorial first, or skip it and go straight in.";
 export const ONLINE_BACK = "Back";
-export const ONLINE_GATE = "Multiplayer is for 1st dan and up. Earn it in the story, with Sensei's waza lesson, or take the short tutorial and go straight in.";
+export const ONLINE_GATE = "Multiplayer is for 1st dan and up. Earn it in the story, with Sensei's waza lesson, or take the short tutorial (or skip it) and go straight in.";
 export const ONLINE_PRACTICE = "Nobody's online yet: you'll play stand-ins, over the same connection a real match would use.";
 export const ONLINE_LIVE = "Connected to the server.";
 export const ONLINE_RECORD = (wins: number, losses: number): string => `${wins} won ${losses} lost`;

@@ -1,7 +1,7 @@
 import test from "node:test";
 import { directDuel as createDuel } from "./test-support.ts";
 import assert from "node:assert/strict";
-import { distance, exposedTargets, skipBow, skipClosing, ruleTick as step, type AttackKind, type DuelEvent, type DuelState, type Fighter, type FighterInput, type Stance } from "./rules.ts";
+import { distance, exposedTargets, presencePressing, skipBow, skipClosing, ruleTick as step, type AttackKind, type DuelEvent, type DuelState, type Fighter, type FighterInput, type Stance } from "./rules.ts";
 import { ABSORB_COST, BROKEN_TICKS, KI_AFTER_BREAK, KI_MAX, KI_RECOVERY, LOCK_DISTANCE, RECOVERY_TICKS, RING_MAX, RING_MIN, SWING_COST, WALK, STOMP_WINDOW, ZANSHIN_PASS, LAUNCH_COST, MIN_DISTANCE, KIAI_COOLDOWN, KIAI_COST, KIAI_PRESS, SEME_DRAIN, SEME_RANGE, SEME_TICKS, SHAKEN_KI_LOSS, SHAKEN_TICKS, CLOSING_TICKS, RETURN_SETTLE, RETURN_WALK } from "./constants.ts";
 
 const IDLE: FighterInput = { move: 0, block: false, attack: null };
@@ -568,6 +568,32 @@ test("holding seme pushes back against a presence", () => {
   assert.equal(d.fighters[0].stance, "seme");
   assert.equal(d.fighters[0].pressure, 0);
   assert.equal(d.fighters[1].pressure, 100);
+});
+
+test("a presence shows whenever it's pressing you, opening and swing included, so it never builds unseen (issue #43)", () => {
+  let d = fightAt(40, { presence: [0, 3], steadyGuard: [false, true] });
+    d = step(d, IDLE, BLOCK);
+  assert.ok(presencePressing(d, 1), "in guard");
+  for (let t = 0; t < 12; t++) d = step(d, IDLE, { ...IDLE, opening: "drop" });
+  assert.equal(d.fighters[1].stance, "opening");
+  assert.ok(presencePressing(d, 1), "showing an opening");
+  d = step(d, IDLE, { ...IDLE, opening: "drop", attack: "men" });
+  assert.equal(d.fighters[1].stance, "windup");
+  assert.ok(presencePressing(d, 1), "swinging");
+  // And the other way round: whenever it says it isn't pressing, your pressure doesn't build from it.
+  let quiet = fightAt(40, { presence: [0, 3] });
+  quiet.fighters[1].stance = "recovery";
+  quiet.fighters[1].stanceTicks = 30;
+  assert.equal(presencePressing(quiet, 1), false);
+  quiet = step(quiet, IDLE, IDLE);
+  assert.equal(quiet.fighters[0].pressure, 0);
+});
+
+test("holding seme keeps a presence off you, and nothing else does", () => {
+  const d = fightAt(40, { presence: [0, 3] });
+  d.fighters[0].stance = "seme";
+  assert.equal(presencePressing(d, 1), false);
+  assert.equal(presencePressing(fightAt(40), 1), false, "no presence, nothing shown");
 });
 
 test("a presence doesn't reach across the whole dojo", () => {

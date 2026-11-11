@@ -85,6 +85,8 @@ export type RunState = {
   beaten: OpponentId[];
   /** Learned from Old Gen, out in the city. */
   seme: boolean;
+  /** The step of Old Gen's practice you'd reached, so leaving or failing picks up there next time (issue #40). */
+  semeStep: number;
   momoBeaten: boolean;
   screenBroken: boolean;
   hasTsuba: boolean;
@@ -161,6 +163,7 @@ export const createRunState = (): RunState => ({
   waza: false,
   beaten: [],
   seme: false,
+  semeStep: 0,
   momoBeaten: false,
   screenBroken: false,
   hasTsuba: false,

@@ -4,7 +4,7 @@ import { AKI_COLORS, BO_COLORS, GEN_COLORS, SENIOR_COLORS, YUI_COLORS } from "..
 import { KI_MAX, RANGE_MAX, TSUBA_GAP } from "../duel/constants.ts";
 import { createDuel, distance, type AttackKind, type DuelEvent, type DuelState, type FighterInput, type Target } from "../duel/rules.ts";
 import type { OpponentId } from "../world/dojos.ts";
-import type { ArmorPiece } from "../run-state.ts";
+import type { ArmorPiece, RunState } from "../run-state.ts";
 import { COACH_NAME, SENPAI_LINES } from "./content.ts";
 import type { TeachKey } from "./teach-card.ts";
 import { challengeText, lessonText } from "./teaching.ts";
@@ -287,6 +287,17 @@ export function challengeFor(id: SenpaiId, level: number): Lesson {
       return style.between(tick, level);
     },
   };
+}
+
+/** Where a session starts. Old Gen picks up from the step you'd reached; everything else starts at the top. */
+export const firstStep = (session: Session, run: Pick<RunState, "semeStep">): number =>
+  session.kind === "master" ? Math.min(Math.max(0, Math.floor(run.semeStep)), SEME_LESSONS.length - 1) : 0;
+
+/** After a miss with Old Gen, you get your ki back and his pressure starts again, so the step's worth another go. */
+export function afterMiss(session: Session, duel: DuelState): DuelState {
+  if (session.kind !== "master") return duel;
+  const [you, them] = duel.fighters;
+  return { ...duel, fighters: [{ ...you, ki: you.kiMax, pressure: 0 }, them] };
 }
 
 export const lessonsFor = (session: Session): Lesson[] => {
