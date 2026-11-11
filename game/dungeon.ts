@@ -45,7 +45,7 @@ export type DungeonPlatform = DungeonRect & { id?: string; loose?: boolean };
 export type DungeonTrap = DungeonRect & { id: string; kind: "spikes" | "press" | "darts"; period: number; warn: number; active: number; offset: number; dir?: -1 | 1; range?: number };
 export type PickupKind = "shinai" | "scrap" | "kote" | "rice" | "crane" | "chest";
 export type DungeonPickup = { id: string; kind: PickupKind; x: number; y: number };
-export type EnemyKind = "ninja" | "thrower" | "ren";
+export type EnemyKind = "ninja" | "thrower";
 /** A guard keeps to its own floor, between `minX` and `maxX`. */
 export type DungeonEnemySpec = { id: string; kind: EnemyKind; x: number; y: number; minX: number; maxX: number };
 export type DungeonRoom = {
@@ -59,6 +59,8 @@ export type DungeonRoom = {
   pickups: DungeonPickup[];
   enemies: DungeonEnemySpec[];
   bench?: { x: number; y: number };
+  /** Where Ren waits to fight you properly, in a real duel, before the way out (owner, 2026-11-11). */
+  ren?: { x: number; y: number };
   exit: { x: number; y: number };
 };
 
@@ -135,7 +137,8 @@ export const DUNGEON_ROOMS: DungeonRoom[] = [
     platforms: [ground(0, 288), { x: 30, y: 80, w: 40, h: 6 }, { x: 218, y: 80, w: 40, h: 6 }],
     traps: [],
     pickups: [{ id: "spy-chest", kind: "chest", x: 244, y: on(120) }],
-    enemies: [{ id: "ren-spy", kind: "ren", x: 190, y: on(120), minX: 4, maxX: 270 }],
+    enemies: [],
+    ren: { x: 190, y: on(120) },
     exit: { x: 270, y: on(120) },
   },
 ];
@@ -154,8 +157,8 @@ export type DungeonInput = {
   block?: boolean;
   retry?: boolean;
 };
-export type EnemyState = "patrol" | "alert" | "chase" | "tell" | "strike" | "recover" | "block" | "aim" | "vanish" | "down";
-export type DungeonEnemy = DungeonEnemySpec & { hp: number; state: EnemyState; ticks: number; facing: -1 | 1; noticed: boolean; flash: number; /** Ren follows a turned-aside strike with a second one, this many times in a row. */ chain: number };
+export type EnemyState = "patrol" | "alert" | "chase" | "tell" | "strike" | "recover" | "block" | "aim" | "down";
+export type DungeonEnemy = DungeonEnemySpec & { hp: number; state: EnemyState; ticks: number; facing: -1 | 1; noticed: boolean; flash: number };
 export type DungeonPlayer = {
   x: number; y: number; vx: number; vy: number; facing: -1 | 1; hp: number; grounded: boolean;
   attackTicks: number; cooldown: number; invulnerable: number;
@@ -167,12 +170,16 @@ export type DungeonPlayer = {
 };
 export type Projectile = { x: number; y: number; vx: number; vy: number; kind: "dart" | "star"; /** Ticks left before it falls spent. */ ttl: number };
 export type DungeonEvent = {
-  type: "jump" | "land" | "grab" | "climb" | "swing" | "hit" | "blocked" | "hurt" | "parry" | "deflect" | "pickup" | "secret" | "craft" | "locked" | "room" | "death" | "retry" | "escape" | "crumble" | "throw" | "vanish" | "appear" | "ren-down" | "gear";
+  type: "jump" | "land" | "grab" | "climb" | "swing" | "hit" | "blocked" | "hurt" | "parry" | "deflect" | "pickup" | "secret" | "craft" | "locked" | "room" | "death" | "retry" | "escape" | "crumble" | "throw" | "duel" | "gear";
   id?: string; text?: string;
 };
 export type DungeonPiece = "do" | "kote";
 /** Only progress between rooms and discoveries persist. A retry restores the room's guards and slabs. */
-export type DungeonProgress = { room: number; collected: string[]; shinai: boolean; pieces: DungeonPiece[]; materials: number; recovered: boolean };
+export type DungeonProgress = {
+  room: number; collected: string[]; shinai: boolean; pieces: DungeonPiece[]; materials: number; recovered: boolean;
+  /** Ren has been beaten in the duel at the end of this trial. */
+  renBeaten: boolean;
+};
 export type DungeonState = DungeonProgress & {
   tick: number;
   phase: "playing" | "dead" | "escaped";
@@ -187,7 +194,7 @@ export type DungeonState = DungeonProgress & {
   cause: string;
 };
 
-const enemyHp = (kind: EnemyKind): number => (kind === "ren" ? 6 : kind === "thrower" ? 1 : 2);
+const enemyHp = (kind: EnemyKind): number => (kind === "thrower" ? 1 : 2);
 export const maxHp = (pieces: readonly DungeonPiece[]): number => BASE_HP + (pieces.includes("do") ? 2 : 0) + (pieces.includes("kote") ? 1 : 0);
 
 export function createDungeon(room = 0, progress?: Partial<DungeonProgress>): DungeonState {
@@ -201,11 +208,12 @@ export function createDungeon(room = 0, progress?: Partial<DungeonProgress>): Du
     pieces,
     materials: progress?.materials ?? 0,
     recovered: progress?.recovered ?? false,
+    renBeaten: progress?.renBeaten ?? false,
     tick: 0,
     phase: "playing",
     checkpoint: at,
     player: { x: spec.start.x, y: spec.start.y, vx: 0, vy: 0, facing: 1, hp: maxHp(pieces), grounded: true, attackTicks: 0, cooldown: 0, invulnerable: 0, air: 0, buffer: 0, ledge: null, climb: 0, hang: 0, knock: 0 },
-    enemies: spec.enemies.map((enemy) => ({ ...enemy, hp: enemyHp(enemy.kind), state: "patrol", ticks: 0, facing: -1, noticed: false, flash: 0, chain: 0 })),
+    enemies: spec.enemies.map((enemy) => ({ ...enemy, hp: enemyHp(enemy.kind), state: "patrol", ticks: 0, facing: -1, noticed: false, flash: 0 })),
     projectiles: [],
     crumble: {},
     events: [],
@@ -213,7 +221,7 @@ export function createDungeon(room = 0, progress?: Partial<DungeonProgress>): Du
   };
 }
 
-export const dungeonProgress = (state: DungeonState): DungeonProgress => ({ room: state.room, collected: [...state.collected], shinai: state.shinai, pieces: [...state.pieces], materials: state.materials, recovered: state.recovered });
+export const dungeonProgress = (state: DungeonState): DungeonProgress => ({ room: state.room, collected: [...state.collected], shinai: state.shinai, pieces: [...state.pieces], materials: state.materials, recovered: state.recovered, renBeaten: state.renBeaten });
 
 export type TrapPhase = "rest" | "warn" | "active";
 export function trapPhase(trap: DungeonTrap, tick: number): TrapPhase {
@@ -322,7 +330,7 @@ function movePlayer(state: DungeonState, input: DungeonInput): void {
   }
   // Guards stand their ground: you can vault one, but not walk through it.
   for (const enemy of state.enemies) {
-    if (enemy.state === "down" || enemy.state === "vanish" || !overlap(box(p), { x: enemy.x + 1, y: enemy.y, w: PLAYER_W - 2, h: PLAYER_H })) continue;
+    if (enemy.state === "down" || !overlap(box(p), { x: enemy.x + 1, y: enemy.y, w: PLAYER_W - 2, h: PLAYER_H })) continue;
     if (oldX + PLAYER_W <= enemy.x + 1.001) p.x = enemy.x + 1 - PLAYER_W;
     else if (oldX >= enemy.x + PLAYER_W - 1.001) p.x = enemy.x + PLAYER_W - 1;
   }
@@ -408,7 +416,6 @@ function sees(enemy: DungeonEnemy, p: DungeonPlayer): boolean {
   const dy = p.y - enemy.y;
   const dx = Math.abs(p.x - enemy.x);
   if (enemy.kind === "thrower") return dx < 120 && dy > -8 && dy < 70;
-  if (enemy.kind === "ren") return dy > -50 && dy < 16;
   return dx < 110 && Math.abs(dy) < 16;
 }
 
@@ -419,7 +426,6 @@ function stepEnemy(state: DungeonState, enemy: DungeonEnemy, input: DungeonInput
   const delta = p.x - enemy.x;
   const distance = Math.abs(delta);
   const level = Math.abs(p.y - enemy.y) < 16;
-  const ren = enemy.kind === "ren";
   const walk = (dir: number, speed: number) => {
     enemy.x = Math.max(enemy.minX, Math.min(enemy.maxX, enemy.x + dir * speed));
   };
@@ -460,17 +466,10 @@ function stepEnemy(state: DungeonState, enemy: DungeonEnemy, input: DungeonInput
         }
         break;
       }
-      // Ren answers distance, or a ledge, with a throwing star.
-      if (ren && (!level || (distance > 90 && enemy.hp < 6)) && !enemy.ticks) {
-        enemy.state = "aim";
-        enemy.ticks = 28;
-        break;
-      }
-      if (distance > 24) walk(enemy.facing, ren ? 1.05 : 0.8);
+      if (distance > 24) walk(enemy.facing, 0.8);
       else if (level && !enemy.ticks) {
         enemy.state = "tell";
-        // Ren's tell shortens as the fight goes on, but never below what can be read.
-        enemy.ticks = ren ? Math.round(26 - (6 - enemy.hp) * 1.5) : 28;
+        enemy.ticks = 28;
       }
       break;
     }
@@ -482,25 +481,16 @@ function stepEnemy(state: DungeonState, enemy: DungeonEnemy, input: DungeonInput
         if (level && distance < REACH + 4) {
           if (guarding(state, input, enemy.x + PLAYER_W / 2)) {
             state.events.push({ type: "parry", id: enemy.id });
-            // Once hurt, Ren answers a parry with a second, quicker strike: let go of the guard too soon and it lands.
-            if (ren && enemy.hp < 6 && enemy.chain < (enemy.hp <= 2 ? 2 : 1)) {
-              enemy.chain++;
-              enemy.state = "tell";
-              enemy.ticks = 14;
-            } else {
-              enemy.chain = 0;
-              enemy.state = "recover";
-              enemy.ticks = ren ? 34 : 44;
-            }
-          } else hurt(state, ren ? 2 : 1, ren ? "Ren's strike was too quick." : "A ninja's strike landed.", enemy.x + PLAYER_W / 2);
+            enemy.state = "recover";
+            enemy.ticks = 44;
+          } else hurt(state, 1, "A ninja's strike landed.", enemy.x + PLAYER_W / 2);
         }
       }
       break;
     case "strike":
       if (!enemy.ticks) {
         enemy.state = "recover";
-        enemy.chain = 0;
-        enemy.ticks = ren ? 18 : 26;
+        enemy.ticks = 26;
       }
       break;
     case "aim":
@@ -514,33 +504,20 @@ function stepEnemy(state: DungeonState, enemy: DungeonEnemy, input: DungeonInput
         state.projectiles.push({ x: fromX, y: fromY, vx: ((toX - fromX) / length) * 2.3, vy: ((toY - fromY) / length) * 2.3, kind: "star", ttl: 120 });
         state.events.push({ type: "throw", id: enemy.id });
         enemy.state = "recover";
-        enemy.ticks = ren ? 20 : 60;
+        enemy.ticks = 60;
       }
       break;
     case "block":
       if (!enemy.ticks) {
         // A blocked swing is answered quickly: mashing at a guard gets you hit.
         enemy.state = "tell";
-        enemy.ticks = ren ? 14 : 16;
+        enemy.ticks = 16;
       }
       break;
     case "recover":
       if (!enemy.ticks) {
         enemy.state = "chase";
-        enemy.ticks = ren ? 10 : 16;
-      }
-      break;
-    case "vanish":
-      if (enemy.ticks === 20) {
-        // Ren reappears behind you, and the smoke shows where a moment before.
-        const behind = p.x - p.facing * 34;
-        enemy.x = Math.max(enemy.minX, Math.min(enemy.maxX, behind));
-        enemy.facing = p.x < enemy.x ? -1 : 1;
-        state.events.push({ type: "appear", id: enemy.id });
-      }
-      if (!enemy.ticks) {
-        enemy.state = "tell";
-        enemy.ticks = 20;
+        enemy.ticks = 16;
       }
       break;
   }
@@ -551,7 +528,7 @@ function playerStrikes(state: DungeonState): void {
   if (p.attackTicks !== SWING_CONTACT) return;
   const centre = p.x + PLAYER_W / 2;
   for (const enemy of state.enemies) {
-    if (enemy.state === "down" || enemy.state === "vanish") continue;
+    if (enemy.state === "down") continue;
     const ahead = (enemy.x + PLAYER_W / 2 - centre) * p.facing;
     if (ahead < 0 || ahead > REACH || Math.abs(enemy.y - p.y) >= 16) continue;
     const behind = enemy.facing === p.facing;
@@ -572,13 +549,6 @@ function playerStrikes(state: DungeonState): void {
     if (!enemy.hp) {
       enemy.state = "down";
       enemy.ticks = 0;
-      if (enemy.kind === "ren") state.events.push({ type: "ren-down", id: enemy.id });
-    } else if (enemy.kind === "ren" && enemy.hp % 2 === 0) {
-      // Every second hit, Ren is gone in smoke.
-      enemy.state = "vanish";
-      enemy.ticks = 50;
-      state.projectiles = [];
-      state.events.push({ type: "vanish", id: enemy.id });
     } else {
       // Staggered, but back on guard before you can swing again: every hit has to be earned with a parry.
       enemy.state = "recover";
@@ -593,7 +563,7 @@ function interact(state: DungeonState): DungeonState | null {
   const p = state.player;
   for (const pickup of room.pickups) {
     if (state.collected.includes(pickup.id) || !near(p, pickup)) continue;
-    if (pickup.kind === "chest" && state.enemies.some((enemy) => enemy.kind === "ren" && enemy.hp > 0)) continue;
+    if (pickup.kind === "chest" && room.ren && !state.renBeaten) continue;
     state.collected.push(pickup.id);
     if (pickup.kind === "shinai") state.shinai = true;
     if (pickup.kind === "scrap") state.materials++;
@@ -621,8 +591,8 @@ function interact(state: DungeonState): DungeonState | null {
   }
   if (near(p, room.exit, 14)) {
     const guards = state.enemies.some((enemy) => enemy.hp > 0);
-    const why = guards
-      ? state.room === FINAL_ROOM ? "Ren stands between you and the door." : "A guard still watches this door."
+    const why = room.ren && !state.renBeaten ? "Ren stands between you and the door."
+      : guards ? "A guard still watches this door."
       : !state.shinai ? "Unarmed, you won't get past the next guard. Find something."
       : state.room === 2 && !state.pieces.includes("do") ? "Make armor at the workbench before going deeper."
       : state.room === FINAL_ROOM && !state.recovered ? "Your equipment is in the chest. Take it."
@@ -635,6 +605,24 @@ function interact(state: DungeonState): DungeonState | null {
     return state;
   }
   return null;
+}
+
+/** How close you can get to Ren before Ren calls the duel. */
+export const REN_DUEL_RANGE = 26;
+/**
+ * Ren won't be walked past. Coming up to Ren on the floor starts the duel, which the scene plays with the real
+ * duel engine; a loss leaves you here, at the start of the room, to walk up again.
+ */
+function waitForRen(state: DungeonState): void {
+  const ren = DUNGEON_ROOMS[state.room].ren;
+  if (!ren || state.renBeaten) return;
+  const p = state.player;
+  const stop = ren.x - REN_DUEL_RANGE;
+  if (p.x > stop) {
+    p.x = stop;
+    p.vx = Math.min(0, p.vx);
+  }
+  if (p.grounded && p.x >= stop - 2 && Math.abs(p.y - ren.y) < 4) state.events.push({ type: "duel" });
 }
 
 export function stepDungeon(previous: DungeonState, input: DungeonInput): DungeonState {
@@ -669,6 +657,7 @@ export function stepDungeon(previous: DungeonState, input: DungeonInput): Dungeo
   }
   movePlayer(state, input);
   if (state.phase !== "playing") return state;
+  waitForRen(state);
   stepTraps(state);
   stepProjectiles(state, input);
   for (const enemy of state.enemies) stepEnemy(state, enemy, input);
@@ -688,14 +677,17 @@ const countIn = (value: unknown, max: number): value is number => numberIn(value
 export function parseDungeonState(raw: unknown): DungeonState | null {
   if (!record(raw) || !countIn(raw.room, FINAL_ROOM)) return null;
   if (typeof raw.shinai !== "boolean" || !countIn(raw.materials, SCRAP_FOR_ARMOR) || typeof raw.recovered !== "boolean") return null;
+  // Saves from before the duel replaced the fight in the Spy Chamber have no record of it, so Ren is still there.
+  if (raw.renBeaten !== undefined && typeof raw.renBeaten !== "boolean") return null;
   const pickupIds = DUNGEON_ROOMS.flatMap((room) => room.pickups.map((pickup) => pickup.id));
   if (!Array.isArray(raw.collected) || !raw.collected.every((id) => typeof id === "string" && pickupIds.includes(id)) || new Set(raw.collected).size !== raw.collected.length) return null;
   if (!Array.isArray(raw.pieces) || !raw.pieces.every((piece) => piece === "do" || piece === "kote") || new Set(raw.pieces).size !== raw.pieces.length) return null;
   if (raw.phase !== "playing" && raw.phase !== "dead" && raw.phase !== "escaped") return null;
-  const state = createDungeon(raw.room, { collected: raw.collected as string[], shinai: raw.shinai, pieces: raw.pieces as DungeonPiece[], materials: raw.materials, recovered: raw.recovered });
+  const state = createDungeon(raw.room, { collected: raw.collected as string[], shinai: raw.shinai, pieces: raw.pieces as DungeonPiece[], materials: raw.materials, recovered: raw.recovered, renBeaten: raw.renBeaten === true });
   // An escape that hadn't been handed back yet still counts.
   if (raw.phase === "escaped" && raw.room === FINAL_ROOM && raw.recovered) {
     state.phase = "escaped";
+    state.renBeaten = true;
     state.enemies = state.enemies.map((enemy) => ({ ...enemy, hp: 0, state: "down" }));
   }
   return state;

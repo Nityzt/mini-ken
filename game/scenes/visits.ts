@@ -1,7 +1,8 @@
+import { renMissing, REN_MISSING_SEEN } from "../dungeon-story.ts";
 import { isOpen } from "../progress.ts";
 import type { RunState } from "../run-state.ts";
 import { DOJOS, dojoFor, type DojoId } from "../world/dojos.ts";
-import { REN_AT_OTTER_LESSON, REN_AT_OTTER_NO_LESSON, REN_BOGU, REN_FINAL_GAZE, REN_FIRST, renNoticesTare, REN_POINT_LESSON, REN_POINT_LESSON_AFTER, REN_POINT_LOST, REN_POINT_WON, REN_READY, REMATCH_LINES, REN_TEA, BACK_AFTER_LOSS, SORA_NAP, SORA_NAP_AGAIN, SORA_REMEMBERS, VISITOR_LINES } from "./content.ts";
+import { REN_MISSING_ARRIVAL, REN_THINGS, REN_AT_OTTER_LESSON, REN_AT_OTTER_NO_LESSON, REN_BOGU, REN_FINAL_GAZE, REN_FIRST, renNoticesTare, REN_POINT_LESSON, REN_POINT_LESSON_AFTER, REN_POINT_LOST, REN_POINT_WON, REN_READY, REMATCH_LINES, REN_TEA, BACK_AFTER_LOSS, SORA_NAP, SORA_NAP_AGAIN, SORA_REMEMBERS, VISITOR_LINES } from "./content.ts";
 
 /** You meet the people you'll fight long before you fight them. All of it is plain state, so it survives a refresh. */
 
@@ -79,8 +80,18 @@ export const roomWithVisitor = (room: string[]): string[] =>
 
 export function dojoVisitor(run: RunState, host: DojoId): Visiting | null {
   const next = NEXT_BOSS[host];
+  // Once you've found Ren gone from Thunder Radish, Ren isn't anywhere else to be found either.
+  if (next === "radish" && hasSeen(run, REN_MISSING_SEEN)) return null;
   return next && run.beaten.includes(host) && !run.beaten.includes(next) ? next : null;
 }
+
+/** Walking into Thunder Radish once you're good enough for Ren, and finding Ren's spot empty (owner, 2026-11-11). */
+export function radishArrival(run: RunState): { lines: string[]; run: RunState } | null {
+  if (!renMissing(run) || hasSeen(run, REN_MISSING_SEEN)) return null;
+  return { lines: REN_MISSING_ARRIVAL, run: markSeen(run, REN_MISSING_SEEN) };
+}
+/** What Ren left on the floor, which points at the one person who might know. */
+export const lookAtRensThings = (run: RunState): { lines: string[]; run: RunState } => ({ lines: REN_THINGS, run: markSeen(run, REN_MISSING_SEEN) });
 
 const visitorLines = (run: RunState, visitor: Visiting): string[] =>
   visitor === "radish" ? (run.gaze ? REN_AT_OTTER_LESSON : REN_AT_OTTER_NO_LESSON) : VISITOR_LINES[visitor];

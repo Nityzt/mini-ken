@@ -393,6 +393,15 @@ export const OBJECTIVES = {
   leftChallenges: (n: number) => `${n} challenge${n === 1 ? "" : "s"}`,
   leftTrial: "the Radish trial",
   leftRaiko: "Sensei Raiko",
+  /** Hunting for Ren, then going down after them (owner, 2026-11-11). */
+  findRen: "Find Ren at Thunder Radish",
+  askRaiko: "Ren's missing. Ask Sensei Raiko",
+  beatRaiko: "Beat Sensei Raiko to hear about Ren",
+  ironDoor: "Open the iron door at Thunder Radish",
+  passage: "Explore the hidden passage",
+  scavenge: "Scavenge gear and find Ren",
+  faceRen: "Beat Ren",
+  takeGear: "Take your things from the chest",
   leftOnline: "online play",
   kiGear: "gear at the Bogu Shop",
   kiLevels: "spar and drill to level up",
@@ -593,7 +602,7 @@ export const VISITOR_LINES: Record<"goose" | "heron" | "otter", string[]> = {
   heron: ["Mika: I came to watch you and Hana. It took me a while to get here. I don't mind.", "Mika: Iron Heron, up the train line. I can wait for you too."],
   otter: ["Kenji: You outlasted Mika! Nobody outlasts Mika! I could never stand that still!", "Kenji: Soggy Otter, out at the falls! Bring a towel! Or don't!"],
 };
-export const REN_AT_OTTER_LESSON = ["Ren: Four dojos. And I hear you stopped looking people in the eyes. Good.", "Ren: There's only my door left. Come when you're ready."];
+export const REN_AT_OTTER_LESSON = ["Ren: Four dojos. And I hear you stopped looking people in the eyes. Good.", "Ren: There's only Thunder Radish left. Don't be surprised if I'm not there."];
 export const REN_AT_OTTER_NO_LESSON = ["Ren: Four dojos, and you never did give me that one point.", "Ren: You'll want what I was going to show you. I still drop by Pinecone. Come and find me there first."];
 export const RACCOON_ARRIVAL = ["Sleepy Raccoon Dojo. Nobody's awake, and someone has been through the bins."];
 export const NIKO_LINES = ["Niko: Sora hardly seems to be awake. Then, snap! Watch those hands."];
@@ -894,6 +903,35 @@ export const HAGANE_WIN = ["Sensei Hagane: You bent iron. It doesn't happen twic
 export const RAIKO_INTRO = ["Sensei Raiko: Ren speaks well of you, which is to say, not at all. Bow. Watch for the flash."];
 export const RAIKO_AGAIN = ["Sensei Raiko: Still standing? The storm's only just started."];
 export const RAIKO_WIN = ["Sensei Raiko: So that's what it's like, to hear the thunder first. Tell nobody. Tell everybody."];
+/** Ren hides once you're good enough to beat them, and every hint points at Raiko (owner, 2026-11-11). */
+export const REN_MISSING_ARRIVAL = ["Thunder Radish Dojo. Ren's spot on the floor is empty, apart from Ren's bogu, folded neatly."];
+export const REN_THINGS = [
+  "Ren's bogu, folded neatly. There's dust on the men. It hasn't been worn in days.",
+  "Tucked inside is a notebook: every dojo in the city, and its sensei, in tiny writing.",
+  "The last page says only: \"Raiko suspects.\"",
+];
+export const REN_THINGS_LABEL = "Look";
+export const RAIKO_ASK_REN = "Ask about Ren";
+export const RAIKO_REFUSES = ["Sensei Raiko: Where's Ren? You and everyone else want to know.", "Sensei Raiko: I'll tell you if you can beat me. Bow."];
+export const RAIKO_REFUSES_AGAIN = ["Sensei Raiko: Still asking? You know my price. Bow."];
+export const RAIKO_DOUBTS = [
+  "Sensei Raiko: You want Ren. Then listen, and keep it to yourself.",
+  "Sensei Raiko: At night Ren goes below the dojo, where nobody's been since my own teacher's day.",
+  "Sensei Raiko: I've had my doubts for a while now. Ren is up to something down there.",
+  "Sensei Raiko: Take this key. The low iron door by the north wall. Go quietly.",
+];
+export const KEY_NAME = "Raiko's iron key";
+export const KEY_LINE = "Old and heavy. It opens the low iron door at Thunder Radish.";
+export const IRON_DOOR_LABEL = "Iron door";
+export const IRON_DOOR_LOCKED = "A low iron door, locked. The keyhole is old, and so is the dust on it.";
+export const IRON_DOOR_OPENS = ["Raiko's key turns stiffly. Behind the door, a narrow stair goes down into the cold."];
+export const IRON_DOOR_DONE = "The iron door. Behind it there's only the stair now, and the cold.";
+export const IRON_DOOR_DOWN = "Go down";
+export const IRON_DOOR_WAIT = "Leave it for later";
+export const KEI_REN_MISSING = "Kei: Ren hasn't been at practice all week. Sensei Raiko just says Ren's busy. Busy with what?";
+export const DAI_REN_MISSING = "Dai: Ren's bogu hasn't moved in days. If anyone knows where Ren went, it's Sensei Raiko.";
+export const RAIKO_REN_NEWS = "Sensei Raiko: You're looking for Ren. Ask me properly, and we'll see.";
+export const SENSEI_REN_MISSING = "Sensei Kuma: Ren's stopped turning up at practice? Raiko taught Ren everything. If anyone knows, he does.";
 /** How the head of the place greets you some days, and how the place itself feels. */
 export const RADISH_ARRIVALS = ["Thunder Radish Dojo. Far off, something rumbles. It might be the weather.", "Thunder Radish Dojo. Everyone stops talking as you walk in. Then they start again, more quietly."];
 export const GOOSE_ARRIVALS = ["Angry Goose Dojo. There's a feather on the floor. Nobody dares move it.", "Angry Goose Dojo. Something honks on the roof, and everybody stands a little straighter."];

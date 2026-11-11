@@ -2,7 +2,8 @@ import { measureText } from "./art/font.ts";
 import { STAGE_W } from "./core/scale.ts";
 import { danLabel, levelOf, rankLabel, xpToNextLevel } from "./ranks.ts";
 import { playerKiMax, type RunState } from "./run-state.ts";
-import { PROGRESS_CHAMPION } from "./scenes/content.ts";
+import { PROGRESS_CHAMPION, SENSEI_REN_MISSING } from "./scenes/content.ts";
+import { renMissing } from "./dungeon-story.ts";
 import { DOJOS, type DojoId } from "./world/dojos.ts";
 import { GANGS, type NodeId, type TransitLine } from "./world/map.ts";
 import type { CupId } from "./world/tournament.ts";
@@ -112,6 +113,8 @@ export const goalRow = (run: RunState): number => {
 
 /** Sensei's way of saying what's next. */
 export function needsSentence(run: RunState, unlock: Unlock): string {
+  // A win over Ren isn't something you can go and get while nobody knows where Ren is.
+  if (renMissing(run) && unlock.beat?.includes("radish")) return SENSEI_REN_MISSING;
   const needs = unmet(run, unlock).map((need) => (need.startsWith("ki ") ? `${need} (you have ${playerKiMax(run)})` : need));
   return `Sensei Kuma: Next for you: ${unlock.label}. Still to do: ${needs.join(", ")}.`;
 }

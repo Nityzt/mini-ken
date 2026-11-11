@@ -88,6 +88,51 @@ test('in the ambush Ren strikes only after a raised tell, and a held guard turns
   assert.equal(state.phase, 'fight', 'the smoke, not a hit, ends it');
 });
 
+test('the Spy Chamber hands you to the real duel with Ren, takes a loss back to its door, and a win on to the reveal and out', async () => {
+  const { createDungeonScene } = await import('./dungeon.ts');
+  const { createRunState, recordLoss, recordWin } = await import('../run-state.ts');
+  const { discoverDungeon, enterDungeon, captureDungeon, saveDungeonProgress, winRenBelow } = await import('../dungeon-story.ts');
+  const { createDungeon, FINAL_ROOM, DUNGEON_ROOMS } = await import('../dungeon.ts');
+  const original = { ...createRunState(), node: 'radish' as const, beaten: ['raiko' as const], gear: { shinai: true, tare: true, do: true, men: true, kote: true }, owned: ['fineShinai'] };
+  const scenes: string[] = [];
+  let frame = 0;
+  const game = {
+    run: saveDungeonProgress(captureDungeon(enterDungeon(discoverDungeon(original))), createDungeon(FINAL_ROOM, { shinai: true, pieces: ['do'] })),
+    debug: {} as Record<string, unknown>,
+    // Walking right and tapping E every other frame, which also reads every line.
+    input: { isDown: (action: string) => action === 'right', wasPressed: (action: string) => action === 'confirm' && frame % 2 === 0 },
+    audio: { play: () => {}, say: () => {} },
+    versus: 'raiko',
+    message: null as string[] | null,
+    go: (name: string) => scenes.push(name),
+  } as unknown as import('../core/scene.ts').Game;
+  const scene = createDungeonScene();
+  const play = (until: () => boolean) => {
+    for (let i = 0; i < 4000 && !until(); i++, frame++) scene.update(game);
+  };
+  scene.enter!(game);
+  play(() => scenes.length > 0);
+  assert.deepEqual(scenes, ['duel']);
+  assert.equal(game.versus, null, 'the duel is with Ren, the head here');
+  // Lost: back at the chamber's door, not the cell, and Ren is still there to walk up to.
+  game.run = recordLoss(game.run);
+  scene.enter!(game);
+  assert.equal(game.run.dungeon.progress?.room, FINAL_ROOM);
+  assert.equal(game.run.dungeon.progress?.player.x, DUNGEON_ROOMS[FINAL_ROOM].start.x);
+  play(() => scenes.length > 1);
+  assert.deepEqual(scenes, ['duel', 'duel']);
+  // Won: Ren kneels and goes, the chest gives everything back, and the stair leads out.
+  game.run = winRenBelow(recordWin(game.run));
+  scene.enter!(game);
+  play(() => scenes.length > 2);
+  assert.deepEqual(scenes, ['duel', 'duel', 'rival-dojo']);
+  assert.equal(game.run.dungeon.stage, 'escaped');
+  assert.ok(game.run.beaten.includes('radish'));
+  assert.deepEqual(game.run.gear, original.gear);
+  assert.deepEqual(game.run.owned, original.owned);
+  assert.ok(game.message?.some((line) => line.includes('Ren stands in the usual spot')));
+});
+
 test('you cannot walk through Ren in the ambush', () => {
   let state = createAmbush();
   for (let tick = 0; tick < 200; tick++) state = stepAmbush(state, { move: 1, attack: false, block: true });

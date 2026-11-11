@@ -5,6 +5,7 @@
 import { EQUIPMENT, equip, equipmentHeld, equipmentInfo, equippedAt, type EquipmentId, type EquipmentSlot } from "./equipment.ts";
 import { layoutGrid, moveInGrid, type Cell, type SlotGroup } from "./inventory-grid.ts";
 import { gearKeyOf, isColors, toggleWorn, type ItemId } from "./items.ts";
+import { hasDungeonKey } from "./dungeon-story.ts";
 import { hasLetter, hasTicket } from "./ranks.ts";
 import { playerKiMax, type RunState } from "./run-state.ts";
 import { isShopItem, type ShopItemId } from "./shop.ts";
@@ -43,6 +44,7 @@ export function packGroups(run: RunState): SlotGroup<ItemId>[] {
     ...(run.hasTsuba ? (["tsuba"] as const) : []),
     ...(run.shinaiQuest === "gotBamboo" && !run.madeShinai ? (["bamboo"] as const) : []),
     ...(run.shinaiQuest === "returned" ? (["shinaiBag"] as const) : []),
+    ...(hasDungeonKey(run) ? (["key"] as const) : []),
     ...shopHeld.filter((item) => !isColors(item) && !gearKeyOf(item)),
   ];
   const worn = new Set(SCREEN_SLOTS.map((slot) => equippedAt(run, slot)));

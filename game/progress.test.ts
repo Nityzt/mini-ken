@@ -324,3 +324,16 @@ test("the map opens on what's next, and on the last row when there's nothing lef
   const done = { ...armored(), bonusKi: 500, seme: true, dan: 3, waza: true, linePasses: 3, beaten: ["aki", "raccoon", "goose", "heron", "otter", "radish"] as RunState["beaten"], cups: [...CUP_IDS] };
   if (nextGoal(done) === null) assert.equal(goalRow(done), LADDER.length - 1);
 });
+
+test("with Ren hidden, Sensei Kuma points you at Raiko rather than at a win you can't go and get (owner, 2026-11-11)", () => {
+  const ready: RunState = { ...armored(), bonusKi: 200, seme: true, dan: 3, waza: true, linePasses: 3, beaten: ["aki", "raccoon", "goose", "heron", "otter"] };
+  assert.equal(isOpen(ready, "radish"), true, "Thunder Radish itself is open");
+  assert.equal(nextGoal(ready)?.id, "arenaLine");
+  const line = needsSentence(ready, nextGoal(ready)!);
+  assert.match(line, /^Sensei Kuma: .*Raiko/);
+  assert.ok(wrapText(line, DIALOGUE_WIDTH).length <= DIALOGUE_LINES, line);
+  // Once Ren's beaten, the ladder carries on as before.
+  const after = recordWin({ ...ready, node: "radish" });
+  assert.equal(isOpen(after, "arenaLine") && isOpen(after, "cup:radish"), true);
+  assert.doesNotMatch(needsSentence(after, nextGoal(after) ?? row("cup:radish")), /Raiko/);
+});

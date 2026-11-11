@@ -13,7 +13,7 @@ import { dimScreen, drawKeycap } from "./ui.ts";
 
 const ICON_SCALE = 3;
 const ICON_REST_Y = 36;
-const ICONS: Partial<Record<ItemId, string>> = { gi: "iconGi", do: "iconDo", men: "iconMen", kote: "iconKote", shinai: "iconShinai", ownShinai: "iconShinai", bamboo: "iconBamboo", shinaiBag: "iconBag", tsuba: "tsuba", seme: "iconSeme", gaze: "iconGaze", ticket: "iconTicket", letter: "iconLetter" };
+const ICONS: Partial<Record<ItemId, string>> = { gi: "iconGi", do: "iconDo", men: "iconMen", kote: "iconKote", shinai: "iconShinai", ownShinai: "iconShinai", bamboo: "iconBamboo", shinaiBag: "iconBag", key: "iconKey", tsuba: "tsuba", seme: "iconSeme", gaze: "iconGaze", ticket: "iconTicket", letter: "iconLetter" };
 
 /** A key and what it does, side by side. Returns how wide it came out. */
 function drawCardHint(ctx: CanvasRenderingContext2D, key: string, label: string, x: number, y: number): number {

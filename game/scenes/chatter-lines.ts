@@ -1,7 +1,8 @@
+import { raikoOffersRen, renMissing } from "../dungeon-story.ts";
 import { HP_LOW } from "../health.ts";
 import type { RunState } from "../run-state.ts";
 import {
-  DAI_LINES, IDA_LINES, KEI_LINES, NIKO_LINES, PIP_LINES, RIO_LINES, SENSEI_HAGANE_LINES, SENSEI_KAN_LINES, SENSEI_MIZU_LINES, SENSEI_NEMU_LINES, SENSEI_RAIKO_LINES, TEO_LINES, UMA_LINES, VAL_LINES, WES_LINES,
+  DAI_LINES, DAI_REN_MISSING, IDA_LINES, KEI_LINES, KEI_REN_MISSING, RAIKO_REN_NEWS, NIKO_LINES, PIP_LINES, RIO_LINES, SENSEI_HAGANE_LINES, SENSEI_KAN_LINES, SENSEI_MIZU_LINES, SENSEI_NEMU_LINES, SENSEI_RAIKO_LINES, TEO_LINES, UMA_LINES, VAL_LINES, WES_LINES,
 } from "./content.ts";
 
 /** Something someone says once, the first time it's true. The earlier in the list, the more it's on their mind. */
@@ -279,6 +280,7 @@ export const PEOPLE: Record<string, Person> = {
   kei: {
     name: "Kei",
     news: [
+      { id: "renMissing", when: renMissing, line: KEI_REN_MISSING },
       { id: "hurt", when: hurtNow, line: "Kei: That's a nasty limp. Our pickle jar's got more colour than you do. Go home and rest." },
       { id: "lost", when: lostTo("radish"), line: "Kei: I watched that. Did you see what Ren's shinai did just before? No, I know. Nobody does the first time." },
       { id: "beat", when: beat("radish"), line: "Kei: You beat Ren! I've been telling people for years it could be done. I didn't believe it either." },
@@ -294,6 +296,7 @@ export const PEOPLE: Record<string, Person> = {
   dai: {
     name: "Dai",
     news: [
+      { id: "renMissing", when: renMissing, line: DAI_REN_MISSING },
       { id: "hurt", when: hurtNow, line: "Dai: You're breathing like I do after kakari-geiko. Get some rest before you try anything." },
       { id: "lost", when: lostTo("radish"), line: "Dai: Don't feel bad. Ren did that to me on my first day. And my second. It's been three years." },
       { id: "beat", when: beat("radish"), line: "Dai: Ren was smiling after you left. A little. Nobody knows what to do about it." },
@@ -309,6 +312,7 @@ export const PEOPLE: Record<string, Person> = {
   raiko: {
     name: "Sensei Raiko",
     news: [
+      { id: "renMissing", when: (run) => raikoOffersRen(run) && renMissing(run), line: RAIKO_REN_NEWS },
       { id: "lost", when: lostTo("raiko"), line: "Sensei Raiko: You heard the thunder and then you looked for the flash. Next time, the other way round." },
       { id: "ren", when: beat("radish"), line: "Sensei Raiko: You beat Ren in my own dojo. I raised that child to be unbeatable, and I'm oddly pleased." },
       { id: "beat", when: beat("raiko"), line: "Sensei Raiko: The storm passes. It always comes back. Come and see it again some time." },
