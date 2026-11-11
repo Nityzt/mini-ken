@@ -152,7 +152,8 @@ export function talkToSenpai(run: RunState, senpai: SenpaiId): { lines: string[]
     if (given && !freeSenpai(run).includes(senpai)) return { lines: [lines.given(given, freeSenpaiNames(run))], session: null };
     return { lines: [lines.intro], session: { kind: "senpai", senpai, level } };
   }
-  if (run.trained) return { lines: [lines.spar], session: null, fight: senpai };
+  // Someone you've already beaten knows it's a rematch.
+  if (run.trained) return { lines: [run.beaten.includes(senpai) ? lines.rematch : lines.spar], session: null, fight: senpai };
   return { lines: run.gear.shinai && !run.trained && run.senseiRounds > 0 ? [lines.seeSensei] : lines.chat, session: null };
 }
 
@@ -191,11 +192,18 @@ export function sparOutcome(run: RunState, senpai: SenpaiId): { run: RunState; l
   return {
     run: next,
     lines: [
-      SENPAI_LINES[senpai].sparWin,
+      run.beaten.includes(senpai) ? SENPAI_LINES[senpai].winAgain : SENPAI_LINES[senpai].sparWin,
       ...(next.bonusKi > run.bonusKi ? [SPAR_KI] : []),
       ...(isOpen(next, "door") && !isOpen(run, "door") ? [SPAR_DOOR_OPEN] : []),
     ],
   };
+}
+
+/** Walking away from a spar. The first time they've beaten you, they say so, once. */
+export function sparLeft(run: RunState, senpai: SenpaiId, lost: boolean): { run: RunState; lines: string[] } {
+  const key = `spar-lost:${senpai}`;
+  if (!lost || run.seen.includes(key)) return { run, lines: [SENPAI_LINES[senpai].sparAgain] };
+  return { run: { ...run, seen: [...run.seen, key] }, lines: [SENPAI_LINES[senpai].firstLoss] };
 }
 
 const PERFECT_LINE_LENGTH = 5;

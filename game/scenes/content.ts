@@ -275,7 +275,7 @@ const BLOCK_THE_DO = "Tip dips? That's my do: hold S!";
 /** Each senpai's way of being, and their own take on each level's drill. */
 export const SENPAI_LINES = {
   aki: {
-    intro: "Aki: Practice? Yes! I talk a lot and I never stand still, so keep up!",
+    intro: "Aki: A challenge? Yes! I never stand still, so you can't either. Keep up!",
     chat: [
       "Aki: I forgot my tenugui once. My men smelled of regret for a week.",
       "Aki: There's an old bamboo screen in storage. I've always wondered what's behind it.",
@@ -287,10 +287,13 @@ export const SENPAI_LINES = {
       `Aki: Hands rising? Hold Q, then K and Space. ${NEEDS_FOLLOW} ${BLOCK_THE_DO}`,
     ],
     spar: "Aki: A real match? Yes! First to two, and I won't slow down.",
+    rematch: "Aki: Rematch! I've been practising! Mostly talking about practising. First to two!",
     sparWin: "Aki: You got me! I'm telling everyone. Everyone!",
+    winAgain: "Aki: Again?! Okay. This time I'm only telling half of everyone.",
+    firstLoss: "Aki: I won! I actually won! Sorry! I'm not sorry. Again whenever you like!",
     sparAgain: "Aki: Any time! I'll be here. Or there. Somewhere.",
     pass: "Aki: Whew, you kept up! Here, this one's yours.",
-    fail: "Aki: Too many misses! Come back and try again, any time. I'll be here. Or there. Somewhere.",
+    fail: "Aki: Too many misses! Catch your breath and come back. I'll still be moving.",
     given: (piece: string, others: string) => `Aki: I already gave you your ${piece}! Go and find ${others} for this one. Go, go!`,
   },
   bo: {
@@ -303,7 +306,10 @@ export const SENPAI_LINES = {
       `Bo: Hands rising? Hold Q, then K and Space. ${NEEDS_FOLLOW} ${BLOCK_THE_DO}`,
     ],
     spar: "Bo: Mm. A real match. First to two. I rarely swing.",
+    rematch: "Bo: Mm. Again. The wall's back up.",
     sparWin: "Bo: Mm. The wall came down.",
+    winAgain: "Bo: Mm. Down again. I'll build it higher.",
+    firstLoss: "Bo: Mm. The wall held. It won't always.",
     sparAgain: "Bo: Mm. Rest first.",
     pass: "Bo: Mm. You noticed. This is yours.",
     fail: "Bo: Mm. You hit the wall a lot. Rest, then come back.",
@@ -311,7 +317,7 @@ export const SENPAI_LINES = {
   },
   yui: {
     intro: "Yui: Three clean strikes, each from far away. I count every stomp, and I allow one mistake.",
-    chat: ["Yui: Your left foot was late. Oh, you haven't started yet? Well, it will be."],
+    chat: ["Yui: Your left foot was late. Oh, you haven't started yet? Well, it will be.", "Yui: Bow at the line, not near it. People think I don't notice."],
     seeSensei: "Yui: Acceptable. Sensei will want you now.",
     prompts: [
       `Yui: Slide into range, hold E, then J and Space, exactly. ${NEEDS_FOLLOW}`,
@@ -319,8 +325,11 @@ export const SENPAI_LINES = {
       `Yui: Hands rising? Hold Q, then K and Space. ${NEEDS_FOLLOW} ${BLOCK_THE_DO}`,
     ],
     spar: "Yui: A real match, first to two. I'm after your wrists.",
+    rematch: "Yui: Again. I've made notes on last time. First to two.",
     sparWin: "Yui: That was correct. I'll allow it.",
-    sparAgain: "Yui: We'll begin again when you're ready.",
+    winAgain: "Yui: Correct again. I've had to start a second page.",
+    firstLoss: "Yui: My match. I counted your openings before you did. Count faster.",
+    sparAgain: "Yui: Rest, then we'll go again. Mind your hands.",
     pass: "Yui: Clean. I have nothing to correct. This is yours.",
     fail: "Yui: That's two mistakes. We'll begin again when you're ready.",
     given: (piece: string, others: string) => `Yui: I've tested you once already, for the ${piece}. ${others} must test you this time.`,
@@ -554,6 +563,18 @@ export const REMATCH_LINES: Record<string, string> = {
   lantern: "Kiri: Back for the tide again? First to two. Rei!",
   bamboo: "Nori: Again, then. Let's see what you notice this time. Rei!",
 };
+/**
+ * What a head says when you come back after they've beaten you, in place of the first-meeting hello. The rules line
+ * after it stays the same. Ren isn't here: Ren's greetings have their own rules.
+ */
+export const BACK_AFTER_LOSS: Record<string, string> = {
+  raccoon: "Sora: Mm? You came back. I was hoping you'd forget. I'd forgotten.",
+  goose: "Hana: Back again! The goose has been watching the door. So have I.",
+  heron: "Mika: You came back. Good. Did you learn to wait?",
+  otter: "Kenji: You came back! Nobody comes back! This is the best day!",
+  lantern: "Kiri: The tide's turned since last time. Has your footwork? First to two. Rei!",
+  bamboo: "Nori: Back again. Let's see what you noticed this time. Rei!",
+};
 export const GAZE_ITEM_LINE = "You can see Ren's strikes coming, and their stare takes longer to shake you.";
 export const REN_POINT_TIP = "You flinched, and Ren barely moved.";
 export const REN_POINT_NEXT = "Ren lowers their shinai.";
@@ -718,7 +739,7 @@ export function allContentLines(): string[] {
     STORAGE_LOCKED,
     ...Object.values(DRILL_PRAISE),
     ...Object.values(LESSON_PROMPTS),
-    ...Object.values(SENPAI_LINES).flatMap((s) => [s.intro, ...s.chat, s.seeSensei, ...s.prompts, s.spar, s.sparWin, s.sparAgain, s.pass, s.fail, s.given("kote", eitherOf(["Aki", "Bo"]))]),
+    ...Object.values(SENPAI_LINES).flatMap((s) => [s.intro, ...s.chat, s.seeSensei, ...s.prompts, s.spar, s.rematch, s.sparWin, s.winAgain, s.firstLoss, s.sparAgain, s.pass, s.fail, s.given("kote", eitherOf(["Aki", "Bo"]))]),
     ...momoPractice(eitherOf(["Aki", "Bo", "Yui"])),
     ...MOMO_GUARD,
     ...MOMO_GUARD_SEME,
@@ -779,7 +800,7 @@ export function allContentLines(): string[] {
     ...RACCOON_ARRIVAL, ...NIKO_LINES, ...RIO_LINES, ...SORA_LINES, SORA_NAP_AGAIN, SORA_REMEMBERS, ...SORA_WIN_LINES,
     ...HERON_ARRIVAL, ...TEO_LINES, ...UMA_LINES, ...MIKA_LINES, ...MIKA_WIN_LINES,
     ...OTTER_ARRIVAL, ...VAL_LINES, ...WES_LINES, ...KENJI_LINES, ...KENJI_WIN_LINES,
-    TAIKAI_STEP_UP, TAIKAI_OUT, TAIKAI_CHAMPION, TAIKAI_CHAMPION_LINE, TAIKAI_CHAMPION_AGAIN, TAIKAI_LOST, TAIKAI_WITHDRAW, SEME_ITEM_LINE, CUP_ENTER, CUP_WON_BEFORE, cupNotice("Thunder Open", true), cupLeft("Grand Taikai"), cupWonLine("Thunder Open"), CHARACTER_TITLE, INSIGNIA_TITLE, INSIGNIA_NOTE, CHOOSE_TITLE, CHOOSE_HELP,
+    ...Object.values(BACK_AFTER_LOSS), TAIKAI_STEP_UP, TAIKAI_OUT, TAIKAI_CHAMPION, TAIKAI_CHAMPION_LINE, TAIKAI_CHAMPION_AGAIN, TAIKAI_LOST, TAIKAI_WITHDRAW, SEME_ITEM_LINE, CUP_ENTER, CUP_WON_BEFORE, cupNotice("Thunder Open", true), cupLeft("Grand Taikai"), cupWonLine("Thunder Open"), CHARACTER_TITLE, INSIGNIA_TITLE, INSIGNIA_NOTE, CHOOSE_TITLE, CHOOSE_HELP,
     TRAVELLING,
     NEXT_STOP,
     TOWER_FIRST,

@@ -180,6 +180,22 @@ test("a head you've beaten doesn't greet a rematch as if you'd never met", () =>
   }
 });
 
+test("a head who beat you greets you as someone they've met, and still says the rules (owner, 2026-11-11)", () => {
+  for (const id of Object.keys(DOJOS) as (keyof typeof DOJOS)[]) {
+    if (id === "radish") continue;
+    const first = challengeLines(createRunState(), id);
+    const back = challengeLines({ ...createRunState(), losses: { [id]: 1 } }, id);
+    assert.notEqual(back[0], first[0], id);
+    assert.ok(back[0].startsWith(`${DOJOS[id].rival}: `), back[0]);
+    assert.deepEqual(back.slice(1), DOJOS[id].challenge.slice(1), id);
+    assert.match(back.join(" "), /Rei/, id);
+    // A win resets the count, and then it's a rematch line, not a comeback.
+    assert.deepEqual(challengeLines({ ...createRunState(), losses: { [id]: 0 }, beaten: [id] }, id), challengeLines({ ...createRunState(), beaten: [id] }, id));
+    // Losing to someone else doesn't count.
+    assert.deepEqual(challengeLines({ ...createRunState(), losses: { momo: 2 } }, id), first, id);
+  }
+});
+
 test("visitors stand on open floor, and block nothing", () => {
   const rows = clubRows({ storageOpen: true, screenBroken: false, momoGuards: false, visitor: true });
   assert.equal(findTiles(rows, "V").length, 1);
