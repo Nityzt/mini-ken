@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   createDungeon, stepDungeon, parseDungeonState, trapPhase, maxHp, solidPlatforms,
-  DUNGEON_ROOMS, FINAL_ROOM, PLAYER_H, PLAYER_W, BASE_HP, CRUMBLE_TICKS, SCRAP_FOR_ARMOR,
+  DUNGEON_ROOMS, FINAL_ROOM, PLAYER_H, PLAYER_W, BASE_HP, CRUMBLE_TICKS, REN_DUEL_RANGE, SCRAP_FOR_ARMOR,
   type DungeonState, type DungeonInput,
 } from "./dungeon.ts";
 
@@ -237,39 +237,34 @@ test("doors hold until the guards are down and what's needed is found", () => {
   let final = at(empty(FINAL_ROOM), DUNGEON_ROOMS[FINAL_ROOM].exit.x, 120);
   assert.equal(stepDungeon(final, { move: 0, interact: true }).phase, "playing", "your gear first");
   final = { ...final, recovered: true };
+  assert.equal(stepDungeon(final, { move: 0, interact: true }).phase, "playing", "Ren first");
+  final = { ...final, renBeaten: true };
   assert.equal(stepDungeon(final, { move: 0, interact: true }).phase, "escaped");
 });
 
-test("Ren vanishes every second hit and comes back behind you, and the chest waits for Ren", () => {
+test("Ren can't be walked past: coming up calls the duel, and the chest and the door wait for the win", () => {
   let state = createDungeon(FINAL_ROOM, { shinai: true, pieces: ["do", "kote"] });
+  const ren = DUNGEON_ROOMS[FINAL_ROOM].ren!;
   const chest = DUNGEON_ROOMS[FINAL_ROOM].pickups[0];
-  state = at(state, chest.x, 120);
-  assert.equal(stepDungeon(state, { move: 0, interact: true }).recovered, false);
-  state = at(createDungeon(FINAL_ROOM, { shinai: true }), 100, 120);
-  const ren = state.enemies[0];
-  ren.x = 124;
-  ren.state = "recover";
-  ren.ticks = 30;
-  ren.hp = 5;
-  ren.facing = -1;
-  state.player.facing = 1;
-  state = stepDungeon(state, { move: 0, attack: true });
-  state = ticks(state, 6);
-  assert.equal(state.enemies[0].state, "vanish");
-  state = ticks(state, 30);
-  const back = state.enemies[0];
-  assert.ok(back.x < state.player.x, "behind you");
+  assert.equal(state.enemies.length, 0, "no side-view fight any more");
+  assert.equal(stepDungeon(at(structuredClone(state), chest.x, 120), { move: 0, interact: true }).recovered, false);
+  let called = false;
+  for (let i = 0; i < 400 && !called; i++) {
+    state = stepDungeon(state, { move: 1 });
+    called = state.events.some((event) => event.type === "duel");
+  }
+  assert.ok(called, "walking up to Ren starts the duel");
+  assert.ok(state.player.x < ren.x, "and you're still on your own side");
+  state = ticks(state, 60, { move: 1 });
+  assert.ok(state.player.x + PLAYER_W < ren.x, "pushing on doesn't get you past");
   assert.equal(ticks(createDungeon(FINAL_ROOM), 900).phase !== "escaped", true, "time alone never ends it");
-  // Once hurt, a parried strike is followed by a second: dropping the guard after the first gets you hit.
-  let chained = at(createDungeon(FINAL_ROOM, { shinai: true }), 100, 120);
-  Object.assign(chained.enemies[0], { x: 122, state: "tell", ticks: 1, hp: 5, facing: -1 });
-  chained.player.facing = 1;
-  chained = stepDungeon(chained, { move: 0, block: true });
-  assert.ok(chained.events.some((event) => event.type === "parry"));
-  assert.equal(chained.enemies[0].state, "tell");
-  const hp = chained.player.hp;
-  chained = ticks(chained, 20);
-  assert.ok(chained.player.hp < hp);
+  // Won: Ren steps aside, the chest opens, and the stair is yours.
+  let won = at({ ...createDungeon(FINAL_ROOM, { shinai: true, renBeaten: true }) }, chest.x, 120);
+  assert.equal(stepDungeon(won, { move: 0 }).events.some((event) => event.type === "duel"), false);
+  won = stepDungeon(won, { move: 0, interact: true });
+  assert.equal(won.recovered, true);
+  won = at(won, DUNGEON_ROOMS[FINAL_ROOM].exit.x, 120);
+  assert.equal(stepDungeon(won, { move: 0, interact: true }).phase, "escaped");
 });
 
 /**
@@ -284,7 +279,7 @@ function play(start: DungeonState) {
   };
   const fightInput = (): DungeonInput | null => {
     const p = state.player;
-    const foe = state.enemies.find((enemy) => enemy.hp > 0 && enemy.state !== "vanish" && Math.abs(enemy.y - p.y) < 16 && Math.abs(enemy.x - p.x) < 40);
+    const foe = state.enemies.find((enemy) => enemy.hp > 0 && Math.abs(enemy.y - p.y) < 16 && Math.abs(enemy.x - p.x) < 40);
     const shot = state.projectiles.find((s) => Math.abs(s.x - (p.x + 5)) < 40 && s.y > p.y && s.y < p.y + PLAYER_H + 4);
     const onSlab = solidPlatforms(state).some((platform) => platform.loose && p.x + PLAYER_W > platform.x && p.x < platform.x + platform.w);
     if (shot && !onSlab) return { move: 0, block: true, ...(Math.sign(shot.x - p.x) !== p.facing ? { move: Math.sign(shot.x - p.x) as -1 | 1 } : {}) };
@@ -309,7 +304,7 @@ function play(start: DungeonState) {
     fight() {
       for (let i = 0; i < 3000 && state.enemies.some((enemy) => enemy.hp > 0); i++) {
         const foe = state.enemies.find((enemy) => enemy.hp > 0)!;
-        step(fightInput() ?? (foe.state === "vanish" ? { move: 0, block: true } : { move: Math.sign(foe.x - state.player.x) as -1 | 1 }));
+        step(fightInput() ?? { move: Math.sign(foe.x - state.player.x) as -1 | 1 });
       }
       assert.ok(state.enemies.every((enemy) => enemy.hp === 0), "won the fight");
     },
@@ -335,7 +330,7 @@ function play(start: DungeonState) {
   };
 }
 
-test("a real-input route arms, climbs, crafts, defeats the guards and Ren, and escapes with everything", () => {
+test("a real-input route arms, climbs, crafts, defeats the guards, gets past Ren, and escapes with everything", () => {
   const run = play(createDungeon());
   const rooms = DUNGEON_ROOMS;
   // The cell: climb to the shinai, then the shelf above for the crane.
@@ -401,8 +396,10 @@ test("a real-input route arms, climbs, crafts, defeats the guards and Ren, and e
   run.walkTo(rooms[2].exit.x);
   run.use();
   assert.equal(run.state.room, FINAL_ROOM);
-  // Ren.
-  run.fight();
+  // Ren, who's fought in the duel engine: walking up calls it, and the scene marks the win.
+  run.walkTo(rooms[FINAL_ROOM].ren!.x - REN_DUEL_RANGE);
+  assert.ok(run.state.events.some((event) => event.type === "duel"));
+  run.state.renBeaten = true;
   run.walkTo(rooms[FINAL_ROOM].pickups[0].x);
   run.use();
   assert.equal(run.state.recovered, true);
@@ -426,6 +423,11 @@ test("a save keeps the room, gear and finds, and starts you at the room's door",
   assert.equal(parseDungeonState({ ...state, collected: ["cell-shinai", "cell-shinai"] }), null);
   assert.equal(parseDungeonState({ ...state, pieces: ["men"] }), null);
   assert.equal(parseDungeonState({ ...state, materials: -1 }), null);
+  assert.equal(parseDungeonState({ ...state, renBeaten: "yes" }), null);
+  const beforeDuel: Record<string, unknown> = { ...createDungeon(FINAL_ROOM, { shinai: true }) };
+  delete beforeDuel.renBeaten;
+  assert.equal(parseDungeonState(beforeDuel)?.renBeaten, false, "an older save still has Ren to face");
+  assert.equal(parseDungeonState(JSON.parse(JSON.stringify(createDungeon(FINAL_ROOM, { shinai: true, renBeaten: true }))))?.renBeaten, true);
   // The first version of the trial saved armor as a flag and no pieces: it can't be trusted, so it starts again.
   assert.equal(parseDungeonState({ room: 1, tick: 4, collected: [], shinai: true, armor: false, materials: 0, phase: "playing", checkpoint: 1 }), null);
 });

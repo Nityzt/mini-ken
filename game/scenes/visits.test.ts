@@ -13,7 +13,7 @@ import type { NodeId } from "../world/map.ts";
 import { DIALOGUE_LINES, DIALOGUE_WIDTH } from "./content.ts";
 import { clubRows, CLUB_SOLID, findTiles, RIVAL_SOLID } from "./levels.ts";
 import { REN_POINT_LESSON_AFTER } from "./content.ts";
-import { challengeLines, dojoArrival, dojoVisitor, homeArrival, homeVisitor, learnGaze, renPointOutcome, roomWithVisitor, talkToVisitor, VISITOR_SPOT } from "./visits.ts";
+import { challengeLines, dojoArrival, dojoVisitor, homeArrival, homeVisitor, learnGaze, lookAtRensThings, radishArrival, renPointOutcome, roomWithVisitor, talkToVisitor, VISITOR_SPOT } from "./visits.ts";
 import { DOJOS } from "../world/dojos.ts";
 
 const FULL = { tare: true, do: true, men: true, kote: true, shinai: true };
@@ -348,4 +348,34 @@ test("Sora, woken at Pinecone, rolls over after the first time and remembers you
   const at = challengeLines(again.run, "raccoon");
   assert.match(at[0], /from Pinecone/);
   assert.equal(at.length, challengeLines(home, "raccoon").length);
+});
+
+// Ren hidden below Thunder Radish (owner, 2026-11-11).
+const readyForRen = (): RunState => ({ ...taught(), node: "radish", beaten: ["aki", "raccoon", "goose", "heron", "otter"], seme: true, dan: 3, waza: true, linePasses: 3, bonusKi: 200 });
+
+test("walking into Thunder Radish once you're good enough, Ren's spot is empty, and that's said once", () => {
+  const first = radishArrival(readyForRen());
+  assert.ok(first && first.lines.join(" ").includes("empty"));
+  assert.equal(radishArrival(first.run), null);
+  assert.equal(radishArrival({ ...readyForRen(), beaten: [...readyForRen().beaten, "radish"] }), null);
+  assert.equal(radishArrival({ ...readyForRen(), seme: false }), null);
+});
+
+test("Ren's things point at Raiko, and looking at them counts as finding Ren gone", () => {
+  const looked = lookAtRensThings(readyForRen());
+  assert.ok(looked.lines.join(" ").includes("Raiko"));
+  assert.equal(radishArrival(looked.run), null);
+});
+
+test("Ren stops watching at Soggy Otter once you've found Ren gone from Thunder Radish", () => {
+  const atOtter = { ...readyForRen(), node: "otter" as NodeId };
+  assert.equal(dojoVisitor(atOtter, "otter"), "radish");
+  assert.equal(dojoVisitor(radishArrival(readyForRen())!.run, "otter"), null);
+  // The visit right after Kenji still says where to go, and hints nobody might be home.
+  assert.match(dojoArrival(atOtter, "otter")!.lines.join(" "), /Thunder Radish/);
+});
+
+test("every new Ren and Raiko line fits the dialogue box", () => {
+  const lines = [...radishArrival(readyForRen())!.lines, ...lookAtRensThings(readyForRen()).lines];
+  for (const line of lines) assert.ok(wrapText(line, DIALOGUE_WIDTH).length <= DIALOGUE_LINES, line);
 });

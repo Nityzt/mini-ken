@@ -1,5 +1,5 @@
 import { gradingReady, hasTicket } from "./grading.ts";
-import { dungeonObjective } from './dungeon-story.ts';
+import { dungeonObjective, renHuntObjective } from './dungeon-story.ts';
 import { heldObjective } from "./health.ts";
 import { GEAR_KI_CAP, equipmentKi } from "./equipment.ts";
 import { isOpen, LADDER, nextGoal, shortNeeds, unmet, type Unlock } from "./progress.ts";
@@ -36,6 +36,9 @@ export function currentObjective(run: RunState): string {
   if (gradingReady(run)) return OBJECTIVES.grading(danLabel(run.dan + 1));
   // Sensei's old shinai is an errand, and nothing on the ladder waits on it, so it never takes the line from the ladder.
   // It's named as a way to more ki, and once the ladder's done, as something left to do.
+  // With Ren hidden, the ladder's "beat Ren" isn't something to do yet: finding Ren is.
+  const hunt = renHuntObjective(run);
+  if (hunt) return hunt;
   const goal = nextGoal(run);
   if (goal) {
     const step = stepBefore(run, goal);

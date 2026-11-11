@@ -65,7 +65,7 @@ export function cameraFor(walker: Walker, rows: string[]): Camera {
 }
 
 const TILE_ART: Record<string, string> = { "#": "wallTop", C: "bambooCracked" };
-const ON_WALL: Record<string, string> = { r: "rack", p: "plant", N: "noticeBoard" };
+const ON_WALL: Record<string, string> = { r: "rack", p: "plant", N: "noticeBoard", I: "ironDoor" };
 
 /** A window shows this place's weather, in this place's frame. */
 const windowLooks = new Map<Crest, Record<string, string>>();

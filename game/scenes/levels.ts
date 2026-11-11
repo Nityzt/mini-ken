@@ -55,11 +55,12 @@ export function findTiles(rows: string[], char: string): { col: number; row: num
 
 // Rival dojo legend: same room tiles as the club, plus R the rival, G and E two helpers, N the notice board, V a visitor, D the way back out,
 // X the dojo's sensei, under the crest, J someone who fights in a stance of their own, s someone doing suburi, k someone in keiko, and $ the merch table.
-export const RIVAL_SOLID = "#WwDrpXRGENVJsk$";
+// I is Thunder Radish's low iron door, which only Raiko's key opens (owner, 2026-11-11).
+export const RIVAL_SOLID = "#WwDrpXRGENVJsk$I";
 
 export const RIVAL_MAP = [
   "################",
-  "#WwWNWWrWWWWwWW#",
+  "#WwWNWWrWWWIwWW#",
   "#$......X......#",
   "#......R......s#",
   "#.............s#",

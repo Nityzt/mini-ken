@@ -5,7 +5,7 @@ import { playerColors, playerName } from "../characters.ts";
 import { CUPS } from "../world/tournament.ts";
 import { drawAuraBack, drawAuraFront } from "../art/aura.ts";
 import { drawFx, drawGroundStrip, drawGuardPlate, drawStatusBar, FX_BEHIND, FX_LIFE, SPIRIT, type Fx, type FxKind } from "../art/duel-fx.ts";
-import { drawDuelBackdrop, type Crest } from "../art/backdrops.ts";
+import { drawDuelBackdrop, FLOOR_Y, type Crest } from "../art/backdrops.ts";
 import { drawShinpan, drawWatchers } from "../art/courtside-art.ts";
 import { drawFighter, drawShine, drawSwingTrail, shinaiTip, type DuelPose } from "../art/duel-sprites.ts";
 import { drawText, drawTextCentered, LINE_HEIGHT, measureText, wrapText } from "../art/font.ts";
@@ -28,6 +28,7 @@ import { gradingOutcome, recommendationOutcome, saidBy, verificationOutcome, typ
 import { payBet, withFeat } from "../money.ts";
 import { danLabel, personDan, rankLabel } from "../ranks.ts";
 import { duelOptionsFor, lossesHere, recordCupMatch, recordLoss, recordWin, rivalConfigFor } from "../run-state.ts";
+import { duelBelow, fighterBelow, scavengedGear, winRenBelow } from "../dungeon-story.ts";
 import { courtside } from "../world/courtside.ts";
 import { DOJOS, opponentById, opponentIdFor, type DojoId, type OpponentId } from "../world/dojos.ts";
 import { hpAfterMatch, HP_PER_POINT, matchHurts, reclaim, whoHolds } from "../health.ts";
@@ -682,22 +683,58 @@ function drawLockMeter(ctx: CanvasRenderingContext2D, x: number, balance: number
   ctx.fillRect(middle, top - 1, 1, 6);
 }
 
+/** The Spy Chamber under Thunder Radish, where the last match is fought: stone, two torches, and the maps on the wall. */
+function drawSpyChamber(ctx: CanvasRenderingContext2D, tick: number, reducedMotion: boolean): void {
+  const floor = stageY() + FLOOR_Y;
+  ctx.fillStyle = "#2A2530";
+  ctx.fillRect(0, 0, viewW, floor);
+  ctx.fillStyle = "#231F29";
+  for (let y = floor - 12; y > -12; y -= 12) for (let x = (Math.round((floor - y) / 12) % 2) * 12; x < viewW; x += 24) {
+    ctx.fillRect(x, y, 23, 1);
+    ctx.fillRect(x, y, 1, 12);
+  }
+  // The maps of every dojo, pinned up where Ren could study them.
+  const middle = Math.round(viewW / 2);
+  ctx.fillStyle = "#C9B98F";
+  ctx.fillRect(middle - 40, floor - 70, 34, 24);
+  ctx.fillRect(middle + 6, floor - 70, 34, 24);
+  ctx.fillStyle = "#B8323A";
+  for (const [x, y] of [[-32, -62], [-16, -54], [14, -64], [28, -52]]) ctx.fillRect(middle + x, floor + y, 2, 2);
+  for (const x of [middle - 90, middle + 88]) {
+    ctx.fillStyle = "#4A3A2A";
+    ctx.fillRect(x, floor - 50, 3, 8);
+    const flicker = reducedMotion ? 0 : (tick >> 2) % 3;
+    ctx.fillStyle = "#F2B05A";
+    ctx.fillRect(x - 1, floor - 55 - (flicker === 1 ? 1 : 0), 5, 5);
+    ctx.fillStyle = "#FBE7A1";
+    ctx.fillRect(x, floor - 53, 3, 2);
+  }
+  ctx.fillStyle = "#1E2330";
+  ctx.fillRect(0, floor, viewW, viewH - floor);
+  ctx.fillStyle = "#8A8F86";
+  ctx.fillRect(0, floor, viewW, 2);
+  ctx.fillStyle = "#2A3040";
+  for (let y = floor + 6; y < viewH; y += 8) for (let x = ((y >> 3) % 2) * 8; x < viewW; x += 16) ctx.fillRect(x + 1, y, 14, 6);
+}
+
 export function drawDuelStage(
   ctx: CanvasRenderingContext2D,
   view: DuelView,
   crest: Crest,
-  options: { opponent?: "rival" | "senior"; opponentColors?: Record<string, string>; playerColors?: Record<string, string>; insignias?: [Insignia | undefined, Insignia | undefined]; gear?: Gear; referees?: boolean; reducedMotion?: boolean; facing?: OpponentId | null; you?: 0 | 1; presentationFlipped?: boolean; showRibbons?: boolean } = {},
+  options: { opponent?: "rival" | "senior"; opponentColors?: Record<string, string>; playerColors?: Record<string, string>; insignias?: [Insignia | undefined, Insignia | undefined]; gear?: Gear; referees?: boolean; reducedMotion?: boolean; facing?: OpponentId | null; you?: 0 | 1; presentationFlipped?: boolean; showRibbons?: boolean; underground?: boolean } = {},
 ): void {
-  const { opponent = "rival", opponentColors, playerColors: playerLook, gear, referees = true, reducedMotion = false, facing = null, you = 0 } = options;
+  const { opponent = "rival", opponentColors, playerColors: playerLook, gear, referees = true, reducedMotion = false, facing = null, you = 0, underground = false } = options;
   const { duel } = view;
   const shakeX = view.shake > 0 ? (Math.floor(view.shake / SHAKE_HOLD) % 2 === 0 ? 1 : -1) : 0;
   ctx.save();
   ctx.translate(shakeX, 0);
-  drawDuelBackdrop(ctx, crest);
+  if (underground) drawSpyChamber(ctx, view.walkTick, reducedMotion);
+  else drawDuelBackdrop(ctx, crest);
   ctx.translate(stageX(), stageY());
   const side = courtside(crest, facing);
-  drawWatchers(ctx, crest, side, view.walkTick, reducedMotion, true, view.excitement > 0);
-  if (referees) drawShinpan(ctx, side, view.flags);
+  // Nobody's watching down there, and nobody's judging.
+  if (!underground) drawWatchers(ctx, crest, side, view.walkTick, reducedMotion, true, view.excitement > 0);
+  if (referees && !underground) drawShinpan(ctx, side, view.flags);
 
   // The room goes dark behind a big hit, and stays a little dark for as long as they're locked.
   const dim = view.impact > 0 && !reducedMotion ? IMPACT_DIM : duel.lock ? LOCK_DIM : 0;
@@ -865,6 +902,8 @@ export function createDuelScene(): Scene {
   let hpLoss = 0;
   /** The first time you beat someone, they've got more to say about it. */
   let firstWin = false;
+  /** Ren, at the end of the trial under Thunder Radish: a real match, fought in what you scavenged, in the dark. */
+  let below = false;
 
   /** Every point you gave up costs you, however the match ends. */
   const takeHits = (game: Game, won: boolean) => {
@@ -891,7 +930,8 @@ export function createDuelScene(): Scene {
   /** Walking away, either after a loss or instead of finishing. No result goes on the record. */
   const walkAway = (game: Game) => {
     takeHits(game, false);
-    if (knockedOut(game)) goDown(game, opposing);
+    if (below) game.go("dungeon");
+    else if (knockedOut(game)) goDown(game, opposing);
     else if (game.tournament) finishTournamentMatch(game, false);
     else if (facingRenVisit(game)) {
       game.message = [REN_LATER];
@@ -927,12 +967,15 @@ export function createDuelScene(): Scene {
     stage = game.grading;
     stake = game.bet;
     game.bet = 0;
-    hurts = matchHurts(game.run, { cup: !!game.tournament, stage });
+    below = duelBelow(game.run);
+    // The trial's health is its own, so the duel down there never knocks you out.
+    hurts = !below && matchHurts(game.run, { cup: !!game.tournament, stage });
     hitsTaken = false;
     hpLoss = 0;
     firstWin = !game.run.beaten.includes(opposing);
     // A letter's tested with one point, whoever's testing it.
-    const options = duelOptionsFor(game.run, game.versus, fullStrength);
+    // Down there you're the fighter you are anywhere: Ren's match is tuned for your own ki.
+    const options = duelOptionsFor(below ? fighterBelow(game.run) : game.run, game.versus, fullStrength);
     view = createDuelView(createDuel(stage === "verification" ? { ...options, pointsToWin: 1 } : options));
     const seed = Math.floor(Math.random() * 2 ** 31);
     const config = rivalConfigFor(game.run, game.versus, fullStrength);
@@ -979,7 +1022,8 @@ export function createDuelScene(): Scene {
           outcomeRecorded = true;
           game.run = payBet(game.run, stake, won);
           takeHits(game, won);
-          const worn = wearFrom(game.run, opposing);
+          // What you scavenged isn't yours to wear out, and your own gear is in Ren's chest.
+          const worn = below ? { run: game.run, wornOut: [] } : wearFrom(game.run, opposing);
           game.run = worn.run;
           if (!game.tournament) for (const key of worn.wornOut) game.after.push(wornOutLine(gearName(key)));
           if (won && !game.tournament) {
@@ -996,7 +1040,11 @@ export function createDuelScene(): Scene {
         if (++overTicks > OVER_MIN_TICKS && input.wasPressed("confirm")) {
           if (knockedOut(game)) goDown(game, opposing);
           else if (game.tournament) finishTournamentMatch(game, won);
-          else if (facingRenVisit(game)) {
+          else if (below && won) {
+            // The win's already on the record; the trial remembers it was won down here, and Ren has something to say.
+            game.run = winRenBelow(game.run);
+            game.go("dungeon");
+          } else if (facingRenVisit(game)) {
             game.run = renPointOutcome(game.run, won);
             game.versus = null;
             game.go("club");
@@ -1059,7 +1107,7 @@ export function createDuelScene(): Scene {
       const scripted = opposing === "renVisit";
       const inTournament = !!game.tournament;
       const crest = game.tournament ? CUPS[game.tournament.cup].crest : dojo.crest;
-      drawDuelStage(ctx, view, crest, { opponentColors: dojo.colors, playerColors: playerColors(game.run), gear: game.run.gear, reducedMotion: game.reducedMotion, facing: opposing });
+      drawDuelStage(ctx, view, crest, { opponentColors: dojo.colors, playerColors: playerColors(below ? fighterBelow(game.run) : game.run), gear: below ? scavengedGear(game.run) : game.run.gear, reducedMotion: game.reducedMotion, facing: opposing, underground: below });
       const theirDan = personDan(opposing);
       drawDuelHud(ctx, view, [`${playerName(game.run)} ${rankLabel(game.run)}`, theirDan ? `${dojo.rival} ${danLabel(theirDan)}` : dojo.rival], teachingKeys(game.input, view.duel.lock ? lockHelp(!view.duel.crossed) : helpLine(view.walkTick, game.run.seme)), 0, hurts && !hitsTaken ? Math.max(0, game.run.hp - view.duel.fighters[1].points * HP_PER_POINT) : hurts ? game.run.hp : undefined, game.input);
       const { duel } = view;

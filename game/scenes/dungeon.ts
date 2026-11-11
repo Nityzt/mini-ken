@@ -86,9 +86,11 @@ const LAIR_LINES = [
   "Maps of every dojo in the city cover the wall. Pinecone is circled in red.",
   "Beside them hangs a black mask, and a Thunder Radish gi folded neatly beneath it.",
 ];
+/** Ren catching you snooping, after Raiko's warning (owner, 2026-11-11). */
 const CAUGHT_LINES = [
-  "Ren: That door was closed for a reason.",
-  "Ren: You've seen the maps. I can't let you walk out with that. Shinai up!",
+  "Ren: That door was locked for a reason.",
+  "Ren: Raiko gave you his key, didn't he. He always did worry too much.",
+  "Ren: You've seen the maps now. I can't let you walk out with that. Shinai up!",
 ];
 const THROWN_LINES = [
   "Smoke. You can't see your own hands. Something strikes the back of your men.",
@@ -99,9 +101,17 @@ const REVEAL_LINES = [
   "Ren steps out of the shadows, masked in black, with a red scarf where a tare should be.",
   "Ren: Still going? You make a poor prisoner.",
   "Ren: Thunder Radish was a good place to hide. Every dojo in the city trusts its best student.",
-  "Ren: Your things are in that chest. Come and take them.",
+  "Ren: Your things are in that chest. Beat me properly, and they're yours.",
 ];
+/**
+ * The boss at the end is the real final duel, in the duel engine, rather than a fight of its own down here
+ * (owner, 2026-11-11): it's where seme and the gaze matter, and a second Ren fight beside it would only repeat it.
+ */
+const REN_DUEL_FIRST = ["Ren: No smoke this time. First to two points, and mind my stare. Rei."];
+const REN_DUEL_AGAIN = ["Ren: Again? I'm not going anywhere. Rei."];
+const REN_WAITS = "Ren waits by the chest. Walk up when you're ready.";
 const REN_DOWN_LINES = [
+  "Ren kneels, and pulls off the black mask.",
   "Ren: Enough. You hit like you mean it.",
   "Ren: I watch dojos for people you'll never meet. This city was only one job.",
   "Ren: Keep my secret or don't. Nobody would believe the kid from Pinecone.",
@@ -112,7 +122,7 @@ const ESCAPE_LINES = [
 /** What the dojo looks like when you come back up. Ren is there, which is the point. */
 export const RETURN_LINES = [
   "Back in the hall, Ren stands in the usual spot as if nothing happened, and doesn't look your way.",
-  "Sensei Raiko doesn't seem to know. Not yet, anyway.",
+  "Sensei Raiko catches your eye, and says nothing at all.",
 ];
 const PICKUP_NOTICES: Record<PickupKind, string> = {
   shinai: "A practice shinai, split but whole enough. J strikes.",
@@ -140,6 +150,9 @@ export function createDungeonScene(nameOf: () => string = () => "you"): Scene {
   let wake = 0;
   let tick = 0;
   let renGone = false;
+  /** Off to the duel with Ren, so coming back means it's over one way or the other. */
+  let toDuel = false;
+  let faced = false;
   let taught = new Set<string>();
   let puffs: Puff[] = [];
   /** When each guard went down, so it can fall and fade rather than vanish. */
@@ -155,7 +168,7 @@ export function createDungeonScene(nameOf: () => string = () => "you"): Scene {
   const publish = (game: Game) => {
     game.debug.dungeon = { mode, ambush, state, notice, dialogue: dialogue.active, lairX };
   };
-  const enterRoom = (game: Game) => {
+  const enterRoom = (game: Game, fromDuel = false) => {
     camera = cameraFor(state, state.player.x);
     downAt = {};
     puffs = [];
@@ -163,9 +176,24 @@ export function createDungeonScene(nameOf: () => string = () => "you"): Scene {
     if (room.hint) say(room.hint, 240);
     if (state.room === FINAL_ROOM && !state.recovered) {
       renGone = false;
-      dialogue.open(REVEAL_LINES);
-    }
+      if (!state.renBeaten) {
+        if (fromDuel) say(REN_WAITS, 240);
+        else dialogue.open(REVEAL_LINES);
+      } else if (fromDuel) {
+        game.audio.play("bell");
+        dialogue.open(REN_DOWN_LINES, () => vanishRen(), () => vanishRen());
+      } else renGone = true;
+    } else renGone = state.renBeaten;
     publish(game);
+  };
+  const duelRen = (game: Game) => {
+    const go = () => {
+      toDuel = true;
+      faced = true;
+      game.versus = null;
+      game.go("duel");
+    };
+    dialogue.open(faced ? REN_DUEL_AGAIN : REN_DUEL_FIRST, go, go);
   };
   const beginTrial = (game: Game) => {
     mode = "trial";
@@ -196,12 +224,15 @@ export function createDungeonScene(nameOf: () => string = () => "you"): Scene {
       renDrop = 0;
       wake = 0;
       noticeTicks = 0;
+      const fromDuel = toDuel;
+      toDuel = false;
       mode = dungeonStage(game.run) === "active" ? "trial" : "lair";
       if (mode === "trial") {
         state = game.run.dungeon.progress ?? createDungeon();
+        // Beaten, you're back at the chamber's door to walk up to Ren again, without redoing a room.
+        if (fromDuel && !state.renBeaten) state = createDungeon(state.room, state);
         game.run = saveDungeonProgress(game.run, state);
-        renGone = state.recovered;
-        enterRoom(game);
+        enterRoom(game, fromDuel);
       }
       publish(game);
     },
@@ -316,12 +347,6 @@ export function createDungeonScene(nameOf: () => string = () => "you"): Scene {
       if (event.type === "grab") game.audio.play("ting");
       if (event.type === "crumble") game.audio.play("dud");
       if (event.type === "throw") game.audio.play("swing");
-      if (event.type === "vanish" || event.type === "appear") {
-        game.audio.play("charge");
-        const ren = state.enemies.find((enemy) => enemy.id === event.id);
-        if (ren) puff(ren.x + PLAYER_W / 2, ren.y + PLAYER_H, 8);
-        if (event.type === "vanish") puff(before.enemies.find((enemy) => enemy.id === event.id)!.x + PLAYER_W / 2, ren!.y + PLAYER_H, 8);
-      }
       if (event.type === "pickup" || event.type === "secret") {
         game.audio.play(event.type === "secret" ? "secret" : "pickup");
         const kind = room.pickups.find((pickup) => pickup.id === event.id)!.kind;
@@ -337,10 +362,7 @@ export function createDungeonScene(nameOf: () => string = () => "you"): Scene {
       }
       if (event.type === "locked" && event.text) say(event.text, 200);
       if (event.type === "death") game.audio.play("dud");
-      if (event.type === "ren-down") {
-        game.audio.play("bell");
-        dialogue.open(REN_DOWN_LINES, () => vanishRen(), () => vanishRen());
-      }
+      if (event.type === "duel" && !dialogue.active) duelRen(game);
     }
     for (const enemy of state.enemies) {
       if (enemy.hp === 0 && downAt[enemy.id] === undefined) downAt[enemy.id] = state.tick;
@@ -366,7 +388,7 @@ export function createDungeonScene(nameOf: () => string = () => "you"): Scene {
   }
 
   function vanishRen(): void {
-    const ren = state.enemies.find((enemy) => enemy.kind === "ren");
+    const ren = DUNGEON_ROOMS[state.room].ren;
     if (ren) puff(ren.x + PLAYER_W / 2, ren.y + PLAYER_H, 12);
     renGone = true;
     say("Ren is gone in a puff of smoke. The chest is unlocked.", 200);
@@ -770,7 +792,7 @@ function drawDungeonRoom(ctx: CanvasRenderingContext2D, game: Game, state: Dunge
   ctx.translate(-Math.round(camera), 0);
   drawRoomBackdrop(ctx, game, state, tick);
   const exit = { x: room.exit.x, y: room.exit.y + PLAYER_H };
-  const unlocked = state.enemies.every((enemy) => enemy.hp === 0);
+  const unlocked = state.enemies.every((enemy) => enemy.hp === 0) && (!room.ren || state.renBeaten);
   ctx.fillStyle = "#11141E";
   ctx.fillRect(exit.x - 7, exit.y - 28, 20, 28);
   ctx.fillStyle = unlocked ? "#B1B69B" : "#6E7262";
@@ -803,28 +825,26 @@ function drawDungeonRoom(ctx: CanvasRenderingContext2D, game: Game, state: Dunge
     drawPickup(ctx, game, pickup, tick, taken);
   }
   drawTraps(ctx, game, state);
-  for (const enemy of state.enemies) drawEnemy(ctx, game, state, enemy, downAt[enemy.id], renGone);
+  for (const enemy of state.enemies) drawEnemy(ctx, game, state, enemy, downAt[enemy.id]);
+  // Ren waits on guard by the chest, and kneels once beaten, until the smoke.
+  if (room.ren && !renGone) drawSmallFighter(ctx, room.ren.x + PLAYER_W / 2, room.ren.y + PLAYER_H, state.renBeaten ? "sonkyo" : "guard", 0, { ...NO_GEAR, shinai: true }, REN_COLORS, state.player.x < room.ren.x);
   drawPlayer(ctx, game, state);
   drawPuffs(ctx, puffs);
   ctx.restore();
 }
 
-function drawEnemy(ctx: CanvasRenderingContext2D, game: Game, state: DungeonState, enemy: DungeonEnemy, downAt: number | undefined, renGone: boolean): void {
-  if (enemy.state === "vanish" && enemy.ticks > 20) return;
-  const ren = enemy.kind === "ren";
+function drawEnemy(ctx: CanvasRenderingContext2D, game: Game, state: DungeonState, enemy: DungeonEnemy, downAt: number | undefined): void {
   if (enemy.state === "down") {
-    if (ren && renGone) return;
     const since = state.tick - (downAt ?? state.tick);
-    if (!ren && since > 45) return;
-    ctx.globalAlpha = ren ? 1 : Math.max(0, 1 - since / 45);
-    drawSmallFighter(ctx, enemy.x + PLAYER_W / 2, enemy.y + PLAYER_H, ren ? "sonkyo" : "stunned", 0, { ...NO_GEAR, shinai: true }, ren ? REN_COLORS : NINJA_COLORS, enemy.facing === -1);
+    if (since > 45) return;
+    ctx.globalAlpha = Math.max(0, 1 - since / 45);
+    drawSmallFighter(ctx, enemy.x + PLAYER_W / 2, enemy.y + PLAYER_H, "stunned", 0, { ...NO_GEAR, shinai: true }, NINJA_COLORS, enemy.facing === -1);
     ctx.globalAlpha = 1;
     return;
   }
-  if (enemy.state === "vanish") ctx.globalAlpha = (20 - enemy.ticks) / 20;
   const pose: DuelPose = enemy.state === "tell" ? "tellBigRaise" : enemy.state === "strike" ? "strikeMen" : enemy.state === "recover" ? "recover" : enemy.state === "block" ? "block" : enemy.state === "aim" ? "tellHandsUp" : "guard";
   const walking = enemy.state === "patrol" || enemy.state === "chase";
-  if (!(enemy.flash && enemy.flash % 4 < 2)) drawSmallFighter(ctx, enemy.x + PLAYER_W / 2, enemy.y + PLAYER_H, pose, walking ? (state.tick >> 3) % 3 : 0, { ...NO_GEAR, shinai: enemy.kind !== "thrower" }, ren ? REN_COLORS : NINJA_COLORS, enemy.facing === -1);
+  if (!(enemy.flash && enemy.flash % 4 < 2)) drawSmallFighter(ctx, enemy.x + PLAYER_W / 2, enemy.y + PLAYER_H, pose, walking ? (state.tick >> 3) % 3 : 0, { ...NO_GEAR, shinai: enemy.kind !== "thrower" }, NINJA_COLORS, enemy.facing === -1);
   ctx.globalAlpha = 1;
   const head = { x: Math.round(enemy.x + PLAYER_W / 2), y: enemy.y - 3 };
   if (enemy.state === "alert" || enemy.state === "tell" || enemy.state === "aim") {
@@ -843,12 +863,6 @@ function drawEnemy(ctx: CanvasRenderingContext2D, game: Game, state: DungeonStat
   if (enemy.state === "block") {
     ctx.fillStyle = "#FFF6D0";
     ctx.fillRect(Math.round(enemy.x) + (enemy.facing === 1 ? 12 : -3), enemy.y + 4, 2, 2);
-  }
-  if (ren) {
-    for (let i = 0; i < 6; i++) {
-      ctx.fillStyle = i < enemy.hp ? "#ED9AA7" : "#4A3A44";
-      ctx.fillRect(head.x - 8 + i * 3, head.y - 12, 2, 2);
-    }
   }
 }
 
@@ -891,7 +905,7 @@ function drawPrompt(ctx: CanvasRenderingContext2D, game: Game, state: DungeonSta
   const room = DUNGEON_ROOMS[state.room];
   const close = (point: { x: number; y: number }, reach = 14) => Math.abs(p.x - point.x) <= reach && Math.abs(p.y - point.y) <= 10;
   let label = "";
-  const pickup = room.pickups.find((item) => !state.collected.includes(item.id) && close(item) && !(item.kind === "chest" && state.enemies.some((enemy) => enemy.hp > 0)));
+  const pickup = room.pickups.find((item) => !state.collected.includes(item.id) && close(item) && !(item.kind === "chest" && room.ren && !state.renBeaten));
   if (pickup) label = PICKUP_LABELS[pickup.kind];
   else if (room.bench && close(room.bench, 18) && !state.pieces.includes("do")) label = `Make armor (${state.materials}/${SCRAP_FOR_ARMOR} scrap)`;
   else if (close(room.exit)) label = state.room === FINAL_ROOM ? "Climb out" : "Go on";
