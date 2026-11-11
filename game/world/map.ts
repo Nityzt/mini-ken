@@ -1,4 +1,5 @@
-import type { BrawlSpec } from "../duel/brawl.ts";
+import type { BrawlSpec, BullyKind } from "../duel/brawl.ts";
+import { SPACING, type StreetPace } from "../duel/line.ts";
 
 export type NodeId =
   | "pinecone" | "crossroads" | "market" | "store" | "ravine" | "stop" | "tower" | "bridge" | "wharf" | "radish" | "station"
@@ -137,15 +138,30 @@ export const routesFrom = (from: NodeId): Route[] => ROUTES[from] ?? [];
 export const nodesIn = (district: District): NodeId[] =>
   (Object.keys(NODES) as NodeId[]).filter((id) => NODES[id].district === district);
 
+const GANG_FIRST_AT = 170;
+/** A gang stands in a row down the street, spaced like the line drill's senpai, and comes at you one at a time. */
+const gang = (...kinds: BullyKind[]): BrawlSpec[] => kinds.map((kind, i) => ({ kind, x: GANG_FIRST_AT + i * SPACING }));
+
 /** Every gang can be walked past. Fighting is always the player's choice. */
 export const GANGS: Partial<Record<NodeId, BrawlSpec[]>> & Record<string, BrawlSpec[]> = {
-  market: [{ kind: "fist", x: 200 }, { kind: "fist", x: 290 }, { kind: "fist", x: 380 }],
-  bridge: [{ kind: "fist", x: 190 }, { kind: "fist", x: 260 }, { kind: "stick", x: 350 }, { kind: "fist", x: 430 }],
-  wharf: [{ kind: "fist", x: 180 }, { kind: "stick", x: 250 }, { kind: "fist", x: 310 }, { kind: "stick", x: 390 }, { kind: "fist", x: 460 }],
-  boardwalk: [{ kind: "fist", x: 190 }, { kind: "fist", x: 270 }, { kind: "stick", x: 340 }, { kind: "fist", x: 420 }],
-  picnic: [{ kind: "fist", x: 190 }, { kind: "fist", x: 260 }, { kind: "stick", x: 330 }, { kind: "fist", x: 400 }, { kind: "stick", x: 470 }],
-  foundry: [{ kind: "stick", x: 180 }, { kind: "fist", x: 250 }, { kind: "stick", x: 320 }, { kind: "fist", x: 380 }, { kind: "stick", x: 450 }, { kind: "fist", x: 520 }],
-  gorge: [{ kind: "stick", x: 180 }, { kind: "stick", x: 250 }, { kind: "fist", x: 310 }, { kind: "stick", x: 380 }, { kind: "fist", x: 440 }, { kind: "stick", x: 510 }, { kind: "fist", x: 570 }],
+  market: gang("fist", "stick", "grab"),
+  bridge: gang("fist", "grab", "stick", "fist"),
+  wharf: gang("fist", "stick", "grab", "fist", "stick"),
+  picnic: gang("grab", "fist", "stick", "fist", "stick"),
+  boardwalk: gang("stick", "fist", "grab", "stick", "fist", "stick"),
+  foundry: gang("stick", "fist", "stick", "grab", "stick", "fist"),
+  gorge: gang("stick", "grab", "stick", "fist", "stick", "grab", "stick"),
+};
+
+/** The further out the fight, the less time each bully gives you and the quicker they come, like the harder line runs. */
+export const GANG_PACE: Record<string, StreetPace> = {
+  market: { window: 150, approach: 0.6 },
+  bridge: { window: 120, approach: 0.7 },
+  wharf: { window: 100, approach: 0.8 },
+  picnic: { window: 95, approach: 0.8 },
+  boardwalk: { window: 90, approach: 0.9 },
+  foundry: { window: 80, approach: 1 },
+  gorge: { window: 70, approach: 1 },
 };
 
 export function neighbor(from: NodeId, dir: Direction, cleared: readonly string[]): NodeId | null {

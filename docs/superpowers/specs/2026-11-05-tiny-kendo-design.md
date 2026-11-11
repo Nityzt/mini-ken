@@ -102,7 +102,7 @@ Sensei's stamina drill, with Bo receiving, from "Kirikaeshi" in Sensei's menu. T
 - **Beat and reward (my call):** Bo's beat is 34 ticks a strike on the first pass, 30 on the second, and the video's 27 after that. The first three passes are worth ki +5 each, the same cap as the line drill, so a repeatable drill can't stand in for the ladder. Every pass earns the usual drill experience and pay.
 - **Not unlocked by anything, and it unlocks nothing (my call).** It's practice you choose.
 
-### What unlocks what (owner's direction, 2026-11-05; numbers are my call)
+### What unlocks what (owner's direction, 2026-11-05, and owner, 2026-11-11, for the street fights; numbers are my call)
 You start with the home dojo only. Ki rises and techniques are learned as you play, and each one opens more of the world. **Ren is the final boss of the dojos, so every other rival comes first.** Sensei and the objective line point at what's next, but never at a street fight, because those stay your own idea. This table is one list in `progress.ts`, so a new dojo or fight is one more row. Every lock can be opened by playing what's already open, without the secret, and a test proves it.
 
 | Opens | Needs |
@@ -112,21 +112,21 @@ You start with the home dojo only. Ki rises and techniques are learned as you pl
 | Market Street fight | Line drill passed 3 times |
 | Old Gen | Line drill, ki 125 |
 | Streetcar to Cherry Park | Line drill |
-| Viaduct fight | Line drill, ki 135 |
+| Viaduct fight | Line drill passed 3 times, ki 135 |
 | Sora at Sleepy Raccoon | Ki 145 |
 | Raccoon Open | A win over Sora |
-| Harbour fight | Line drill, ki 145 |
-| Picnic fight | Line drill, ki 155 |
+| Harbour fight | Line drill passed 3 times, ki 145 |
+| Picnic fight | Line drill passed 3 times, ki 155 |
 | Streetcar to the beach | A win over Sora |
-| Boardwalk fight | Line drill, ki 165 |
+| Boardwalk fight | Line drill passed 3 times, ki 165 |
 | Hana at Angry Goose | Seme, ki 170 |
 | Commuter train, and Steel Bay | A win over Hana |
 | Goose Open | A win over Hana |
-| Foundry fight | Line drill, ki 185 |
+| Foundry fight | Line drill passed 3 times, ki 185 |
 | Mika at Iron Heron | Ki 190 |
 | Train to Misty Falls | A win over Mika |
 | Heron Open | A win over Mika |
-| Gorge fight | Line drill, ki 205 |
+| Gorge fight | Line drill passed 3 times, ki 205 |
 | Kenji at Soggy Otter | Ki 210 |
 | Otter Open | A win over Kenji |
 | Ren, the last dojo | Seme, ki 230, and wins over Sora, Hana, Mika and Kenji |
@@ -136,6 +136,8 @@ You start with the home dojo only. Ki rises and techniques are learned as you pl
 **Ki:** starts at 100. Each of the first three line passes gives +5, the first win over each senpai +5, the first win over each rival +10, each street fight and the tower +10, the tsuba +25, each dojo's cup +15 the first time you win it, and the Grand Taikai +20.
 
 **Two routes to Ren (owner: gang fights stay optional).** Ki 230 is the same as before, but it can be reached by winning cups with no street fights at all, or by street fights with no cups, or any mix. With neither, the ki isn't there. Tests pin all three.
+
+**Every street fight needs the line drill passed 3 times (owner, 2026-11-11),** because a street fight is the line drill applied for real: doing the drills is what gets you into them. A test pins it for every fight. Wherever the table says "Line drill" it means the same three passes.
 
 Every ride home is never locked. The tower has no row of its own: its path opens when the Market Street gang is beaten.
 
@@ -227,21 +229,27 @@ Tournaments are where other dojos meet. **For now every other entrant is a bot s
 - **Seme is hard to earn (owner's direction, 2026-11-05).** Old Gen won't see you until you've passed the line drill and reached ki 125. Then there are three stages, each needing two clean reps with at most three misses, against an aura as strong as Momo's: hold seme until Gen flinches, punish the flinch, then press until Gen loses patience and answer the big swing with do. Too many misses at any stage sends you away, and you start again from the first. Gen only says hello to a stranger once; coming back after being sent away, Gen just starts again. Gen's words name the opening before each strike, as the senpai's do (issue #11): let go, hold E, then J and Space for the flinch, and hold W, then L and Space for the big swing. You face Gen with ki 125, the least Gen will see you with: at the starting 100, holding seme until Gen flinched left you tired, and a tired strike was too slow to land with its stomp.
 - Losing to Momo costs nothing. After Momo is beaten, a strike breaks the screen: the prompt over it says Strike, and E does it as well as J, K or L.
 
-### The city map (owner's direction, 2026-11-05)
+### The city map (owner's direction, 2026-11-05; street fights revised by the owner, 2026-11-11)
 - **A top-down map of a lakeside city with a tower, using Toronto as the visual reference:** a needle tower on the waterfront, glass downtown, a stadium dome, a twin-tower city hall, a red streetcar, a green river ravine with a viaduct, a harbour, and islands in the lake. The city itself is unnamed, because the game's world is fictional. It's walked node to node with the movement keys, between Pinecone Dojo in the west and Thunder Radish Dojo in the east.
 - **Gangs are optional.** They stand on map points in every district. You can walk straight past, or press E to step in and help. You can reach Ren without fighting any of them, by winning cups instead (see What unlocks what).
-- **Gang fights are side-scrolling, one against many, on the same rules:** strike, stomp and full follow-through, with the skyline and tower behind them. Most bullies are unarmed and some carry sticks. Raised fists leave only the do open, and a raised stick leaves only the kote. Hits come off your health bar. Walking away sends you back to the map with the HP you have left, and losing knocks you out (see After a fight, leaving, health and talk).
+- **A street fight is the line drill, for real (owner, 2026-11-11).** It's side-scrolling, with the skyline and tower behind it, and it runs on the line drill's own code (`createStreet` in `game/duel/line.ts`). Before this, a bully who wasn't winding up was open everywhere, so mashing strikes cleared Market Street in two seconds while waiting for tells got you knocked out.
+  - **The gang comes at you one after another,** like the row of senpai. The rest hang back while it isn't their turn. Each bully walks up to striking distance, squares up shut for a moment, then gives one opening, and what they do says which: fists up high leave only the do, a raised stick only the kote, and a lunge low to grab only the men. These are the line drill's openings for the same targets (arms high, hands rise, tip dips), and bare hands are drawn plainly so they read at 256x144.
+  - **The answer is the line drill's:** the right strike, the fumikomi and the slide through towards the next one. A clean answer drops that bully.
+  - **Anything else is a miss, and a miss gets you hit:** a wrong target, no stomp, no follow-through, waiting until their bar runs out, or striking while they're still shut ("Too early!"). They're always shut for longer than a swing and its recovery take, so a mashed strike always lands before the opening. That bully hits you (a fist or a grab costs 15 HP, a stick 20), throws you back a step, and comes again. Doing nothing loses too, because nobody waits for you. Tests pin that a clean reader clears every fight untouched, and that mashing any keys and doing nothing both lose Market Street, the Viaduct and the Gorge.
+  - **Harder further out,** like the harder line runs: Market Street gives each bully the first line run's 2.5 seconds, and each fight after is longer, quicker and has more sticks, down to 7 bullies and about 1.2 seconds at the Gorge.
+  - **Key prompts** show over each opening in your first two street fights, whichever they are, like the line's first two runs, and never after. The timer bar always shows. The first fight's card says it's the line drill, for real, and lists which key answers what.
+  - Seme still works on everyone nearby, who cower together, and a cowering bully is open everywhere. Hits come off your health bar. Walking away sends you back to the map with the HP you have left, and losing knocks you out (see After a fight, leaving, health and talk).
 - **Rewards:** each gang beaten gives +10 ki, once. Beating the Market Street gang opens the path from the streetcar stop to the tower, whose view gives +10 ki once.
 - **After beating Ren** you can go back out into the city.
 
-### The city, part two (owner's direction, 2026-11-05)
+### The city, part two (owner's direction, 2026-11-05; street fights revised by the owner, 2026-11-11)
 **Map quality**
 - The city is darkened to a dusk tone so it sits behind everything you can use. Paths, stops, gangs and dojos stay bright. Paths are a solid bright line with a dark edge, and every place stands on a colored marker.
 - Every gang shows the person in trouble and a blinking "!" bubble. Once it's dealt with, that spot shows a heart instead.
 
 **Why you're fighting**
 - The bullies are one named gang, the Alley Cats. You never attack strangers: you step in because someone is calling for help.
-- Each gang has a person in trouble and very little dialogue: one line asking for help, one taunt from the gang, and one line of thanks with the reward. The person in trouble stands at the far end of the fight.
+- Each gang has a person in trouble and very little dialogue: one line asking for help, one taunt from the gang, and one line of thanks with the reward. The person in trouble stands at the far end of the fight, past the row of bullies, so the last slide through brings you to them.
 - Backing off or losing leaves the person waiting, and the fight can be tried again. Losing also knocks you out. Fights stay optional.
 
 **The streetcar**
@@ -461,7 +469,7 @@ Once this design is approved, it is saved to `docs/superpowers/specs/2026-11-05-
 
 The owner played the duel on 2026-11-05: "definitely is fun and feels like kendo", and challenging but fun. It is good enough for now.
 
-- **Quick-time events (built 2026-11-05, my call on when they show):** when a tell is showing, a small box over the opponent names the key that answers it, with a timer. They always show against senpai, in the line drill's first two runs, against Sora and in your first street fight. Later rivals only show them after beating you twice. Momo and the tournament never do, and Ren only does once you know the far-mountain gaze. The zanshin prompt and meter stay as they were.
+- **Quick-time events (built 2026-11-05, my call on when they show):** when a tell is showing, a small box over the opponent names the key that answers it, with a timer. They always show against senpai, in the line drill's first two runs, against Sora and in your first two street fights. Later rivals only show them after beating you twice. Momo and the tournament never do, and Ren only does once you know the far-mountain gaze. The zanshin prompt and meter stay as they were.
 
 ## What's next
 

@@ -213,6 +213,7 @@ export const LINE_SLOW = "Too slow!";
 export const LINE_PASSED_BY = "Walked past!";
 export const LINE_TOO_CLOSE = "Too close! Strike again";
 export const LINE_MISSED = "Miss!";
+export const LINE_EARLY = "Too early!";
 export const LINE_HELP = "J men  K kote  L do  Space stomp";
 /** "Aki, Bo or Yui", "Bo or Yui", or just "Yui". */
 export const eitherOf = (names: string[]): string => (names.length > 1 ? `${names.slice(0, -1).join(", ")} or ${names.at(-1)}` : names[0] ?? "");
@@ -497,6 +498,7 @@ export const MAP_HELP: Record<string, string> = {
   store: "Arrows or WASD walk   E go inside",
 };
 export const BRAWL_HELP = "Walk back past the start to leave";
+export const BRAWL_SEME_HELP = "Hold I: seme   Space while holding: kiai";
 export const KEI_LINES = [
   "Kei: Ren's shinai tells a story before it moves. Watch it, not the feet.",
   "Kei: Hide behind your guard and Ren leans in with that stare. It leaves Ren wide open.",
@@ -711,6 +713,7 @@ export function allContentLines(): string[] {
     LINE_PASSED_BY,
     LINE_TOO_CLOSE,
     LINE_MISSED,
+    LINE_EARLY,
     LINE_HELP,
     // The longest anyone's list of who's left can be.
     ...[...SENSEI_ROUND_DONE, ...SENSEI_WAITING].map((line) => line(eitherOf(["Aki", "Bo", "Yui"]))),
@@ -786,6 +789,7 @@ export function allContentLines(): string[] {
     TOWER_AGAIN,
     ...Object.values(MAP_HELP),
     BRAWL_HELP,
+    BRAWL_SEME_HELP,
     DOOR_LOCKED,
     TITLE_CONTINUE,
     TITLE_NEW,

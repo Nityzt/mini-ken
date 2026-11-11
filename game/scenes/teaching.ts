@@ -3,7 +3,7 @@ import { parryShine } from "../duel/poses.ts";
 import { exposedTargets, type DuelState, type Target } from "../duel/rules.ts";
 import type { Game } from "../core/scene.ts";
 import type { RunState } from "../run-state.ts";
-import { BRAWL_HELP, LESSON_PROMPTS, LINE_NO_KEYS } from "./content.ts";
+import { LESSON_PROMPTS, LINE_NO_KEYS } from "./content.ts";
 import type { TeachCard, TeachCards, TeachKey } from "./teach-card.ts";
 
 const SLIDE: TeachKey = ["D", "hold to slide through"];
@@ -76,8 +76,8 @@ export const LINE_NO_KEYS_CARD: TeachCard = {
 };
 export const BRAWL_CARD: TeachCard = {
   title: "Street fight",
-  text: `Nobody's refereeing. They hit back, and that costs you health. ${BRAWL_HELP}.`,
-  keys: [MOVE, ["J K L", "men, kote, do"], ["Space", "stomp with the strike"], ["S", "hold to block"], ["A D", "hold forward after a hit"]],
+  text: "Sensei Kuma: It's the line drill, for real. One at a time, one opening each. Miss, and they hit you.",
+  keys: [["L", "fists up high: do"], ["K", "stick raised: kote"], ["J", "lunging low: men"], ["Space", "stomp with the strike"], SLIDE],
 };
 
 /** What someone going online hasn't been shown yet. Having been asked once is enough, whatever they said. */
