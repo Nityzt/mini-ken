@@ -268,7 +268,7 @@ export const PEOPLE: Record<string, Person> = {
       { id: "often", when: lostOften("radish"), line: "Ren: You keep coming back. I did that too, once. That's how I ended up like this." },
       { id: "lost", when: lostTo("radish"), line: "Ren: You looked at my eyes again. Everyone does." },
       { id: "champion", when: champion, line: "Ren: Champion. It's quiet up there, isn't it?" },
-      { id: "beat", when: beat("radish"), line: "Ren: Nobody's beaten me in here for a while. I'm still deciding how I feel about it." },
+      { id: "beat", when: beat("radish"), line: "Ren: Nobody's beaten me down there before. I'm still deciding how I feel about it." },
     ],
     small: [
       "Ren: I used to sweep Sensei Kuma's floor. Tell them I still think about the corners.",
@@ -314,7 +314,7 @@ export const PEOPLE: Record<string, Person> = {
     news: [
       { id: "renMissing", when: (run) => raikoOffersRen(run) && renMissing(run), line: RAIKO_REN_NEWS },
       { id: "lost", when: lostTo("raiko"), line: "Sensei Raiko: You heard the thunder and then you looked for the flash. Next time, the other way round." },
-      { id: "ren", when: beat("radish"), line: "Sensei Raiko: You beat Ren in my own dojo. I raised that child to be unbeatable, and I'm oddly pleased." },
+      { id: "ren", when: beat("radish"), line: "Sensei Raiko: You beat Ren under my own floor. I raised that child to be unbeatable, and I'm oddly pleased." },
       { id: "beat", when: beat("raiko"), line: "Sensei Raiko: The storm passes. It always comes back. Come and see it again some time." },
     ],
     small: [...SENSEI_RAIKO_LINES, "Sensei Raiko: A dojo should be loud. Loud is honest. Quiet is when someone's about to hit you."],
