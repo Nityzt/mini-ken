@@ -120,6 +120,10 @@ export const FUMI_OFFER = [
   "Fumi: Your first shinai of your own? There's a fine one on my shelf. It's good to swing, and it won't teach you a thing.",
   "Fumi: To fix your Sensei's, you have to know how they're made. Bring me bamboo from Ravine Trail, and I'll show you.",
 ];
+/** Fumi noticing what you've got on, or what's become of Sensei's old shinai. Each is said once. */
+export const FUMI_RETURNED = "Fumi: Your Sensei's old shinai is back on the rack, I hear. That's how bamboo gets to be old.";
+export const fumiOwnWork = (name: string) => `Fumi: The ${name.toLowerCase()}. One of mine. Bring it back when it creaks, and don't wait till it splits.`;
+export const fumiElsewhere = (name: string) => `Fumi: A ${name.toLowerCase()}? Not one of mine. Good work, though. I'd have tied it tighter.`;
 export const FUMI_WAITING = "Fumi: The fine one's on the shelf. Bring me bamboo from Ravine Trail, and I'll teach you to make and mend your own.";
 export const GEN_BAMBOO = [
   "Old Gen: Fumi sent you for bamboo? Hm. Not that one. Not that one. Four winters old, no younger.",
@@ -695,6 +699,10 @@ export function allContentLines(): string[] {
     SENSEI_STILL_WAITING,
     ...FUMI_OFFER,
     FUMI_WAITING,
+    FUMI_RETURNED,
+    ...[1, 2, 3, 4].flatMap(tachiaiReady),
+    fumiOwnWork("Deerskin kote"),
+    fumiElsewhere("Blossom tare"),
     ...GEN_BAMBOO,
     ...FUMI_BUILD_START,
     ...SHINAI_STEPS.flatMap((step) => [step.question, step.wrong, ...step.options.map((option) => option.label)]),
@@ -1040,7 +1048,13 @@ export const KIHON_PASSED = ["Examiner Ono: Your feet and your hands arrived tog
 export const KIHON_FAILED = ["Examiner Ono: Not clean enough. Your ticket's still good, so come back up when you're ready."];
 export const KIHON_LEFT = "Examiner Ono: You stepped out. Your ticket's still good.";
 export const KIHON_TITLE = "Demonstration";
-export const TACHIAI_READY = ["Examiner Ono: Now one bout, against another candidate. Win it cleanly."];
+/** Who you're paired with at each rank, as Ono reads them off the list. */
+const CANDIDATE_NOTES: Record<number, string> = {
+  1: "Asa, here for 1st dan too. Steady, and a little nervous.",
+  2: "Ume, here for 2nd dan too. Ume can wait a long time.",
+  3: "Goro, here for 3rd dan too. Goro doesn't stop.",
+};
+export const tachiaiReady = (dan: number): string[] => [`Examiner Ono: Now one bout, against ${CANDIDATE_NOTES[dan] ?? "another candidate."} Win it cleanly.`];
 export const GRADING_FAILED = ["Examiner Ono: Not today. There's no shame in that, and most people fail a few. Your ticket's still good."];
 export const gradingPassed = (rank: string) => [`Examiner Ono: You've shown us enough, <name>. You're ${rank}. Your ride home is at the door.`];
 export const GRADING_DONE = ["Three dan is as far as anyone here can send you. Above that, you'd need a bigger table."];

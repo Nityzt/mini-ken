@@ -8,7 +8,7 @@ import { createRunState, type RunState } from "../run-state.ts";
 import { answerOffer, answerWhy, talkToMomo, talkToSensei } from "./club-story.ts";
 import { fixGear } from "../durability.ts";
 import { GEN_BAMBOO, returnLines, SENSEI_MINE_STILL_CRACKED, SENSEI_OFFER, SENSEI_STILL_WAITING, SENSEI_WANTS_IT_BACK, SENSEI_WHY, SHINAI_STEPS, WHY_OPTIONS, WHY_REPLY } from "./content.ts";
-import { finishBuilding, genOnBamboo, shinaiObjective, shopArrival, stepIsRight } from "./shinai-story.ts";
+import { finishBuilding, fumiNotices, genOnBamboo, shinaiObjective, shopArrival, stepIsRight } from "./shinai-story.ts";
 
 const inGi = (): RunState => ({ ...createRunState(), metSenpai: true, gi: true });
 const dan = (): RunState => ({ ...inGi(), senseiRounds: 3, trained: true, dan: 1, whyKendo: "hit", gear: { tare: true, do: true, men: true, kote: true, shinai: true } });
@@ -141,6 +141,23 @@ test("you pick which shinai you carry from the inventory, and only ever swap", (
   assert.ok(isWorn(toggleWorn(picked, "shinai"), "shinai"));
   assert.equal(asShinai("do"), null);
   assert.equal(toggleWorn(dan(), "ownShinai").wielded, "", "not one you haven't got");
+});
+
+test("Fumi notices Sensei's shinai going home, then what you're wearing, once each and only if it's true (owner, 2026-11-11)", () => {
+  const made = finishBuilding(dan());
+  // Nothing to notice yet, and nothing before the shinai's been made.
+  assert.equal(fumiNotices(made), null);
+  assert.equal(fumiNotices({ ...dan(), shinaiQuest: "returned", equipped: { kote: "deerKote" } }), null);
+  const home = fumiNotices({ ...made, shinaiQuest: "returned" });
+  assert.match(home!.lines[0], /back on the rack/);
+  assert.equal(fumiNotices(home!.run), null);
+  // Owning something isn't wearing it.
+  assert.equal(fumiNotices({ ...made, owned: ["deerKote", "forgeDo"] }), null);
+  const mine = fumiNotices({ ...made, equipped: { kote: "deerKote" } });
+  assert.match(mine!.lines[0], /deerskin kote\. One of mine/);
+  const theirs = fumiNotices({ ...mine!.run, equipped: { kote: "deerKote", do: "forgeDo" } });
+  assert.match(theirs!.lines[0], /forge do\? Not one of mine/);
+  assert.equal(fumiNotices({ ...theirs!.run, equipped: { do: "mistMen" } }), null);
 });
 
 test("nobody holding a shinai from an older save has to answer anything", () => {
