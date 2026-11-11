@@ -145,7 +145,8 @@ export function createGradingHallScene(nameOf: () => string): Scene {
       // Ono does the talking, from the middle of the panel.
       const ono = panel[1];
       const figures = { P: figureAt(ctx, ono.col * TILE - cam.x + 8, ono.row * TILE - 4 - cam.y, ono.row * TILE + 16 - cam.y) };
-      dialogue.render(ctx, speakersIn(figures, { "Examiner Ono": "P" }, yours, "P"));
+      // Everything the panel says has Ono's name on it, so a line without one is the hall itself, along the bottom.
+      dialogue.render(ctx, speakersIn(figures, { "Examiner Ono": "P" }, yours, null));
     },
   };
 }
