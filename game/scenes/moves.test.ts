@@ -79,16 +79,34 @@ function runVisit(rows: string[], solid: string, player: Walker) {
   return { visit };
 }
 
-test("someone arriving walks in the door and ends up next to you, on open floor, wherever you're standing", () => {
+test("someone arriving walks in the door and stops a talking distance from you, on open floor, wherever you're standing", () => {
+  // Off the middle of a tile too, since that's where people really stand (late-game playtest: Mika and Ren stopped almost on top of you).
   for (const { name, rows, solid } of rooms) {
     rows.forEach((line, row) => {
       for (let col = 0; col < line.length; col++) {
         if (solid.includes(line[col])) continue;
-        const player = walkerAt(col, row, "down");
-        const { visit } = runVisit(rows, solid, player);
-        const at = tileOf(visit.walker);
-        assert.equal(Math.abs(at.col - col) + Math.abs(at.row - row), 1, `${name}: at ${at.col},${at.row} for ${col},${row}`);
-        assert.ok(!solid.includes(rows[at.row][at.col]), `${name}: standing in ${rows[at.row][at.col]}`);
+        for (const nudge of [0, -5, 5]) {
+          const player = walkerAt(col, row, "down");
+          player.box = { ...player.box, x: player.box.x + nudge };
+          const { visit } = runVisit(rows, solid, player);
+          const at = tileOf(visit.walker);
+          const where = `${name}: at ${at.col},${at.row} for ${col},${row}${nudge ? ` nudged ${nudge}` : ""}`;
+          assert.ok(Math.abs(at.col - col) + Math.abs(at.row - row) <= 2 && (at.col !== col || at.row !== row), where);
+          assert.ok(!solid.includes(rows[at.row][at.col]), `${name}: standing in ${rows[at.row][at.col]}`);
+          // Boxed in, they still come as close as they can, but anywhere else there's room for both of you.
+          const roomy = [[-1, 0], [1, 0], [0, 2], [0, -2], [-2, 0], [2, 0]].some(([dc, dr]) => {
+            const char = rows[row + dr]?.[col + dc];
+            const x = (col + dc) * TILE + 3;
+            const y = (row + dr) * TILE + 8;
+            return char !== undefined && !solid.includes(char) && (Math.abs(x - player.box.x) >= 14 || Math.abs(y - player.box.y) >= 24);
+          });
+          // Standing in the doorway shuts them out, so they squeeze past as before.
+          const door = findTiles(rows, "D")[0];
+          if (!roomy || Math.abs(col - door.col) + Math.abs(row - door.row) <= 1) continue;
+          const dx = Math.abs(visit.walker.box.x - player.box.x);
+          const dy = Math.abs(visit.walker.box.y - player.box.y);
+          assert.ok(dx >= 14 || dy >= 24, `${where}: only ${dx},${dy} apart`);
+        }
       }
     });
   }

@@ -63,6 +63,11 @@ export function createEntrance(walker: Walker, door: Tile, start: Tile | Tile[],
 }
 
 const NEIGHBOURS: [number, number][] = [[0, 1], [-1, 0], [1, 0], [0, -1]];
+/** Where a visitor stops to talk, best first: either side of you, then a tile further off above or below, then further off to the side. */
+const STANDING: [number, number][] = [[-1, 0], [1, 0], [0, 2], [0, -2], [-2, 0], [2, 0]];
+/** Far enough apart, measured between where each of you stands, that one isn't drawn over the other. People are about 12 wide and 20 tall. */
+const TALK_GAP_SIDE = 14;
+const TALK_GAP_UP = 24;
 const centerOf = (walker: Walker) => ({ x: walker.box.x + walker.box.w / 2, y: walker.box.y + walker.box.h / 2 });
 
 function faceEachOther(a: Walker, b: Walker): void {
@@ -92,19 +97,31 @@ export function createVisit(setup: { rows: string[]; solid: string; start: Tile;
   const rows = setup.rows.map((line, row) => (row === door.row ? line.slice(0, door.col) + "." + line.slice(door.col + 1) : line));
   const free: TileMap = { rows, solid: "", tile: TILE };
   const walker: Walker = { ...createWalker(start.col, start.row), facing: "down" };
-  /** The shortest way from `from` to a free spot beside you. */
-  const routeTo = (from: Tile, you: Tile): Tile[] => {
-    const open = NEIGHBOURS.map(([dc, dr]) => ({ col: you.col + dc, row: you.row + dr })).filter((t) => {
-      const char = setup.rows[t.row]?.[t.col];
-      return char !== undefined && !solid.includes(char);
+  const isOpen = (t: Tile) => {
+    const char = setup.rows[t.row]?.[t.col];
+    return char !== undefined && !solid.includes(char);
+  };
+  /**
+   * The shortest way from `from` to a free spot a talking distance from you: beside you by preference, or a tile
+   * further off above or below, since a tile's not enough room for two people one over the other. It's measured from
+   * where you really are, which isn't always the middle of your tile.
+   */
+  const routeTo = (from: Tile, you: Tile, at: { x: number; y: number }): Tile[] => {
+    const spots = STANDING.map(([dc, dr]) => ({ col: you.col + dc, row: you.row + dr })).filter(isOpen);
+    const roomy = spots.filter((t) => {
+      const p = pointOf(t);
+      return Math.abs(p.x - at.x) >= TALK_GAP_SIDE || Math.abs(p.y - at.y) >= TALK_GAP_UP;
     });
-    const routes = open.map((t) => ({ to: t, path: findPath(rows, solid, from, t, [you]) }));
-    const walkable = routes.filter((r) => r.path).sort((a, b) => a.path!.length - b.path!.length)[0];
-    // Shut off from the door somehow, they're simply on their way over regardless.
-    return walkable?.path ?? [open[0] ?? from];
+    const routes = roomy.map((t, rank) => ({ rank, path: findPath(rows, solid, from, t, [you]) }));
+    // Beside you if that's open and they can get there, and otherwise the nearest of the rest.
+    const walkable = routes.filter((r) => r.path).sort((a, b) => (a.rank < 2) !== (b.rank < 2) ? a.rank - b.rank : a.path!.length - b.path!.length)[0];
+    if (walkable) return walkable.path!;
+    // Boxed in, or shut off from the door somehow, they're simply on their way over regardless.
+    const near = NEIGHBOURS.map(([dc, dr]) => ({ col: you.col + dc, row: you.row + dr })).filter(isOpen);
+    return near.map((t) => findPath(rows, solid, from, t, [you])).find((path) => path) ?? [roomy[0] ?? near[0] ?? from];
   };
   let heading = tileOf(player);
-  let trail = trailOf(start, routeTo(start, heading));
+  let trail = trailOf(start, routeTo(start, heading, player.box));
   let phase: VisitPhase = setup.alreadyHere ? "talking" : "coming";
   if (setup.alreadyHere) faceEachOther(walker, player);
 
@@ -127,7 +144,7 @@ export function createVisit(setup: { rows: string[]; solid: string; start: Tile;
         // They finish the step they're on rather than turn back mid-tile.
         const next = trail.points[trail.at];
         const from = next ? { col: Math.round((next.x - pointOf(start).x) / TILE) + start.col, row: Math.round((next.y - pointOf(start).y) / TILE) + start.row } : tileOf(walker);
-        trail = trailOf(from, routeTo(from, you));
+        trail = trailOf(from, routeTo(from, you, current.box));
       }
       if (phase === "coming" && walk(walker, trail, free)) {
         faceEachOther(walker, current);
