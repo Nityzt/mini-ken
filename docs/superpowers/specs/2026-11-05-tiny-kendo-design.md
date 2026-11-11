@@ -194,7 +194,7 @@ You meet the people you'll fight long before you fight them.
 ### People with lives of their own (owner's direction, 2026-11-05; details are my call)
 - **Routines.** Each group in a room picks an activity at random: suburi or keiko most often, or footwork, chatting or resting. It keeps it for a fixed 15 seconds, then picks again, and each visit rolls a new day. A group always moves together.
 - **Talking.** While a group's chatting, one person at a time says something over their head. Named people standing near each other talk some of the time too. All of this stops with reduced motion.
-- **Moods.** Each match rolls how long the opponent waits between swings (20% quicker to 25% slower) and which strike they favour. It never touches a tell, and rigged fights keep to their script. A test checks that no mood lets mashing or holding block win.
+- **Moods.** Each match rolls how long the opponent waits between swings (20% quicker to 25% slower) and which strike they favour. It never touches a tell, and rigged fights keep to their script. A test checks that no mood lets mashing or holding block win. The bow screen says it in words that fit the person, chosen by how they fight ("Mika could wait all day", "Hana is fired up"), so it never calls Mika restless or Hana calm (late-game playtest, 2026-11-10).
 
 ### Tournaments (owner's direction, 2026-11-05)
 Tournaments are where other dojos meet. **For now every other entrant is a bot standing in for a dojo, and later they can be real people.**

@@ -937,7 +937,7 @@ export function createDuelScene(): Scene {
     const seed = Math.floor(Math.random() * 2 ** 31);
     const config = rivalConfigFor(game.run, game.versus, fullStrength);
     const mood = moodOf(config, seed ^ 0x5bd1e995);
-    moodText = mood ? moodLine(opponentById(opposing).rival, mood.pace, mood.favourite) : null;
+    moodText = mood ? moodLine(opponentById(opposing).rival, mood.pace, mood.favourite, opponentById(opposing).style) : null;
     rival = createRival(seed, withMood(config, seed ^ 0x5bd1e995));
     control = createPlayerControl();
     outcomeRecorded = false;

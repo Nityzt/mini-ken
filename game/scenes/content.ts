@@ -1,4 +1,5 @@
 import type { Gear } from "../art/kendoka.ts";
+import type { RivalStyle } from "../duel/rival.ts";
 
 export const DIALOGUE_WIDTH = 228;
 export const DIALOGUE_LINES = 3;
@@ -863,10 +864,34 @@ export const GOOSE_ARRIVALS = ["Angry Goose Dojo. There's a feather on the floor
 export const RACCOON_ARRIVALS = ["Sleepy Raccoon Dojo. Someone's snoring in the back. It may be the senior student.", "Sleepy Raccoon Dojo. The lanterns are lit, though it's the middle of the day."];
 export const HERON_ARRIVALS = ["Iron Heron Dojo. Today the mill has stopped, and the quiet is somehow worse.", "Iron Heron Dojo. Nobody looks up. A few of them may not have moved since yesterday."];
 export const OTTER_ARRIVALS = ["Soggy Otter Dojo. A bucket's filling up somewhere. Someone cheers when it overflows.", "Soggy Otter Dojo. It's stopped raining, and everyone seems a little disappointed."];
-const PACE: Record<"quick" | "calm" | "slow", string> = { quick: "is restless", calm: "looks calm", slow: "is unhurried" };
+type Pace = "quick" | "calm" | "slow";
+const PACE: Record<Pace, string> = { quick: "is restless", calm: "looks calm", slow: "is unhurried" };
+/**
+ * The same three paces in words that fit the person, so the mood never says Mika is restless or Hana looks calm.
+ * Quick still reads quick and slow still reads slow, because it's always the truth about when they'll swing.
+ */
+const PACE_BY_STYLE: Partial<Record<RivalStyle, Record<Pace, string>>> = {
+  steady: { quick: "is keen today", calm: "looks settled", slow: "is taking it easy" },
+  fierce: { quick: "can't keep still", calm: "is fired up", slow: "is simmering" },
+  restless: { quick: "is bouncing", calm: "is fidgeting", slow: "is nearly still" },
+  wall: { quick: "is shifting", calm: "is a wall", slow: "hasn't moved" },
+  exact: { quick: "is sharp today", calm: "looks precise", slow: "is taking aim" },
+  sneaky: { quick: "is wide awake", calm: "is half asleep", slow: "is nodding off" },
+  patient: { quick: "is impatient today", calm: "is perfectly still", slow: "could wait all day" },
+  relentless: { quick: "is raring to go", calm: "won't stand still", slow: "is less frantic" },
+  master: { quick: "is ready to strike", calm: "is watching", slow: "is in no hurry" },
+  jodan: { quick: "is itching to go", calm: "holds jodan high", slow: "waits overhead" },
+  nito: { quick: "is eager", calm: "is balanced", slow: "is unhurried" },
+  sensei: { quick: "means business", calm: "is watching you", slow: "takes their time" },
+  fury: { quick: "is seething", calm: "is smouldering", slow: "is simmering" },
+  torrent: { quick: "is in full flood", calm: "is flowing", slow: "is ebbing" },
+  iron: { quick: "is red hot", calm: "is cold iron", slow: "won't budge" },
+  shadow: { quick: "is wide awake", calm: "is drowsing", slow: "seems fast asleep" },
+};
 const FAVOURITE: Record<string, string> = { men: "men", kote: "kote", do: "do", bigMen: "big men", quickMen: "quick men" };
 /** What you can tell about someone just from looking at them across the court. It's always true. */
-export const moodLine = (name: string, pace: "quick" | "calm" | "slow", favourite: string) => `${name.replace("Sensei ", "")} ${PACE[pace]}. Watch for ${FAVOURITE[favourite] ?? favourite}.`;
+export const moodLine = (name: string, pace: Pace, favourite: string, style?: RivalStyle) =>
+  `${name.replace("Sensei ", "")} ${(style && PACE_BY_STYLE[style]?.[pace]) ?? PACE[pace]}. Watch for ${FAVOURITE[favourite] ?? favourite}.`;
 export const tipLine = (amount: number) => `Someone presses ${amount} kensen on you as you leave. "For your trouble."`;
 /** Getting a ticket from somewhere else: you beat someone at another dojo, and bring a letter home. */
 export const awayOffer = (name: string) => `${name}: Beat me, and I'll write you a letter for the panel. Your own dojo still gets the last word.`;

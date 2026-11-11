@@ -126,3 +126,23 @@ test("the Grand Taikai ending is Ren, then Sensei, says where the badge is, and 
   assert.match(TAIKAI_ENDING.join(" "), /Progress page/);
   for (const line of TAIKAI_ENDING) assert.ok(wrapText(line, DIALOGUE_WIDTH).length <= DIALOGUE_LINES, line);
 });
+
+test("a mood is in words that fit the person, and fits on the bow screen (late-game playtest)", async () => {
+  const { CANDIDATES, DOJO_SENSEIS, MEMBERS, SENSEI, SPAR_PARTNERS } = await import("../world/dojos.ts");
+  const everyone = [...Object.values(DOJOS_), ...Object.values(MEMBERS), ...Object.values(DOJO_SENSEIS), ...Object.values(SPAR_PARTNERS), ...Object.values(CANDIDATES), SENSEI];
+  const said = (name: string, style: Parameters<typeof moodLine>[3], pace: "quick" | "calm" | "slow") => moodLine(name, pace, "men", style);
+  for (const person of everyone) {
+    if (person.style === "rigged" || person.style === "demonstration") continue;
+    const words = (["quick", "calm", "slow"] as const).map((pace) => said(person.rival, person.style, pace));
+    assert.equal(new Set(words).size, 3, person.rival);
+    for (const favourite of ["men", "kote", "do", "bigMen"]) for (const pace of ["quick", "calm", "slow"] as const) {
+      const line = moodLine(person.rival, pace, favourite, person.style);
+      assert.ok(measure_(line) <= STAGE_W_ - 8, line);
+    }
+  }
+  for (const pace of ["quick", "calm", "slow"] as const) {
+    assert.doesNotMatch(said("Mika", "patient", pace), /restless/);
+    assert.doesNotMatch(said("Hana", "fierce", pace), /calm/);
+    assert.doesNotMatch(said("Kenji", "relentless", pace), /calm|unhurried/);
+  }
+});
