@@ -119,3 +119,10 @@ test("kirikaeshi's help, a line at a time, fits along the bottom at the smallest
   for (const line of Object.values(KIRIKAESHI_HELP)) assert.ok(measureText(line) <= STAGE_W - 4, line);
   for (const side of Object.values(KIRIKAESHI_SIDE)) assert.ok(measureText(`A ${side}`) <= STAGE_W / 3, side);
 });
+
+test("the Grand Taikai ending is Ren, then Sensei, says where the badge is, and every line fits", async () => {
+  const { TAIKAI_ENDING } = await import("./content.ts");
+  assert.deepEqual([...new Set(TAIKAI_ENDING.map((line) => line.split(":")[0]))], ["Ren", "Sensei Kuma"]);
+  assert.match(TAIKAI_ENDING.join(" "), /Progress page/);
+  for (const line of TAIKAI_ENDING) assert.ok(wrapText(line, DIALOGUE_WIDTH).length <= DIALOGUE_LINES, line);
+});

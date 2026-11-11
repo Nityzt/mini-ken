@@ -26,13 +26,16 @@ test("once you're armored and Ren's had their one point, it follows the ladder",
   assert.match(currentObjective(run), /city/i);
 });
 
-test("with everything open, it points at the Grand Taikai, and then there's nothing left to chase", () => {
+test("with everything open, it points at the Grand Taikai, and then at whatever's still open", () => {
   const everything: RunState = {
     ...start, metSenpai: true, gi: true, senseiRounds: 3, trained: true, gear: FULL_GEAR, seme: true, linePasses: 3, bonusKi: 200, dan: 3, shinaiQuest: "returned",
     beaten: ["aki", "raccoon", "goose", "heron", "otter", "radish"],
   };
   assert.match(currentObjective(everything), /Grand Taikai/);
-  assert.equal(currentObjective({ ...everything, champion: true }), "");
+  const champion = currentObjective({ ...everything, champion: true });
+  assert.match(champion, /, online play$/);
+  assert.match(champion, /Pinecone Cup/);
+  assert.ok(measureText(champion) <= STAGE_W - 14, champion);
 });
 
 test("it walks you through a grading: ask, then use the ticket", () => {
@@ -101,4 +104,20 @@ test("Sensei's old shinai never takes the line from the ladder (late-game playte
   // Later, with the whole ladder done, it's the one thing left to say.
   const done: RunState = { ...firstDan, dan: 3, bonusKi: 200, beaten: ["aki", "bo", "yui", "raccoon", "goose", "heron", "otter", "radish"], champion: true, shinaiQuest: "asked" };
   assert.match(currentObjective(done), /shinai/i);
+});
+
+test("after the Grand Taikai it offers what's left, and always fits", () => {
+  const base: RunState = { ...start, metSenpai: true, gi: true, senseiRounds: 3, trained: true, gear: FULL_GEAR, seme: true, linePasses: 3, bonusKi: 200, dan: 3, champion: true, beaten: ["aki", "raccoon", "goose", "heron", "otter", "radish"] };
+  const all = currentObjective({ ...base, shinaiQuest: "asked" });
+  assert.match(all, /^Sensei's shinai, /);
+  assert.ok(measureText(all) <= STAGE_W - 14, all);
+  // Everything won and done, there's still other people to play.
+  const everyCup = ["pinecone", "raccoon", "goose", "heron", "otter", "radish", "grand"] as RunState["cups"];
+  const seen = ["perfectLine", "flawless"].map((f) => `feat:${f}`).concat(["a", "b", "c", "d", "e", "f", "g", "h"].map((e) => `egg:${e}`));
+  const finished: RunState = {
+    ...base, shinaiQuest: "returned", cups: everyCup, seen, cleared: ["market", "bridge", "wharf"],
+    beaten: [...base.beaten, "bo", "yui", "sensei", "tetsu", "shin", "nemu", "kan", "mizu", "hagane", "raiko"], dungeon: { stage: "escaped", progress: null, escrow: null },
+  };
+  assert.equal(currentObjective(finished), "Online play");
+  assert.match(currentObjective({ ...finished, dungeon: { stage: "locked", progress: null, escrow: null } }), /Radish trial/);
 });

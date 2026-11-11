@@ -256,7 +256,7 @@ A small room, a few characters who hint at the rival's habits, a notice board fo
 See Duel design below. Losing leads straight to a rematch, with a tip based on how the player lost.
 
 ### 6. After a win
-There's no win screen: see After a fight, leaving, health and talk. Winning the Grand Taikai shows no extra line (the club contact line is removed for now, see above).
+There's no win screen: see After a fight, leaving, health and talk. Winning the Grand Taikai shows no extra line (the club contact line is removed for now, see above). The first time you win it, a short closing beat plays over the arena before you leave (late-game playtest, 2026-11-10; my call): Ren, who used to sweep the floor at Pinecone, says a word, and Sensei Kuma names the Champion badge on the Progress page and what there still is to do. After that the objective line lists what's still open, as many as fit: Sensei's old shinai if that errand's open, the first cup not yet won, challenges not done, Sensei Raiko or the Radish trial until it's escaped, and online play.
 
 ### Your own shinai (owner, 2026-11-06; the details are my call)
 The shinai you start with is Sensei's, and you owe it back. Nothing on the ladder depends on any of this.

@@ -1,7 +1,6 @@
 import { gradingReady, hasTicket } from "./grading.ts";
 import { dungeonObjective } from './dungeon-story.ts';
 import { heldObjective } from "./health.ts";
-import { gradingFee } from "./money.ts";
 import { GEAR_KI_CAP, equipmentKi } from "./equipment.ts";
 import { isOpen, LADDER, nextGoal, shortNeeds, unmet, type Unlock } from "./progress.ts";
 import { hasLetter, danLabel } from "./ranks.ts";
@@ -11,9 +10,12 @@ import { OBJECTIVES } from "./scenes/content.ts";
 import { shinaiObjective } from "./scenes/shinai-story.ts";
 import { homeVisitor } from "./scenes/visits.ts";
 import { routesFrom, type NodeId } from "./world/map.ts";
-import type { CupId } from "./world/tournament.ts";
+import { CUP_IDS, CUPS, type CupId } from "./world/tournament.ts";
+import { measureText } from "./art/font.ts";
+import { STAGE_W } from "./core/scale.ts";
+import { CHALLENGES, gradingFee } from "./money.ts";
 
-/** One short line saying what to do next. Empty when there's nothing left to chase. */
+/** One short line saying what to do next, or after the Grand Taikai, what's still open. */
 export function currentObjective(run: RunState): string {
   const dungeon = dungeonObjective(run);
   if (dungeon) return dungeon;
@@ -45,7 +47,25 @@ export function currentObjective(run: RunState): string {
     return `${goal.label}: ${shortNeeds(run, goal)}`;
   }
   if (!run.champion) return OBJECTIVES.grandTaikai;
-  return shinaiObjective(run) ?? "";
+  return stillOpen(run);
+}
+
+const LINE_ROOM = STAGE_W - 14;
+/**
+ * After the Grand Taikai there's no next step, only what's left: the shinai errand, a cup not won, challenges,
+ * the trial at Thunder Radish, and other players online. As many as fit, in that order, with online always last.
+ */
+export function stillOpen(run: RunState): string {
+  const parts: string[] = [];
+  if (shinaiObjective(run)) parts.push(OBJECTIVES.leftShinai);
+  const cup = CUP_IDS.find((id) => id !== "grand" && !run.cups.includes(id));
+  if (cup) parts.push(CUPS[cup].name);
+  const challenges = CHALLENGES.filter((challenge) => !challenge.done(run)).length;
+  if (challenges) parts.push(OBJECTIVES.leftChallenges(challenges));
+  if (run.dungeon.stage !== "escaped") parts.push(run.beaten.includes("raiko") ? OBJECTIVES.leftTrial : OBJECTIVES.leftRaiko);
+  const line = (shown: string[]) => OBJECTIVES.stillOpen([...shown, OBJECTIVES.leftOnline]);
+  while (parts.length && measureText(line(parts)) > LINE_ROOM) parts.pop();
+  return line(parts);
 }
 
 const SENPAI = ["aki", "bo", "yui"] as const;

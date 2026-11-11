@@ -370,6 +370,13 @@ export const OBJECTIVES = {
   kiSenpai: "beat a senpai at home",
   kiCup: (cup: string) => `win the ${cup}`,
   kiShinai: "Sensei's old shinai",
+  /** What's left after the Grand Taikai, with no label, since the line is already what to do next. */
+  stillOpen: (parts: string[]) => parts.join(", ").replace(/^./, (c) => c.toUpperCase()),
+  leftShinai: "Sensei's shinai",
+  leftChallenges: (n: number) => `${n} challenge${n === 1 ? "" : "s"}`,
+  leftTrial: "the Radish trial",
+  leftRaiko: "Sensei Raiko",
+  leftOnline: "online play",
   kiGear: "gear at the Bogu Shop",
   kiLevels: "spar and drill to level up",
 };
@@ -589,6 +596,13 @@ export const TAIKAI_OUT = "E go again   X leave";
 export const TAIKAI_CHAMPION = "Champion!";
 export const TAIKAI_CHAMPION_LINE = "Every dojo in the land bows to you.";
 export const TAIKAI_CHAMPION_AGAIN = "E carry on";
+/** The first time you win the Grand Taikai: a few words on the way out, and then whatever's still open. */
+export const TAIKAI_ENDING = [
+  "Ren: Rei. I used to sweep the floor at Pinecone, you know. I didn't think it would turn out like this.",
+  "Ren: Come to Thunder Radish when you like. I'll have worked something out by then.",
+  "Sensei Kuma: Champion. That badge is on your Progress page now. Don't let it bend your back.",
+  "Sensei Kuma: There's always more. Cups you haven't won, challenges, people online. Or just come and practice.",
+];
 export const cupWonLine = (name: string) => `You took the ${name}.`;
 export const TAIKAI_LOST = "Rei. The crowd applauds anyway.";
 export const TAIKAI_WITHDRAW = "Withdraw";

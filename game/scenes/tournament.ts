@@ -7,7 +7,8 @@ import { onGui, onStage, STAGE_W, viewH, viewW } from "../core/scale.ts";
 import type { Game, Scene, SceneName } from "../core/scene.ts";
 import { recordCup } from "../run-state.ts";
 import { createTournament, cupAt, CUPS, nextOpponent, roundName, type CupId, type Tournament } from "../world/tournament.ts";
-import { cupLeft, cupWonLine, TAIKAI_CHAMPION, TAIKAI_CHAMPION_AGAIN, TAIKAI_CHAMPION_LINE, TAIKAI_OUT, TAIKAI_STALL, TAIKAI_STEP_UP, TAIKAI_WITHDRAW } from "./content.ts";
+import { cupLeft, cupWonLine, TAIKAI_CHAMPION, TAIKAI_CHAMPION_AGAIN, TAIKAI_CHAMPION_LINE, TAIKAI_ENDING, TAIKAI_OUT, TAIKAI_STALL, TAIKAI_STEP_UP, TAIKAI_WITHDRAW } from "./content.ts";
+import { createDialogue } from "./dialogue.ts";
 import { createShop } from "./shop.ts";
 
 const CONFETTI = [PALETTE.R, PALETTE.W, PALETTE.Y, PALETTE.G, PALETTE.C];
@@ -59,7 +60,10 @@ export function drawBracket(ctx: CanvasRenderingContext2D, t: { rounds: { id: st
 export function createTournamentScene(): Scene {
   let tick = 0;
   let celebrated = false;
+  /** Winning the Grand Taikai for the first time earns a few words on the way out. */
+  let firstTitle = false;
   const stall = createShop();
+  const ending = createDialogue();
 
   const start = (game: Game) => {
     const cup = cupAt(game.run.node) ?? "grand";
@@ -86,6 +90,7 @@ export function createTournamentScene(): Scene {
       const t = game.tournament!;
       if (t.status === "champion" && !celebrated) {
         celebrated = true;
+        firstTitle = t.cup === "grand" && !game.run.champion;
         game.run = recordCup(game.run, t.cup);
         game.audio.play("secret");
       }
@@ -99,7 +104,12 @@ export function createTournamentScene(): Scene {
       if (!t) return;
       const { input } = game;
       if (t.status === "champion") {
-        if (input.wasPressed("confirm")) leave(game, t.cup);
+        if (ending.active) ending.update(input, game.audio);
+        else if (input.wasPressed("confirm") && firstTitle) {
+          firstTitle = false;
+          const done = () => leave(game, t.cup);
+          ending.open(TAIKAI_ENDING, done, done);
+        } else if (input.wasPressed("confirm")) leave(game, t.cup);
         return;
       }
       if (stall.active) {
@@ -155,12 +165,13 @@ export function createTournamentScene(): Scene {
         } else if (t.status === "out") {
           drawTextCentered(ctx, `Out in the ${roundLabel}.`, viewW / 2, viewH - 24, UI.accent);
           drawTextCentered(ctx, TAIKAI_OUT, viewW / 2, viewH - 12, UI.dim);
-        } else {
+        } else if (!ending.active) {
           drawTextCentered(ctx, t.cup === "grand" ? TAIKAI_CHAMPION_LINE : cupWonLine(CUPS[t.cup].name), viewW / 2, viewH - 24, UI.accent);
           drawTextCentered(ctx, TAIKAI_CHAMPION_AGAIN, viewW / 2, viewH - 12, UI.dim);
         }
         stall.render(ctx, game);
       });
+      ending.render(ctx);
     },
   };
 }
