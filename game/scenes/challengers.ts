@@ -1,4 +1,5 @@
 import type { SceneName } from "../core/scene.ts";
+import { raikoKeepsHisWord } from "../dungeon-story.ts";
 import { isOpen } from "../progress.ts";
 import { atLeastDan, danLabel } from "../ranks.ts";
 import { recordWin, type RunState } from "../run-state.ts";
@@ -50,5 +51,8 @@ export function talkToChallenger(run: RunState, id: ChallengerId): { lines: stri
 export function challengerWin(run: RunState, id: ChallengerId): { run: RunState; lines: string[] } {
   const them = CHALLENGERS[id];
   const next = atLeastDan(recordWin(run, id), them.grants);
+  // Asked about Ren and then beaten, Raiko keeps his word, and hands over the key.
+  const told = id === "raiko" ? raikoKeepsHisWord(next) : null;
+  if (told) return { run: told.run, lines: [...them.win, ...told.lines] };
   return { run: next, lines: next.dan > run.dan ? [...them.win, exceptionLine(danLabel(next.dan))] : them.win };
 }

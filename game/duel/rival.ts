@@ -18,6 +18,10 @@ export type RivalConfig = {
   walksIn?: boolean;
   /** Answers someone hiding behind their guard with seme, which leaves this rival wide open while it lasts. */
   pressesGuard?: boolean;
+  /** How long someone has to hide behind their guard before a pressing rival starts to press them, if it isn't the usual. */
+  pressesAfter?: number;
+  /** How long someone can stand there pressing with seme before this rival goes for them, with the same tell as any other strike. */
+  answersSeme?: number;
   /** How likely they are to parry any one strike. */
   parry?: number;
   /** How likely they are, once you've parried them, to parry your counter back (issue #41). */
@@ -80,7 +84,8 @@ const STYLES: Record<RivalStyle, Omit<RivalConfig, "tell"> & { baseTell: RivalCo
   sneaky: { baseTell: { men: 42, kote: 42, bigMen: 56 }, habits: ["kote", "kote", "men"], habitMin: 50, habitSpread: 40, parry: 0.15, reparry: 0.35, lockSkill: 0.5, meets: 0.55, bait: 0.1, bites: 0.1, openingMix: 0.5 },
   patient: { baseTell: { men: 30, kote: 30, bigMen: 46 }, habits: ["men", "bigMen"], habitMin: 90, habitSpread: 60, parry: 0.25, reparry: 0.4, lockSkill: 0.6, meets: 0.55, bait: 0.25, bites: 0.3, openingMix: 0.5 },
   relentless: { baseTell: { men: 28, kote: 28, bigMen: 42 }, habits: ["men", "kote", "men"], habitMin: 36, habitSpread: 24, parry: 0.1, reparry: 0.25, charges: 0.15, lockSkill: 0.4, meets: 0.75, bait: 0.1, bites: 0.4, openingMix: 0.3 },
-  master: { baseTell: { men: 30, kote: 30, bigMen: 46 }, habits: ["men", "kote", "bigMen", "kote"], habitMin: 44, habitSpread: 40, pressesGuard: true, parry: 0.3, reparry: 0.5, lockSkill: 1, meets: 0.6, bait: 0.2, bites: 0.4, openingMix: 0.7 },
+  // Ren waits and lets the stare do the work: the first opening comes after the stare has folded anyone who isn't pressing back.
+  master: { baseTell: { men: 30, kote: 30, bigMen: 46 }, habits: ["men", "kote", "bigMen", "kote"], habitMin: 90, habitSpread: 40, pressesGuard: true, pressesAfter: 15, answersSeme: 40, parry: 0.3, reparry: 0.5, lockSkill: 1, meets: 0.6, bait: 0.2, bites: 0.4, openingMix: 0.7 },
   // Sensei has no favourite and doesn't wait long, and won't let you hide. They've seen everything you've got, because they taught it.
   sensei: { baseTell: { men: 28, kote: 28, bigMen: 44 }, habits: ["men", "kote", "bigMen", "men"], habitMin: 50, habitSpread: 40, pressesGuard: true, parry: 0.35, reparry: 0.55, lockSkill: 1, meets: 0.6, bait: 0.2, bites: 0.4, openingMix: 0.7 },
   // The senseis of other dojos: what their students do, only they leave you time to feel it. Nobody hides from any of them.
@@ -373,8 +378,10 @@ function decide(duel: DuelState, rival: RivalState): { input: FighterInput; riva
   if (me.ki < TIRED_BELOW) next.catchingBreath = true;
   else if (me.ki >= RESTED_AT) next.catchingBreath = false;
 
-  // Pressing someone who's hiding, for as long as they keep hiding.
-  const pressing = rival.config.pressesGuard && next.opponentBlocking > PRESS_AFTER && me.ki > PRESS_MIN_KI && !next.catchingBreath;
+  // Pressing someone who's hiding, for as long as they keep hiding. Once started, it's held while they get a strike
+  // ready, since dropping it the moment they open up would mean nobody could ever punish it.
+  const committed = me.stance === "seme" && (opponent.stance === "opening" || opponent.stance === "windup");
+  const pressing = rival.config.pressesGuard && (next.opponentBlocking > (rival.config.pressesAfter ?? PRESS_AFTER) || committed) && me.ki > PRESS_MIN_KI && !next.catchingBreath;
   if (pressing && (me.stance === "guard" || me.stance === "block" || me.stance === "seme")) {
     return { input: { ...IDLE, seme: true }, rival: next };
   }
@@ -445,7 +452,11 @@ function decide(duel: DuelState, rival: RivalState): { input: FighterInput; riva
   if (dist < RANGE_MIN + 2) return { input: { move: 1, block: false, attack: null }, rival: next };
 
   next.habitIn = rival.habitIn - 1;
-  if (next.habitIn <= 0 || next.opponentBlocking > TURTLE_LIMIT) {
+  // Pressing leaves you open, so a patient rival doesn't stand there waiting to be folded by it.
+  next.semeSeen = opponent.stance === "seme" ? rival.semeSeen + 1 : 0;
+  const pressed = rival.config.answersSeme !== undefined && next.semeSeen >= rival.config.answersSeme;
+  if (next.habitIn <= 0 || next.opponentBlocking > TURTLE_LIMIT || pressed) {
+    next.semeSeen = 0;
     const roll = nextRandom(rival.rng);
     const pick = nextRandom(roll.seed);
     next.rng = pick.seed;

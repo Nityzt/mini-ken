@@ -1,5 +1,6 @@
 import { keyLabel } from "../core/key-labels.ts";
-import { canDiscoverDungeon, canEnterDungeon, discoverDungeon, enterDungeon } from '../dungeon-story.ts';
+import { askRaikoAboutRen, canEnterDungeon, enterDungeon, hasDungeonKey, raikoOffersRen, renMissing, IRON_DOOR } from '../dungeon-story.ts';
+import { IRON_DOOR_DONE, IRON_DOOR_DOWN, IRON_DOOR_LABEL, IRON_DOOR_LOCKED, IRON_DOOR_OPENS, IRON_DOOR_WAIT, RAIKO_ASK_REN, REN_THINGS_LABEL } from './content.ts';
 import { drawKendoka, FULL_GEAR, type Gear, type HeldShinai } from "../art/kendoka.ts";
 import { TEAM_COLORS } from "../art/looks.ts";
 import { PALETTE } from "../art/palette.ts";
@@ -28,7 +29,7 @@ import { figureAt, speakersIn, type Figure } from "./bubble.ts";
 import { createDialogue } from "./dialogue.ts";
 import { createEntrance, createStride, createVisit, facingToward, personAhead, type Visit } from "./moves.ts";
 import { findTiles } from "./levels.ts";
-import { challengeLines, dojoArrival, dojoVisitor, roomWithVisitor, talkToDojoVisitor } from "./visits.ts";
+import { challengeLines, dojoArrival, dojoVisitor, lookAtRensThings, radishArrival, roomWithVisitor, talkToDojoVisitor } from "./visits.ts";
 import { cameraFor, createWalker, drawRoom, drawWalker, tileInFront, touchesTile, updateWalker, type Walker } from "./topdown.ts";
 import type { NodeId } from "../world/map.ts";
 import { walkingGear } from "../run-state.ts";
@@ -39,8 +40,9 @@ const visitorHere = (game: Game) => dojoVisitor(game.run, dojoFor(game.run.node)
 /** How someone's holding their shinai, if it says something about how they fight. */
 const STANCE_HELD: Record<string, HeldShinai> = { jodan: "jodan", nito: "nito" };
 
-/** Who can be walked up to and talked to. */
+/** Who can be walked up to and talked to. Ren isn't, while Ren's hiding: only what Ren left behind is there. */
 const PEOPLE = "RXGEJV";
+const peopleHere = (game: Game) => (renMissing(game.run) ? PEOPLE.replace("R", "") : PEOPLE);
 
 /** Any rival's dojo. Which one it is depends on where you're standing on the map. */
 export function createRivalDojoScene(nameOf: () => string): Scene {
@@ -126,7 +128,12 @@ export function createRivalDojoScene(nameOf: () => string): Scene {
       } else if (arrival) meetThem();
       else if (!stayed) {
         entrance = createEntrance(walker, place(dojo.room, "D"), start, { rows: dojo.room, solid: "", tile: TILE });
-        afterEntrance = () => dialogue.open([arrivalLine(dojo, Math.random())]);
+        afterEntrance = () => {
+          // The first time in with Ren gone, the empty spot is the first thing you notice.
+          const missing = radishArrival(game.run);
+          if (missing) game.run = missing.run;
+          dialogue.open(missing ? missing.lines : [arrivalLine(dojo, Math.random())]);
+        };
       }
       // Nobody ends up standing inside someone who's just dropped by.
       const visitorSpot = visitorHere(game) && findTiles(roomWithVisitor(dojo.room), "V")[0];
@@ -188,7 +195,7 @@ export function createRivalDojoScene(nameOf: () => string): Scene {
       game.debug.walker = walker.box;
       const front = tileInFront(walker, room);
       if (!game.input.wasPressed("confirm")) return;
-      const ahead = personAhead(walker, room, dojo.solid, PEOPLE);
+      const ahead = personAhead(walker, room, dojo.solid, peopleHere(game));
       if (ahead) {
         stride = { ...createStride(walker, ahead.stand), char: ahead.char };
         talkingTo = ahead.char;
@@ -204,18 +211,23 @@ export function createRivalDojoScene(nameOf: () => string): Scene {
           game.tournament = null;
           game.go("tournament");
         } : undefined);
-      } else {
+      } else if (front === "R" && renMissing(game.run)) {
+        const looked = lookAtRensThings(game.run);
+        game.run = looked.run;
+        dialogue.open(looked.lines);
+      } else if (front === IRON_DOOR) {
+        // Raiko's key is the only way down. Once the trial's done, there's nothing more down there.
         if (canEnterDungeon(game.run, front)) {
-          dialogue.open(['The rack slides aside. Cold air rises from a stair beneath Thunder Radish Dojo.'], () => menu.open([
-            { id: 'enter', label: 'Explore the hidden passage' },
-            { id: 'leave', label: 'Leave it for later' },
+          dialogue.open(IRON_DOOR_OPENS, () => menu.open([
+            { id: 'enter', label: IRON_DOOR_DOWN },
+            { id: 'leave', label: IRON_DOOR_WAIT },
           ], id => {
             if (id !== 'enter') return;
             game.run = enterDungeon(game.run);
             game.go('dungeon');
           }));
-          return;
-        }
+        } else dialogue.open([hasDungeonKey(game.run) ? IRON_DOOR_DONE : IRON_DOOR_LOCKED]);
+      } else {
         const found = inspectDojo(game.run, dojoFor(game.run.node), front);
         if (found) {
           game.run = found.run;
@@ -241,15 +253,23 @@ export function createRivalDojoScene(nameOf: () => string): Scene {
       }
     else if (char === "V") dialogue.open(talkToDojoVisitor(game.run, visitorHere(game)!));
     else if (char === "X") {
-        const options: { id: string; label: string }[] = dojoSenseiMenu(game.run);
-        // The hint sits above "Never mind", so the last option still backs out.
-        if (canDiscoverDungeon(game.run)) options.splice(options.length - 1, 0, { id: 'secret', label: 'Ask about the cold draft' });
+        let options: { id: string; label: string }[] = dojoSenseiMenu(game.run);
+        if (dojo.sensei.id === "raiko" && raikoOffersRen(game.run)) {
+          // While Ren's missing, asking about Ren is the challenge, so there's one way to fight him for it, not two.
+          if (renMissing(game.run) && !game.run.beaten.includes("raiko")) options = options.filter((option) => option.id !== "challenge");
+          // It sits above "Never mind", so the last option still backs out.
+          options.splice(options.length - 1, 0, { id: "ren", label: RAIKO_ASK_REN });
+        }
         menu.open(options, (id) => {
           if (id === "talk") openTopics(game, menu, dialogue, dojo.sensei.id);
           else if (id === "challenge") challenge(game, dojo.sensei.id);
-          else if (id === 'secret') {
-            game.run = discoverDungeon(game.run);
-            dialogue.open(['Sensei Raiko: You felt it too? There is an old passage behind the shinai rack.', 'Sensei Raiko: I thought it was sealed. Look at the rack along the north wall. Be careful down there.']);
+          else if (id === "ren") {
+            const reply = askRaikoAboutRen(game.run);
+            game.run = reply.run;
+            dialogue.open(reply.lines, reply.fight ? () => offerBet(menu, game, "raiko", () => {
+              game.versus = "raiko";
+              game.go("duel");
+            }) : undefined);
           }
         });
       }
@@ -273,6 +293,10 @@ export function createRivalDojoScene(nameOf: () => string): Scene {
       ctx.fillRect(0, 0, viewW, viewH);
       drawRoom(ctx, room, cam, true, dojoFor(game.run.node));
       const tags: (() => void)[] = [];
+      // Whoever E would talk to is named in the prompt, so their own tag steps aside for it.
+      const talking = dialogue.active || menu.active;
+      const ahead = talking ? null : personAhead(walker, room, dojo.solid, peopleHere(game));
+      const names: Record<string, string> = {};
       const you: Figure = figureAt(ctx, walker.box.x + walker.box.w / 2 - cam.x, walker.box.y - 12 - cam.y, walker.box.y + 8 - cam.y);
       const figures: Record<string, Figure | undefined> = {};
       const person = (char: string, id: Exclude<PersonId, "examiner">, standing: "down" | "side", gear: Gear, look: { colors?: Record<string, string>; flip?: boolean; held?: HeldShinai }) => {
@@ -285,7 +309,8 @@ export function createRivalDojoScene(nameOf: () => string): Scene {
           ? facingToward({ x: x + 8, y: y + 16 }, { x: walker.box.x + walker.box.w / 2 - cam.x, y: walker.box.y + walker.box.h / 2 - cam.y })
           : { facing: standing, flip: look.flip };
         const dan = personDan(id);
-        const near = rankTagShown({ x: walker.box.x + walker.box.w / 2 - cam.x, y: walker.box.y - cam.y }, { x: x + 8, y: y + 16 });
+        names[char] = opponentById(id).rival;
+        const near = char !== ahead?.char && rankTagShown({ x: walker.box.x + walker.box.w / 2 - cam.x, y: walker.box.y - cam.y }, { x: x + 8, y: y + 16 });
         if (near) tags.push(() => drawRankTag(ctx, opponentById(id).rival, x + 8, y - 8, presenceOf(dan) > 0));
         return {
           y: spot.row * TILE,
@@ -295,9 +320,10 @@ export function createRivalDojoScene(nameOf: () => string): Scene {
           },
         };
       };
+      const missing = renMissing(game.run);
       const people = [
         person("X", dojo.sensei.id, "down", { ...FULL_GEAR, men: false }, { colors: dojo.sensei.colors }),
-        person("R", dojoFor(game.run.node), "down", FULL_GEAR, { colors }),
+        missing ? rensThings(ctx, place(room, "R"), cam) : person("R", dojoFor(game.run.node), "down", FULL_GEAR, { colors }),
         person("G", dojo.helperIds.G, "side", { ...FULL_GEAR, men: false, shinai: false }, { colors }),
         person("E", dojo.helperIds.E, "side", { ...FULL_GEAR, men: false, kote: false }, { colors, flip: true }),
         ...crowdDrawings(ctx, room, cam, tick, game.reducedMotion, () => TEAM_COLORS[dojoFor(game.run.node)]!, seed, (draw) => tags.push(draw)),
@@ -320,10 +346,11 @@ export function createRivalDojoScene(nameOf: () => string): Scene {
       }
       if (!dialogue.active && !menu.active) tags.forEach((tag) => tag());
       drawTopBar(ctx, dojo.name, game.run);
-      if (!dialogue.active && !menu.active) {
+      if (!talking) {
         drawObjective(ctx, currentObjective(game.run));
         const front = tileInFront(walker, room);
-        const label = canEnterDungeon(game.run, front) ? 'Inspect the hidden passage' : interactionLabel(personAhead(walker, room, dojo.solid, PEOPLE)?.char ?? front, "rival");
+        const named = ahead && names[ahead.char];
+        const label = front === IRON_DOOR ? IRON_DOOR_LABEL : front === "R" && missing && !ahead ? REN_THINGS_LABEL : named ? `Talk to ${named}` : interactionLabel(ahead?.char ?? front, "rival");
         if (label) drawInteractPrompt(ctx, label, walker.box.x + walker.box.w / 2 - cam.x, walker.box.y - cam.y, keyLabel(game.input, "confirm", "e"));
       }
       // Everybody here goes by a name their own line can be matched to.
@@ -334,4 +361,39 @@ export function createRivalDojoScene(nameOf: () => string): Scene {
       menu.render(ctx);
       shop.render(ctx, game);
   }
+}
+
+/** Ren's bogu, folded on the floor where Ren would stand, with the shinai beside it and a notebook on top. */
+function rensThings(ctx: CanvasRenderingContext2D, spot: { col: number; row: number }, cam: { x: number; y: number }): { y: number; draw: () => void } {
+  const x = spot.col * TILE - cam.x;
+  const y = spot.row * TILE - cam.y;
+  return {
+    y: spot.row * TILE,
+    draw: () => {
+      // The shinai, lying along the floor.
+      ctx.fillStyle = PALETTE.y;
+      ctx.fillRect(x + 1, y + 13, 14, 1);
+      ctx.fillStyle = PALETTE.Y;
+      ctx.fillRect(x + 1, y + 12, 14, 1);
+      ctx.fillStyle = PALETTE.K;
+      ctx.fillRect(x + 4, y + 11, 1, 3);
+      // The do and tare, folded flat, and the men sat on top.
+      ctx.fillStyle = PALETTE.K;
+      ctx.fillRect(x + 3, y + 6, 10, 6);
+      ctx.fillStyle = PALETTE.r;
+      ctx.fillRect(x + 4, y + 7, 8, 4);
+      ctx.fillStyle = PALETTE.K;
+      ctx.fillRect(x + 5, y + 2, 6, 5);
+      ctx.fillStyle = PALETTE.N;
+      ctx.fillRect(x + 6, y + 3, 4, 3);
+      ctx.fillStyle = PALETTE.w;
+      ctx.fillRect(x + 7, y + 3, 1, 3);
+      ctx.fillRect(x + 9, y + 3, 1, 3);
+      // The notebook, tucked in at the side.
+      ctx.fillStyle = PALETTE.O;
+      ctx.fillRect(x + 11, y + 4, 4, 3);
+      ctx.fillStyle = PALETTE.k;
+      ctx.fillRect(x + 12, y + 5, 2, 1);
+    },
+  };
 }

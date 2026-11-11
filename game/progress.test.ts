@@ -31,7 +31,12 @@ test("street fights stay shut until the line drill has been passed enough times"
   let run: RunState = { ...armored(), bonusKi: 500, beaten: ["raccoon", "goose", "heron"] };
   for (const gang of Object.keys(GANGS) as NodeId[]) assert.ok(lockFor(run, gang), gang);
   for (let i = 0; i < LINE_PASSES_TO_UNLOCK - 1; i++) run = recordLinePass(run);
-  assert.ok(lockFor(run, "market"));
+  // A street fight is the line drill for real, so every one of them waits on all three passes, not just the first.
+  assert.equal(LINE_PASSES_TO_UNLOCK, 3);
+  for (const gang of Object.keys(GANGS) as NodeId[]) {
+    assert.ok(row(gang).line, `${gang} asks for the line itself`);
+    assert.deepEqual(unmet({ ...run, seme: true, dan: 3, waza: true }, row(gang)), [`line drill ${LINE_PASSES_TO_UNLOCK - 1}/${LINE_PASSES_TO_UNLOCK}`], gang);
+  }
   run = recordLinePass(run);
   for (const gang of Object.keys(GANGS) as NodeId[]) assert.equal(lockFor(run, gang), null, gang);
 });
@@ -318,4 +323,17 @@ test("the map opens on what's next, and on the last row when there's nothing lef
   assert.equal(LADDER[goalRow(createRunState())].id, nextGoal(createRunState())!.id);
   const done = { ...armored(), bonusKi: 500, seme: true, dan: 3, waza: true, linePasses: 3, beaten: ["aki", "raccoon", "goose", "heron", "otter", "radish"] as RunState["beaten"], cups: [...CUP_IDS] };
   if (nextGoal(done) === null) assert.equal(goalRow(done), LADDER.length - 1);
+});
+
+test("with Ren hidden, Sensei Kuma points you at Raiko rather than at a win you can't go and get (owner, 2026-11-11)", () => {
+  const ready: RunState = { ...armored(), bonusKi: 200, seme: true, dan: 3, waza: true, linePasses: 3, beaten: ["aki", "raccoon", "goose", "heron", "otter"] };
+  assert.equal(isOpen(ready, "radish"), true, "Thunder Radish itself is open");
+  assert.equal(nextGoal(ready)?.id, "arenaLine");
+  const line = needsSentence(ready, nextGoal(ready)!);
+  assert.match(line, /^Sensei Kuma: .*Raiko/);
+  assert.ok(wrapText(line, DIALOGUE_WIDTH).length <= DIALOGUE_LINES, line);
+  // Once Ren's beaten, the ladder carries on as before.
+  const after = recordWin({ ...ready, node: "radish" });
+  assert.equal(isOpen(after, "arenaLine") && isOpen(after, "cup:radish"), true);
+  assert.doesNotMatch(needsSentence(after, nextGoal(after) ?? row("cup:radish")), /Raiko/);
 });

@@ -1,13 +1,14 @@
-import { MODS, equip, equippedAt, equipmentInfo, isEquipment, modOn, type EquipmentId, type ModId } from "./equipment.ts";
+import { equip, equippedAt, equipmentEffects, equipmentInfo, isEquipment, modOn, type EquipmentId } from "./equipment.ts";
 import type { Gear } from "./art/kendoka.ts";
 import { type GearKey, type ShinaiId } from "./durability.ts";
 import { hasLetter, hasTicket, rankLabel } from "./ranks.ts";
 import { isShopItem, LOOKS, SHOP_ITEMS, wear, type ShopItemId } from "./shop.ts";
 import type { RunState } from "./run-state.ts";
-import { BAMBOO_LINE, OWN_SHINAI_LINE, SHINAI_BAG_LINE, GAZE_ITEM_LINE, GEAR_LINES, GI_LINE, LETTER_LINE, RANK_LINE, SEME_ITEM_LINE, TICKET_LINE, TSUBA_FOUND } from "./scenes/content.ts";
+import { BAMBOO_LINE, OWN_SHINAI_LINE, SHINAI_BAG_LINE, GAZE_ITEM_LINE, GEAR_LINES, GI_LINE, KEY_LINE, KEY_NAME, LETTER_LINE, RANK_LINE, SEME_ITEM_LINE, TICKET_LINE, TSUBA_FOUND } from "./scenes/content.ts";
+import { hasDungeonKey } from "./dungeon-story.ts";
 import { CUP_IDS, CUPS, type CupId } from "./world/tournament.ts";
 
-export type ItemId = "gi" | keyof Gear | "tsuba" | "bamboo" | "ownShinai" | "shinaiBag" | "seme" | "gaze" | "ticket" | "letter" | `shop:${ShopItemId}` | `cup:${CupId}` | `rank:${string}`;
+export type ItemId = "gi" | keyof Gear | "tsuba" | "bamboo" | "ownShinai" | "shinaiBag" | "key" | "seme" | "gaze" | "ticket" | "letter" | `shop:${ShopItemId}` | `cup:${CupId}` | `rank:${string}`;
 export type ItemInfo = { title: string; name: string; line: string };
 
 const GEAR_ORDER: (keyof Gear)[] = ["shinai", "tare", "do", "men", "kote"];
@@ -19,7 +20,7 @@ const TECHNIQUE = "New technique learned";
 const TROPHY = "Trophy won";
 const RANK_UP = "Rank up";
 
-export const ALL_ITEMS: ItemId[] = ["gi", ...GEAR_ORDER, "tsuba", "bamboo", "ownShinai", "shinaiBag", "seme", "gaze", ...CUP_IDS.map((cup): ItemId => `cup:${cup}`), "rank:1st dan", "ticket", "letter", ...(Object.keys(SHOP_ITEMS) as ShopItemId[]).map((id): ItemId => `shop:${id}`)];
+export const ALL_ITEMS: ItemId[] = ["gi", ...GEAR_ORDER, "tsuba", "bamboo", "ownShinai", "shinaiBag", "key", "seme", "gaze", ...CUP_IDS.map((cup): ItemId => `cup:${cup}`), "rank:1st dan", "ticket", "letter", ...(Object.keys(SHOP_ITEMS) as ShopItemId[]).map((id): ItemId => `shop:${id}`)];
 
 /** "Tare: guards the waist." becomes "Guards the waist.", because the card already shows the name. */
 const withoutName = (line: string) => {
@@ -27,10 +28,6 @@ const withoutName = (line: string) => {
   return rest[0].toUpperCase() + rest.slice(1);
 };
 
-const equipmentEffects = (key: EquipmentId, mod: ModId | null): string => {
-  const piece = equipmentInfo(key);
-  return `Ki +${piece.ki + (mod ? MODS[mod].ki : 0)}. Wear -${piece.wearReduction + (mod ? MODS[mod].wearReduction : 0)}/fight. ${mod ? MODS[mod].name : "No mod"}.`;
-};
 
 export function itemInfo(id: ItemId): ItemInfo {
   if (id === "gi") return { title: ITEM, name: "Spare gi", line: GI_LINE };
@@ -38,6 +35,7 @@ export function itemInfo(id: ItemId): ItemInfo {
   if (id === "bamboo") return { title: ITEM, name: "Length of bamboo", line: BAMBOO_LINE };
   if (id === "shinaiBag") return { title: ITEM, name: "Sensei's shinai bag", line: SHINAI_BAG_LINE };
   if (id === "ownShinai") return { title: ITEM, name: "Your own shinai", line: OWN_SHINAI_LINE };
+  if (id === "key") return { title: ITEM, name: KEY_NAME, line: KEY_LINE };
   if (id === "seme") return { title: TECHNIQUE, name: "Seme", line: SEME_ITEM_LINE };
   if (id === "gaze") return { title: TECHNIQUE, name: "Far-mountain gaze", line: GAZE_ITEM_LINE };
   if (id.startsWith("shop:")) {
@@ -70,6 +68,8 @@ export function itemsGained(before: RunState, after: RunState): ItemId[] {
   if (after.shinaiQuest === "gotBamboo" && before.shinaiQuest !== "gotBamboo") gained.push("bamboo");
   if (after.madeShinai && !before.madeShinai) gained.push("ownShinai");
   if (after.shinaiQuest === "returned" && before.shinaiQuest !== "returned") gained.push("shinaiBag");
+  // Raiko hands it over once. Ren taking it with everything else, and giving it back, is no new find.
+  if (hasDungeonKey(after) && before.dungeon?.stage === "locked") gained.push("key");
   if (after.seme && !before.seme) gained.push("seme");
   if (after.gaze && !before.gaze) gained.push("gaze");
   for (const cup of after.cups) if (!before.cups.includes(cup)) gained.push(`cup:${cup}`);

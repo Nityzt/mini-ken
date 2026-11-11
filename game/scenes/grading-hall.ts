@@ -7,11 +7,11 @@ import type { TileMap } from "../core/collision.ts";
 import { viewH, viewW } from "../core/scale.ts";
 import type { Game, Scene } from "../core/scene.ts";
 import { playerColors } from "../characters.ts";
-import { payGradingFee, talkToPanel } from "../grading.ts";
+import { hasTicket, payGradingFee, talkToPanel } from "../grading.ts";
 import { personDan, presenceOf } from "../ranks.ts";
 import type { OpponentId } from "../world/dojos.ts";
 import { interactionLabel } from "./club-story.ts";
-import { GRADING_HALL_NAME, HALL_ARRIVAL, HALL_OBJECTIVE } from "./content.ts";
+import { GRADING_HALL_NAME, HALL_ARRIVAL, HALL_DONE, HALL_OBJECTIVE } from "./content.ts";
 import { crowdDrawings, nearestShown } from "./crowd.ts";
 import { figureAt, speakersIn, type Figure } from "./bubble.ts";
 import { createDialogue } from "./dialogue.ts";
@@ -136,7 +136,8 @@ export function createGradingHallScene(nameOf: () => string): Scene {
       if (!dialogue.active) tags.forEach((tag) => tag());
       drawTopBar(ctx, GRADING_HALL_NAME, game.run);
       if (!dialogue.active) {
-        drawObjective(ctx, HALL_OBJECTIVE);
+        // Passing retires the ticket, so without one you've done what you came for.
+        drawObjective(ctx, hasTicket(game.run) ? HALL_OBJECTIVE : HALL_DONE);
         const label = interactionLabel(personAhead(walker, HALL_MAP, HALL_SOLID, "P")?.char ?? tileInFront(walker, HALL_MAP), "hall");
         if (label) drawInteractPrompt(ctx, label, walker.box.x + walker.box.w / 2 - cam.x, walker.box.y - cam.y, keyLabel(game.input, "confirm", "e"));
       }
@@ -144,7 +145,8 @@ export function createGradingHallScene(nameOf: () => string): Scene {
       // Ono does the talking, from the middle of the panel.
       const ono = panel[1];
       const figures = { P: figureAt(ctx, ono.col * TILE - cam.x + 8, ono.row * TILE - 4 - cam.y, ono.row * TILE + 16 - cam.y) };
-      dialogue.render(ctx, speakersIn(figures, { "Examiner Ono": "P" }, yours, "P"));
+      // Everything the panel says has Ono's name on it, so a line without one is the hall itself, along the bottom.
+      dialogue.render(ctx, speakersIn(figures, { "Examiner Ono": "P" }, yours, null));
     },
   };
 }

@@ -160,7 +160,12 @@ export function createEscort(setup: { rows: string[]; solid: string; player: Wal
       if (phase === "lead") {
         const ahead = walk(momo, momoTrail, free);
         if (ahead || momoTrail.at >= HEAD_START) following = true;
-        const behind = following && walk(player, playerTrail, map);
+        // The two walks can cross, most often when you've just been talking to her from below. Following means
+        // waiting for her to be out of the next tile, not stepping into her.
+        const next = playerTrail.points[playerTrail.at];
+        const clear = ahead || !next || Math.max(Math.abs(next.x - momo.box.x), Math.abs(next.y - momo.box.y)) >= TILE;
+        if (following && !clear) player.moving = false;
+        const behind = following && clear && walk(player, playerTrail, map);
         if (ahead && behind) {
           face(momo);
           face(player);

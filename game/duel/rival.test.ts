@@ -191,7 +191,8 @@ test("same seed gives the same match", () => {
 });
 
 test("different seeds give different habits", () => {
-  const order = (seed: number) => play(() => IDLE, seed).rivalAttacks.map((a) => a.kind).join();
+  // At Iron Heron, since Ren's stare folds someone standing idle before Ren's habits ever come into it.
+  const order = (seed: number) => play(() => IDLE, seed, 0, true, "heron").rivalAttacks.map((a) => a.kind).join();
   assert.ok(new Set([1, 2, 3, 4, 5, 6].map(order)).size > 1);
 });
 

@@ -70,7 +70,7 @@ export function createOnlineBracketScene(): Scene {
         if (bracket) {
           // Names have to fit a slot, and you're simply you.
           const rounds = bracket.rounds.map((round) => round.map((e) => (e.id === me ? { ...e, name: YOU, controller: "player" as const } : { ...e, name: e.name.slice(0, NAME_ROOM), controller: e.controller === "player" ? ("remote" as const) : e.controller })));
-          onStage(ctx, () => drawBracket(ctx, { rounds }));
+          onStage(ctx, () => drawBracket(ctx, { rounds, out: session.status() === "out" ? me : null }));
         }
         const status = session.status();
         const line = search ? ONLINE_SEARCHING : status === "champion" ? ONLINE_CHAMPION : status === "out" ? ONLINE_OUT : status === "waiting" ? ONLINE_DRAW_WAIT : ONLINE_NEXT;

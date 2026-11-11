@@ -5,13 +5,15 @@ import { bannerColumn, floorMarked, FLOOR_TILES, lookOf } from "../art/looks.ts"
 import { PALETTE } from "../art/palette.ts";
 import { drawSprite } from "../art/sprite.ts";
 import { TILE, TILE_GRIDS } from "../art/tiles.ts";
-import { moveAndCollide, type Box, type TileMap } from "../core/collision.ts";
+import { slideIntoGap, type Box, type TileMap } from "../core/collision.ts";
 import type { Input } from "../core/input.ts";
 import { viewH, viewW } from "../core/scale.ts";
 
 const SPEED = 1.5;
 const DIAGONAL = 0.75;
 const REACH = 8;
+/** How far off a one-tile doorway you can be and still be eased into it. */
+const DOORWAY_SLACK = 6;
 
 export type Walker = { box: Box; facing: Facing; flip: boolean; walkTick: number; moving: boolean };
 export type Camera = { x: number; y: number };
@@ -32,7 +34,7 @@ export function updateWalker(walker: Walker, input: Input, map: TileMap): void {
     walker.flip = dx < 0;
   }
   const speed = dx !== 0 && dy !== 0 ? SPEED * DIAGONAL : SPEED;
-  walker.box = moveAndCollide(walker.box, dx * speed, dy * speed, map).box;
+  walker.box = slideIntoGap(walker.box, dx * speed, dy * speed, map, DOORWAY_SLACK);
 }
 
 /** The tile just in front of the walker's feet, which is what confirm talks to. */
@@ -63,7 +65,7 @@ export function cameraFor(walker: Walker, rows: string[]): Camera {
 }
 
 const TILE_ART: Record<string, string> = { "#": "wallTop", C: "bambooCracked" };
-const ON_WALL: Record<string, string> = { r: "rack", p: "plant", N: "noticeBoard" };
+const ON_WALL: Record<string, string> = { r: "rack", p: "plant", N: "noticeBoard", I: "ironDoor" };
 
 /** A window shows this place's weather, in this place's frame. */
 const windowLooks = new Map<Crest, Record<string, string>>();
@@ -94,7 +96,7 @@ export function drawRoom(ctx: CanvasRenderingContext2D, rows: string[], cam: Cam
       } else if (char === "Q") {
         drawSprite(ctx, TILE_GRIDS.doorClosed, x, y, options);
       } else if (char === "o") {
-        drawSprite(ctx, TILE_GRIDS.doorOpen, x, y, options);
+        drawSprite(ctx, TILE_GRIDS.doorwayIn, x, y, options);
       } else if (char === "$") {
         drawSprite(ctx, floor, x, y, options);
         drawSprite(ctx, TILE_GRIDS.merch, x, y);

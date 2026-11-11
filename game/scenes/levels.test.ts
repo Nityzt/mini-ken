@@ -151,3 +151,9 @@ test("the people practicing never get in the way of anything you need", () => {
   talkTo(GOOSE_MAP, RIVAL_SOLID, "J");
   talkTo(HERON_MAP, RIVAL_SOLID, "J");
 });
+
+test("a visitor to the club stands clear of everyone, not with their head in someone's feet", () => {
+  const rows = clubRows({ storageOpen: true, screenBroken: false, momoGuards: false, visitor: true });
+  const { col, row } = findTiles(rows, "V")[0];
+  for (const [dc, dr] of [[0, -1], [0, 1]]) assert.ok(!"MXABYZsk@".includes(rows[row + dr][col + dc]), `next to ${rows[row + dr][col + dc]}`);
+});

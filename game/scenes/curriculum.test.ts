@@ -493,6 +493,35 @@ test("Yui's first challenge passes by doing exactly what she says, key for key (
   assert.equal(result.misses, 0);
 });
 
+test("Yui is the exacting one: as many clean strikes as anyone, from further away, with fewer misses allowed (owner, 2026-11-11)", () => {
+  const yui = challengeFor("yui", 0);
+  for (const other of ["aki", "bo"] as const) {
+    const them = challengeFor(other, 0);
+    assert.ok(yui.reps! >= them.reps!, `${other} asks for more clean strikes than Yui`);
+    assert.ok(yui.misses! < them.misses!, `${other} is stricter than Yui`);
+  }
+  assert.ok(distance(createLessonDuel(yui)) > distance(createLessonDuel(challengeFor("bo", 0))));
+});
+
+test("Yui allows one mistake on her do, and not two", () => {
+  const lesson = challengeFor("yui", 0);
+  /** Forgets the stomp this many times, then strikes properly. */
+  const slips = (count: number): Player => {
+    let left = count;
+    const good = striker("men", anytime);
+    return (duel, tick) => {
+      const input = good(duel, tick);
+      if (input.attack && left > 0) {
+        left--;
+        return { ...input, stomp: false };
+      }
+      return input;
+    };
+  };
+  assert.ok(play(lesson, slips(1), BEFORE[0]).passed, "one slip");
+  assert.ok(play(lesson, slips(2), BEFORE[0]).failed, "two slips");
+});
+
 test("Yui's first challenge words would fail without the opening, which is the bug in issue #11", () => {
   const lesson = challengeFor("yui", 0);
   const withoutOpening: Player = (duel) => {
@@ -501,6 +530,74 @@ test("Yui's first challenge words would fail without the opening, which is the b
     return { ...IDLE, attack: "men", stomp: true };
   };
   assert.equal(play(lesson, withoutOpening, BEFORE[0], 1500, { literal: true }).passed, false);
+});
+
+test("a challenge that hits back says which tell to block, so it never says to block the strike you're there to counter", () => {
+  for (const id of SENPAI_IDS) {
+    for (const level of [1, 2]) {
+      const { prompt, keys } = challengeFor(id, level);
+      // Blocking is only for the do, whose tell is the tip dipping, as in Sensei's block lesson.
+      assert.match(prompt, /Tip dips\? That's my do: hold S!/, prompt);
+      assert.doesNotMatch(prompt, /men and do, so hold S/, prompt);
+      // The card reads in the order the words do: strike, slide through, and the block on its own.
+      const order = keys.map(([key]) => key);
+      assert.ok(order.indexOf("D") === order.indexOf("S") - 1, JSON.stringify(order));
+    }
+    assert.doesNotMatch(challengeFor(id, 0).prompt, /hold S/);
+  }
+});
+
+/**
+ * Old Gen's last two stages, key for key from Gen's words: hold I, and at the moment let go,
+ * hold the opening Gen names with the strike and Space together, then slide through.
+ */
+function genByTheWords(moment: (duel: DuelState) => boolean, opening: Action, strike: Action): Player {
+  let control = createPlayerControl();
+  let before = new Set<Action>();
+  let struck = false;
+  return (duel) => {
+    const [me] = duel.fighters;
+    const down = new Set<Action>();
+    const going = me.stance === "opening" || me.stance === "windup";
+    if (duel.phase === "zanshin") down.add("right");
+    else if (going || moment(duel)) {
+      down.add(opening);
+      if (!struck) down.add(strike).add("stomp");
+      struck = true;
+    } else {
+      struck = false;
+      down.add("seme");
+    }
+    const input = control(keyboard(down, before), me, true);
+    before = down;
+    return input;
+  };
+}
+
+test("Old Gen's words name the opening before each strike, as the cards do (issue #11, for seme)", () => {
+  for (const [id, key] of [["seme-punish", "J"], ["seme-read", "L"]] as const) {
+    const { prompt } = genStage(id);
+    const opening = prompt.search(/\b[Hh]old [WQE]\b/);
+    assert.ok(opening >= 0, `${id} names no opening: ${prompt}`);
+    assert.ok(prompt.indexOf(`${key} and Space`) > opening, `${id} strikes before opening: ${prompt}`);
+  }
+});
+
+test("stage two passes doing what Gen says: press until the flinch, let go, hold E, J and Space, slide through", () => {
+  const player = genByTheWords((duel) => duel.fighters[1].stance === "shaken", "drop", "men");
+  const result = play(genStage("seme-punish"), player, FULL_GEAR, 6000, { literal: true });
+  assert.ok(result.passed, `reps ${result.reps}, misses ${result.misses}`);
+});
+
+test("stage three passes doing what Gen says: press until the arms go up, let go, hold W, L and Space, slide through", () => {
+  const player = genByTheWords((duel) => duel.fighters[1].stance === "windup" && duel.fighters[1].attack === "bigMen", "raise", "do");
+  const result = play(genStage("seme-read"), player, FULL_GEAR, 6000, { literal: true });
+  assert.ok(result.passed, `reps ${result.reps}, misses ${result.misses}`);
+});
+
+test("Gen's flinch can't be punished without an opening, which is why the words have to name one", () => {
+  const player = genByTheWords((duel) => duel.fighters[1].stance === "shaken", "seme", "men");
+  assert.equal(play(genStage("seme-punish"), player, FULL_GEAR, 3000, { literal: true }).passed, false);
 });
 
 test("Old Gen picks up from the step you left off on, and nobody else does (issue #40)", () => {

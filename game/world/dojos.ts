@@ -57,8 +57,9 @@ export const DOJOS: Record<DojoId, Dojo> = {
     style: "master",
     colors: seniorColors(TEAM_COLORS.radish!),
     // The final boss: more ki than anyone at a dojo, and a stare that wears you down unless you press back.
+    // At 1 it took longer to fold you than Ren took to show the first opening, so reading tells alone was enough.
     ki: 150,
-    presence: 1,
+    presence: 2.5,
     room: RIVAL_MAP,
     solid: RIVAL_SOLID,
     arrival: ARRIVAL,

@@ -27,8 +27,8 @@ export function visibleRows(size: number, at: number): { first: number; count: n
   return { first: Math.max(0, Math.min(at - count + 1, size - count)), count };
 }
 
-/** The same box as a conversation, along the bottom of the stage. */
-export function drawChoice(ctx: CanvasRenderingContext2D, choice: Choice, input?: Input): void {
+/** The same box as a conversation, along the bottom of the stage. A question, if there is one, sits on its top edge, so it's still there to read while you choose. */
+export function drawChoice(ctx: CanvasRenderingContext2D, choice: Choice, input?: Input, question?: string): void {
   onGui(ctx, () => {
     const { first, count } = visibleRows(choice.options.length, choice.at);
     const height = count * LINE_HEIGHT + 10;
@@ -45,6 +45,11 @@ export function drawChoice(ctx: CanvasRenderingContext2D, choice: Choice, input?
     const hintX = STAGE_W - 12 - measureText(hint);
     ctx.fillRect(hintX - 2, top - 10, measureText(hint) + 6, 10);
     drawText(ctx, hint, hintX, top - 9, UI.dim);
+    if (question) {
+      ctx.fillStyle = UI.panel;
+      ctx.fillRect(8, top - 10, measureText(question) + 6, 10);
+      drawText(ctx, question, 11, top - 9, UI.accent);
+    }
     choice.options.slice(first, first + count).forEach((option, i) => {
       const y = top + 5 + i * LINE_HEIGHT;
       const selected = first + i === choice.at;
@@ -60,32 +65,32 @@ export function drawChoice(ctx: CanvasRenderingContext2D, choice: Choice, input?
 
 export type Menu = {
   readonly active: boolean;
-  open(options: ChoiceOption[], pick: (id: string) => void): void;
+  open(options: ChoiceOption[], pick: (id: string) => void, question?: string): void;
   update(input: Input): void;
   render(ctx: CanvasRenderingContext2D): void;
 };
 
 /** A question on the table, and what picking an answer does. X just closes it. */
 export function createMenu(): Menu {
-  let current: { choice: Choice; pick: (id: string) => void } | null = null;
+  let current: { choice: Choice; pick: (id: string) => void; question?: string } | null = null;
   let keys: Input | undefined;
   return {
     get active() {
       return current !== null;
     },
-    open(options, pick) {
-      current = { choice: createChoice(options), pick };
+    open(options, pick, question) {
+      current = { choice: createChoice(options), pick, question };
     },
     update(input) {
       keys = input;
       if (!current) return;
       const step = stepChoice(current.choice, { up: input.wasPressed("up"), down: input.wasPressed("down"), confirm: input.wasPressed("confirm"), cancel: input.wasPressed("cancel") });
-      const { pick } = current;
-      current = step.closed ? null : { choice: step.choice, pick };
+      const { pick, question } = current;
+      current = step.closed ? null : { choice: step.choice, pick, question };
       if (step.picked) pick(step.picked);
     },
     render(ctx) {
-      if (current) drawChoice(ctx, current.choice, keys);
+      if (current) drawChoice(ctx, current.choice, keys, current.question);
     },
   };
 }

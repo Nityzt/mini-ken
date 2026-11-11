@@ -5,8 +5,9 @@
 import { EQUIPMENT, equip, equipmentHeld, equipmentInfo, equippedAt, type EquipmentId, type EquipmentSlot } from "./equipment.ts";
 import { layoutGrid, moveInGrid, type Cell, type SlotGroup } from "./inventory-grid.ts";
 import { gearKeyOf, isColors, toggleWorn, type ItemId } from "./items.ts";
+import { hasDungeonKey } from "./dungeon-story.ts";
 import { hasLetter, hasTicket } from "./ranks.ts";
-import type { RunState } from "./run-state.ts";
+import { playerKiMax, type RunState } from "./run-state.ts";
 import { isShopItem, type ShopItemId } from "./shop.ts";
 import { CUP_IDS } from "./world/tournament.ts";
 
@@ -43,6 +44,7 @@ export function packGroups(run: RunState): SlotGroup<ItemId>[] {
     ...(run.hasTsuba ? (["tsuba"] as const) : []),
     ...(run.shinaiQuest === "gotBamboo" && !run.madeShinai ? (["bamboo"] as const) : []),
     ...(run.shinaiQuest === "returned" ? (["shinaiBag"] as const) : []),
+    ...(hasDungeonKey(run) ? (["key"] as const) : []),
     ...shopHeld.filter((item) => !isColors(item) && !gearKeyOf(item)),
   ];
   const worn = new Set(SCREEN_SLOTS.map((slot) => equippedAt(run, slot)));
@@ -104,6 +106,16 @@ export function confirmDoes(run: RunState, cell: ScreenCell): ScreenDoes {
   if (key) return run.gear[equipmentInfo(key).slot] ? "equip" : null;
   if (isColors(item)) return run.look === item.slice("shop:".length) ? "take-off" : "wear";
   return null;
+}
+
+/**
+ * What swapping this spare in would do to your ki, against what's in its slot now, or null where E wouldn't
+ * equip it. Like a crafting game's tooltip, so you can see whether a piece is better before you put it on.
+ */
+export function equipKiChange(run: RunState, item: ItemId): number | null {
+  const key = gearKeyOf(item);
+  if (!key || confirmDoes(run, item) !== "equip" || equippedAt(run, equipmentInfo(key).slot) === key) return null;
+  return playerKiMax(equip(run, key)) - playerKiMax(run);
 }
 
 /** One tick of the screen: move the cursor, and E does whatever the cell under it does. */

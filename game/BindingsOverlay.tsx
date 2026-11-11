@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { DEFAULT_BINDINGS, type Action, type Bindings } from "./core/input";
 import { isBindings } from "./net/keybindings-data";
 
@@ -17,6 +17,16 @@ export function BindingsOverlay({ ui }: { ui: BindingsUi }) {
   const [draft, setDraft] = useState(() => Object.fromEntries(Object.entries(ui.bindings).map(([action, keys]) => [action, format(keys)])) as Record<Action, string>);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const first = useRef<HTMLInputElement>(null);
+  // The game is played from the keyboard, so the keyboard has to be able to get back out: Esc cancels, as the sign-in form does.
+  useEffect(() => first.current?.focus(), []);
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") ui.close();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [ui]);
   const save = async () => {
     const next = Object.fromEntries(Object.entries(draft).map(([action, keys]) => [action, parse(keys)])) as Bindings;
     if (!isBindings(next)) { setError("Enter at least one valid key for every action. Separate keys with commas."); return; }
@@ -30,7 +40,7 @@ export function BindingsOverlay({ ui }: { ui: BindingsUi }) {
       <h2 className="text-xl font-bold">Customize controls</h2>
       <p className="my-3 text-sm text-white/70">Enter keys separated by commas. Use space, enter, escape, or arrowleft, arrowright, arrowup and arrowdown for those keys. A key can be shared by actions.</p>
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">{(Object.keys(LABELS) as Action[]).map((action) => <label key={action} className="block text-sm">{LABELS[action]}
-        <input aria-label={LABELS[action]} className="mt-1 block w-full rounded border border-white/40 bg-black/40 px-2 py-1 text-white" value={draft[action]} onChange={(event) => setDraft({ ...draft, [action]: event.target.value })}/>
+        <input ref={action === "left" ? first : undefined} aria-label={LABELS[action]} className="mt-1 block w-full rounded border border-white/40 bg-black/40 px-2 py-1 text-white" value={draft[action]} onChange={(event) => setDraft({ ...draft, [action]: event.target.value })}/>
       </label>)}</div>
       {error && <p role="alert" className="mt-3 text-red-300">{error}</p>}
       <div className="mt-4 flex flex-wrap gap-2">

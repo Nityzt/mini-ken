@@ -26,13 +26,16 @@ test("once you're armored and Ren's had their one point, it follows the ladder",
   assert.match(currentObjective(run), /city/i);
 });
 
-test("with everything open, it points at the Grand Taikai, and then there's nothing left to chase", () => {
+test("with everything open, it points at the Grand Taikai, and then at whatever's still open", () => {
   const everything: RunState = {
     ...start, metSenpai: true, gi: true, senseiRounds: 3, trained: true, gear: FULL_GEAR, seme: true, linePasses: 3, bonusKi: 200, dan: 3, shinaiQuest: "returned",
     beaten: ["aki", "raccoon", "goose", "heron", "otter", "radish"],
   };
   assert.match(currentObjective(everything), /Grand Taikai/);
-  assert.equal(currentObjective({ ...everything, champion: true }), "");
+  const champion = currentObjective({ ...everything, champion: true });
+  assert.match(champion, /, online play$/);
+  assert.match(champion, /Pinecone Cup/);
+  assert.ok(measureText(champion) <= STAGE_W - 14, champion);
 });
 
 test("it walks you through a grading: ask, then use the ticket", () => {
@@ -53,4 +56,68 @@ test("it always fits on one line", () => {
     }
   }
   assert.ok(LADDER.length > 0);
+});
+
+test("after the Pinecone Cup it walks you to Old Gen and Cherry Park, rather than straight to a ki number", () => {
+  const cupWon: RunState = {
+    ...start, metSenpai: true, gi: true, senseiRounds: 3, trained: true, gear: FULL_GEAR, gaze: true, linePasses: 3,
+    beaten: ["aki", "bo", "yui"], cups: ["pinecone"], bonusKi: 30, visited: ["pinecone", "crossroads", "market", "stop"],
+  };
+  assert.equal(currentObjective(cupWon), "See Old Gen on Ravine Trail");
+  const taught = { ...cupWon, seme: true };
+  assert.equal(currentObjective(taught), "Ride the streetcar to Cherry Park");
+  const there = { ...taught, visited: [...taught.visited, "parkStop" as const] };
+  // Sora wants more ki than this, so it says where to get some.
+  assert.match(currentObjective(there), /^More ki \(\d+\/145\): ride up the Tower$/);
+  assert.match(currentObjective({ ...there, blessed: true }), /kirikaeshi/);
+});
+
+test("the line never stops at a bare ki number, and never sends you to a street fight", () => {
+  const armored: RunState = { ...start, metSenpai: true, gi: true, senseiRounds: 3, trained: true, gear: FULL_GEAR, gaze: true, linePasses: 3, shinaiQuest: "returned" };
+  const streets = /Market|Viaduct|Harbour|Picnic|Boardwalk|Foundry|Gorge|Alley/;
+  for (const bonusKi of [0, 10, 20, 30, 40, 50, 60, 80, 100, 130])
+    for (const extra of [{}, { seme: true }, { blessed: true, kirikaeshiPasses: 3 }, { blessed: true, kirikaeshiPasses: 3, cups: ["pinecone"] as RunState["cups"] }])
+      for (const beaten of [[], ["aki", "bo", "yui"], ["aki", "bo", "yui", "raccoon"]] as RunState["beaten"][]) {
+        const run = { ...armored, bonusKi, beaten, ...extra };
+        const line = currentObjective(run);
+        assert.doesNotMatch(line, /: ki \d+$/, line);
+        assert.doesNotMatch(line, streets, line);
+        assert.ok(measureText(line) <= STAGE_W - 14, line);
+      }
+});
+
+test("Sensei's old shinai never takes the line from the ladder (late-game playtest)", () => {
+  // 1st dan, Sora beaten, and Sensei wants the shinai back: Hana's next, and nothing on the ladder needs the shinai.
+  const firstDan: RunState = {
+    ...start, metSenpai: true, gi: true, senseiRounds: 3, trained: true, gear: FULL_GEAR, gaze: true, seme: true, linePasses: 3, dan: 1, waza: true,
+    beaten: ["aki", "bo", "yui", "raccoon"], cups: ["pinecone"], blessed: true, kirikaeshiPasses: 3, bonusKi: 100, visited: ["pinecone", "crossroads", "stop", "parkStop", "raccoon", "beachStop"],
+  };
+  for (const quest of [{ shinaiQuest: "" }, { shinaiQuest: "asked" }, { shinaiQuest: "gotBamboo" }, { shinaiQuest: "gotBamboo", madeShinai: true }]) {
+    const line = currentObjective({ ...firstDan, ...quest });
+    assert.doesNotMatch(line, /shinai|Fumi|bamboo|See Sensei/i, line);
+    assert.ok(measureText(line) <= STAGE_W - 14, line);
+  }
+  // Short of ki for Hana with nothing quicker to do, the errand is named alongside, since it's worth ki too.
+  const short = { ...firstDan, cups: ["pinecone", "raccoon"] as RunState["cups"], bonusKi: 50, shinaiQuest: "asked" };
+  assert.match(currentObjective(short), /^More ki \(\d+\/170\): .*shinai/);
+  assert.ok(measureText(currentObjective(short)) <= STAGE_W - 14, currentObjective(short));
+  // Later, with the whole ladder done, it's the one thing left to say.
+  const done: RunState = { ...firstDan, dan: 3, bonusKi: 200, beaten: ["aki", "bo", "yui", "raccoon", "goose", "heron", "otter", "radish"], champion: true, shinaiQuest: "asked" };
+  assert.match(currentObjective(done), /shinai/i);
+});
+
+test("after the Grand Taikai it offers what's left, and always fits", () => {
+  const base: RunState = { ...start, metSenpai: true, gi: true, senseiRounds: 3, trained: true, gear: FULL_GEAR, seme: true, linePasses: 3, bonusKi: 200, dan: 3, champion: true, beaten: ["aki", "raccoon", "goose", "heron", "otter", "radish"] };
+  const all = currentObjective({ ...base, shinaiQuest: "asked" });
+  assert.match(all, /^Sensei's shinai, /);
+  assert.ok(measureText(all) <= STAGE_W - 14, all);
+  // Everything won and done, there's still other people to play.
+  const everyCup = ["pinecone", "raccoon", "goose", "heron", "otter", "radish", "grand"] as RunState["cups"];
+  const seen = ["perfectLine", "flawless"].map((f) => `feat:${f}`).concat(["a", "b", "c", "d", "e", "f", "g", "h"].map((e) => `egg:${e}`));
+  const finished: RunState = {
+    ...base, shinaiQuest: "returned", cups: everyCup, seen, cleared: ["market", "bridge", "wharf"],
+    beaten: [...base.beaten, "bo", "yui", "sensei", "tetsu", "shin", "nemu", "kan", "mizu", "hagane", "raiko"], dungeon: { stage: "escaped", progress: null, escrow: null },
+  };
+  assert.equal(currentObjective(finished), "Online play");
+  assert.match(currentObjective({ ...finished, dungeon: { stage: "locked", progress: null, escrow: null } }), /Radish trial/);
 });

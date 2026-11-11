@@ -15,16 +15,16 @@ import { currentObjective } from "../objective.ts";
 import { DOJOS, opponentById } from "../world/dojos.ts";
 import { askToGrade, showLetter, type Asker } from "../grading.ts";
 import { hasLetter, personDan, presenceOf, type PersonId } from "../ranks.ts";
-import { answerOffer, answerWhy, cupOffer, doorResponse, interactionLabel, kirikaeshiOffer, lineOffer, senpaiMenu, senseiMenu, talkToMomo, talkToSenpai, talkToSensei } from "./club-story.ts";
+import { answerOffer, answerWhy, cupOffer, doorResponse, interactionLabel, kirikaeshiOffer, lineOffer, newsFirst, promptFor, senpaiMenu, senseiMenu, talkToMomo, talkToNao, talkToSenpai, talkToSensei } from "./club-story.ts";
 import { rest } from "../health.ts";
 import { talkToChallenger } from "./challengers.ts";
-import { openTopics } from "./chatter.ts";
+import { homecoming, openTopics } from "./chatter.ts";
 import { leaveDojo } from "./exit.ts";
 import { offerBet } from "./bet-menu.ts";
 import { createMenu } from "./choice.ts";
 import { createShop } from "./shop.ts";
 import { findEgg } from "../money.ts";
-import { HELP_OFFER, MOMO_AT_DOOR, MOMO_STORAGE_OPEN, OFFER_OPTIONS, SCREEN_HINT, SCREEN_LOOK, SCREEN_NEEDS_TRAINING, SCREEN_NO_SHINAI, STORAGE_LOCKED, WAZA_OFFER, WHY_OPTIONS } from "./content.ts";
+import { HELP_OFFER, MOMO_AT_DOOR, MOMO_STORAGE_OPEN, OFFER_OPTIONS, OFFER_QUESTION, SCREEN_HINT, SCREEN_LOOK, SCREEN_STRIKE, SCREEN_NEEDS_TRAINING, SCREEN_NO_SHINAI, STORAGE_LOCKED, WAZA_OFFER, WHY_OPTIONS, WHY_QUESTION } from "./content.ts";
 import { crowdDrawings, drawNamedChat, rankTagShown } from "./crowd.ts";
 import { drawInteractPrompt, drawObjective, drawTopBar } from "./ui.ts";
 import type { SenpaiId, Session } from "./curriculum.ts";
@@ -52,6 +52,12 @@ type Clothes = { gi: boolean; gear: Gear };
 type Dressing = { tick: number; before: Clothes; after: Clothes; held: string | null; sounded: boolean; then: () => void };
 const HELD_ICON: Partial<Record<keyof Gear, string>> = { do: "iconDo", men: "iconMen", kote: "iconKote", shinai: "iconShinai" };
 
+/**
+ * On your first day you carry on past the start spot, so coming in reads as walking in, and stop where Nao's
+ * welcome can sit beside her without covering you. Offsets from the start spot.
+ */
+const FIRST_STEPS_IN: [number, number][] = [[0, 1], [0, 2]];
+
 const newWalker = (): Walker => ({ ...createWalker(place("@").col, place("@").row), facing: "down" });
 
 /** The storage door rattles in its frame, then slides aside to show the room behind it. */
@@ -59,7 +65,7 @@ function drawStorageDoor(ctx: CanvasRenderingContext2D, cam: { x: number; y: num
   const options = { colors: lookOf("pinecone").room };
   const x = storageDoor.col * TILE - cam.x;
   const y = storageDoor.row * TILE - cam.y;
-  drawSprite(ctx, TILE_GRIDS.doorOpen, x, y, options);
+  drawSprite(ctx, TILE_GRIDS.doorwayIn, x, y, options);
   ctx.save();
   ctx.beginPath();
   ctx.rect(x, y, TILE, TILE);
@@ -99,6 +105,8 @@ export function createClubScene(nameOf: () => string): Scene {
   /** How long the note about your new men has been showing, if it is. It never stops you doing anything. */
   let menToast: number | null = null;
 
+  /** Who can be talked to right now. Someone still walking over isn't at their spot yet. */
+  const peopleHere = () => (visit?.phase === "coming" ? PEOPLE.replace("V", "") : PEOPLE);
   const visitorHere = (game: Game) => (arriving ? null : lingering ?? homeVisitor(game.run));
   const rowsFor = (game: Game) => {
     const rows = clubRows({ storageOpen: game.run.metSenpai, screenBroken: game.run.screenBroken, momoGuards: game.run.trained && !game.run.momoBeaten, visitor: visitorHere(game) !== null });
@@ -117,7 +125,10 @@ export function createClubScene(nameOf: () => string): Scene {
   const talkMomo = (game: Game) => {
     const reply = talkToMomo(game.run);
     if (reply.chats) {
-      openTopics(game, menu, dialogue, "momo");
+      const news = newsFirst(game.run, "momo");
+      game.run = news.run;
+      if (news.lines.length) dialogue.open(news.lines, () => openTopics(game, menu, dialogue, "momo"));
+      else openTopics(game, menu, dialogue, "momo");
       return;
     }
     game.run = reply.run;
@@ -181,7 +192,8 @@ export function createClubScene(nameOf: () => string): Scene {
   const comeOver = (game: Game, talk: Talk, from?: { col: number; row: number }) => {
     const rows = rowsFor(game).map((row) => row.replace("V", "."));
     const door = place("D");
-    visit = createVisit({ rows, solid: CLUB_SOLID, start: from ?? door, door, player: walker });
+    // You're free to get on with things while they walk over, and they follow you until you stop to listen.
+    visit = createVisit({ rows, solid: CLUB_SOLID, start: from ?? door, door, player: walker, follows: true });
     visitTalk = talk;
   };
   /** It's yours once Sensei's said so. Backing out before then means nothing's changed hands. */
@@ -207,7 +219,7 @@ export function createClubScene(nameOf: () => string): Scene {
       const answer = answerOffer(game.run, id);
       if (answer.after) handOver(game, answer, answer.after);
       else dialogue.open(answer.lines);
-    });
+    }, ask === "why" ? WHY_QUESTION : OFFER_QUESTION);
   };
   const talkSensei = (game: Game) => {
     const reply = talkToSensei(game.run);
@@ -224,9 +236,17 @@ export function createClubScene(nameOf: () => string): Scene {
       dialogue.open(reply.lines, startTraining(game, reply.session));
       return;
     }
-    dialogue.open(reply.lines, () => {
+    // Whatever's on Sensei's mind comes before what you should do next.
+    const news = newsFirst(game.run, "sensei");
+    game.run = news.run;
+    dialogue.open([...news.lines, ...reply.lines], () => {
       menu.open(senseiMenu(game.run), (id) => {
-        if (id === "line") dialogue.open(lineOffer(game.run), () => game.go("line"));
+        if (id === "line") {
+          // With nothing for Sensei to add, the drill's own card does the talking.
+          const offer = lineOffer(game.run);
+          if (offer.length) dialogue.open(offer, () => game.go("line"));
+          else game.go("line");
+        }
         else if (id === "kirikaeshi") dialogue.open(kirikaeshiOffer(game.run), () => game.go("kirikaeshi"));
         else if (id === "waza") dialogue.open(WAZA_OFFER, () => {
           game.session = { kind: "waza" };
@@ -252,7 +272,7 @@ export function createClubScene(nameOf: () => string): Scene {
       dialogue.open(reply.lines, startTraining(game, reply.session));
       return;
     }
-    menu.open(senpaiMenu(game.run), (id) => {
+    const choose = () => menu.open(senpaiMenu(game.run), (id) => {
       if (id === "spar") dialogue.open(reply.lines, () => offerBet(menu, game, fight, () => {
         game.versus = fight;
         game.go("duel");
@@ -260,6 +280,10 @@ export function createClubScene(nameOf: () => string): Scene {
       else if (id === "talk") openTopics(game, menu, dialogue, senpai);
       else if (id === "grade") askAboutGrading(game, senpai);
     });
+    const news = newsFirst(game.run, senpai);
+    game.run = news.run;
+    if (news.lines.length) dialogue.open(news.lines, choose);
+    else choose();
   };
   /** Whatever a visitor has to say, and Ren's one point if that's what it leads to. Backing out just means Ren waits. */
   const playTalk = (game: Game, talk: Talk) => {
@@ -291,7 +315,11 @@ export function createClubScene(nameOf: () => string): Scene {
     } : undefined);
   };
   const talkTo = (game: Game, char: string) => {
-    if (char === "Z") dialogue.open(["Nao: Momo is on the left side of the hall. Walk up and press E to talk to her."]);
+    if (char === "Z") {
+      const reply = talkToNao(game.run);
+      game.run = reply.run;
+      dialogue.open(reply.lines);
+    }
     else if (char === "M") talkMomo(game);
     else if (char === "X") talkSensei(game);
     else if (char === "A") talkSenpai(game, "aki");
@@ -359,12 +387,26 @@ export function createClubScene(nameOf: () => string): Scene {
         game.message = null;
       } else if ((!game.run.metSenpai || game.run.trained) && !game.returning) {
         walker = newWalker();
-        entrance = createEntrance(walker, place("D"), place("@"), { rows: CLUB_MAP, solid: "", tile: TILE });
+        const first = doorWelcome(game.run) !== null;
+        // The very first time, you walk a little way into the hall and turn to Nao, who's come to say hello.
+        const start = place("@");
+        const way = first ? [start, ...FIRST_STEPS_IN.map(([dc, dr]) => ({ col: start.col + dc, row: start.row + dr }))] : start;
+        entrance = createEntrance(walker, place("D"), way, { rows: CLUB_MAP, solid: "", tile: TILE });
         afterEntrance = () => {
           const welcome = doorWelcome(game.run);
           if (welcome) {
+            // Turned to Nao, side on, so you're looking at her rather than at the wall.
+            walker.facing = "side";
+            walker.flip = place("Z").col * TILE + TILE / 2 < walker.box.x + walker.box.w / 2;
             game.run = welcome.run;
             dialogue.open(welcome.lines, greet, greet);
+            return;
+          }
+          // Back in off the road, Nao on the door has heard what happened out there.
+          const back = homecoming(game.run);
+          if (back) {
+            game.run = back.run;
+            dialogue.open([back.line], greet, greet);
           } else greet();
         };
       } else greet();
@@ -381,6 +423,8 @@ export function createClubScene(nameOf: () => string): Scene {
       game.debug.menToast = menToast;
       game.debug.visitor = visit?.walker.box ?? null;
       game.debug.talking = dialogue.active || menu.active || shop.active;
+      // Someone on their way over keeps walking whatever you're up to. They wait until you're free to say their piece.
+      if (visit?.phase === "coming") visit.update(walker);
       if (dialogue.active) {
         dialogue.update(game.input, game.audio);
         return;
@@ -402,6 +446,7 @@ export function createClubScene(nameOf: () => string): Scene {
           next?.();
         }
         game.debug.walker = walker.box;
+        game.debug.facing = walker.facing;
         return;
       }
       if (dressing) {
@@ -417,15 +462,16 @@ export function createClubScene(nameOf: () => string): Scene {
         }
         return;
       }
-      if (visit) {
-        const before = visit.phase;
-        visit.update(walker);
-        if (before === "coming" && visit.phase === "talking") {
+      if (visit && visitTalk) {
+        // They've got to you. If you're already on your way to someone else, they let you finish.
+        if (visit.phase === "talking" && !stride) {
           const talk = visitTalk;
           visitTalk = null;
-          if (talk) playTalk(game, talk);
+          playTalk(game, talk);
           return;
         }
+      } else if (visit) {
+        if (visit.phase !== "coming") visit.update(walker);
         // They've said what they came to say.
         if (visit.phase === "talking") visit.leave(findTiles(rowsFor(game), "V")[0] ?? place("D"));
         if (visit.done) visit = null;
@@ -469,15 +515,16 @@ export function createClubScene(nameOf: () => string): Scene {
       }
 
       const front = tileInFront(walker, rows);
-      const struck = game.input.wasPressed("men") || game.input.wasPressed("kote") || game.input.wasPressed("do");
-      if (front === "C" && struck && game.run.momoBeaten) {
+      // Once Momo's stood aside, the prompt over the screen says Strike, so E does what it says as well as J, K or L.
+      const struck = game.input.wasPressed("men") || game.input.wasPressed("kote") || game.input.wasPressed("do") || game.input.wasPressed("confirm");
+      if (front === "C" && struck && game.run.momoBeaten && game.run.gear.shinai && !personAhead(walker, rows, CLUB_SOLID, PEOPLE)) {
         game.run = { ...game.run, screenBroken: true };
         game.debug.club = { screenBroken: true };
         game.audio.play("break");
         return;
       }
       if (!game.input.wasPressed("confirm")) return;
-      const ahead = personAhead(walker, rows, CLUB_SOLID, PEOPLE);
+      const ahead = personAhead(walker, rows, CLUB_SOLID, peopleHere());
       if (ahead) {
         stride = { ...createStride(walker, ahead.stand), char: ahead.char };
         talkingTo = ahead.char;
@@ -535,26 +582,38 @@ export function createClubScene(nameOf: () => string): Scene {
       }
 
       const tags: (() => void)[] = [];
+      // Whoever you're facing is named in the prompt over your head, so their own tag stays out of its way.
+      const prompting = !dialogue.active && !menu.active;
+      const ahead = prompting ? personAhead(walker, rows, CLUB_SOLID, peopleHere())?.char ?? null : null;
+      const names: Record<string, string> = { Z: "Nao" };
       const you: Figure = figureAt(ctx, walker.box.x + walker.box.w / 2 - cam.x, walker.box.y - 12 - cam.y, walker.box.y + 8 - cam.y);
       const figures: Record<string, Figure | undefined> = {};
       const walkingFigure = (w: Walker) => figureAt(ctx, w.box.x + w.box.w / 2 - cam.x, w.box.y - 12 - cam.y, w.box.y + 8 - cam.y);
-      const person = (char: string, id: Exclude<PersonId, "examiner">, standing: "down" | "side", gear: typeof FULL_GEAR, colors?: Record<string, string>) => {
+      const person = (char: string, id: Exclude<PersonId, "examiner">, standing: "down" | "side", gear: typeof FULL_GEAR, colors?: Record<string, string>, lying = false) => {
         const spot = findTiles(rows, char)[0];
         const x = spot.col * TILE - cam.x;
         const y = spot.row * TILE - 4 - cam.y;
-        figures[char] = figureAt(ctx, x + 8, y, y + 20);
+        figures[char] = lying ? figureAt(ctx, x + 8, y + 8, y + 20) : figureAt(ctx, x + 8, y, y + 20);
         // Whoever you're talking to looks at you. Sora's asleep.
         const turned = talkingTo === char && !(char === "V" && visitorHere(game) === "sora")
           ? facingToward({ x: x + 8, y: y + 16 }, { x: walker.box.x + walker.box.w / 2 - cam.x, y: walker.box.y + walker.box.h / 2 - cam.y })
           : { facing: standing, flip: false };
         const dan = personDan(id);
-        const near = rankTagShown({ x: walker.box.x + walker.box.w / 2 - cam.x, y: walker.box.y - cam.y }, { x: x + 8, y: y + 16 });
+        names[char] = opponentById(id).rival;
+        const near = char !== ahead && rankTagShown({ x: walker.box.x + walker.box.w / 2 - cam.x, y: walker.box.y - cam.y }, { x: x + 8, y: y + 16 });
         if (near) tags.push(() => drawRankTag(ctx, opponentById(id).rival, x + 8, y - 8, presenceOf(dan) > 0));
         return {
           y: spot.row * TILE,
           draw: () => {
             drawPresence(ctx, x + 8, y + 20, tick, presenceOf(dan), game.reducedMotion);
-            drawKendoka(ctx, x, y, turned.facing, 0, gear, { colors, flip: turned.flip });
+            if (lying) {
+              // Flat out on the floor, head to the left, so a nap reads as a nap and leaves the people above in plain sight.
+              ctx.save();
+              ctx.translate(x - 2, y + 20);
+              ctx.rotate(-Math.PI / 2);
+              drawKendoka(ctx, 0, 0, "down", 0, gear, { colors });
+              ctx.restore();
+            } else drawKendoka(ctx, x, y, turned.facing, 0, gear, { colors, flip: turned.flip });
           },
         };
       };
@@ -562,7 +621,7 @@ export function createClubScene(nameOf: () => string): Scene {
       const greeterX = greeterSpot.col * TILE - cam.x;
       const greeterY = greeterSpot.row * TILE - 4 - cam.y;
       figures.Z = figureAt(ctx, greeterX + 8, greeterY, greeterY + 20);
-      if (rankTagShown({ x: walker.box.x + walker.box.w / 2 - cam.x, y: walker.box.y - cam.y }, { x: greeterX + 8, y: greeterY + 16 })) tags.push(() => drawRankTag(ctx, "Nao", greeterX + 8, greeterY - 8, false));
+      if (ahead !== "Z" && rankTagShown({ x: walker.box.x + walker.box.w / 2 - cam.x, y: walker.box.y - cam.y }, { x: greeterX + 8, y: greeterY + 16 })) tags.push(() => drawRankTag(ctx, "Nao", greeterX + 8, greeterY - 8, false));
       const people = [
         { y: greeterSpot.row * TILE, draw: () => drawKendoka(ctx, greeterX, greeterY, "down", 0, { ...FULL_GEAR, men: false }, { colors: TEAM_COLORS.pinecone! }) },
         ...(escort
@@ -594,7 +653,7 @@ export function createClubScene(nameOf: () => string): Scene {
         const { walker: comer } = visit;
         figures.V = walkingFigure(comer);
         people.push({ y: comer.box.y - 8, draw: () => drawWalker(ctx, comer, cam, { ...FULL_GEAR, men: false }, DOJOS.radish.colors) });
-      } else if (visitor) people.push(person("V", visitor === "ren" ? "renVisit" : "raccoon", "down", { ...FULL_GEAR, men: false }, visitor === "ren" ? DOJOS.radish.colors : DOJOS.raccoon.colors));
+      } else if (visitor) people.push(person("V", visitor === "ren" ? "renVisit" : "raccoon", "down", { ...FULL_GEAR, men: false }, visitor === "ren" ? DOJOS.radish.colors : DOJOS.raccoon.colors, visitor === "sora"));
       people.sort((a, b) => a.y - b.y).forEach((p) => p.draw());
       if (!game.reducedMotion) {
         // The senpai standing near each other talk, too.
@@ -612,10 +671,12 @@ export function createClubScene(nameOf: () => string): Scene {
       }
 
       drawTopBar(ctx, "Pinecone Dojo", game.run);
-      if (!dialogue.active && !menu.active) {
+      if (prompting) {
         drawObjective(ctx, currentObjective(game.run));
-        const label = interactionLabel(personAhead(walker, rows, CLUB_SOLID, PEOPLE)?.char ?? tileInFront(walker, rows), "home");
-        if (label) drawInteractPrompt(ctx, label, walker.box.x + walker.box.w / 2 - cam.x, walker.box.y - cam.y, keyLabel(game.input, "confirm", "e"));
+        const facing = ahead ?? tileInFront(walker, rows);
+        const label = facing === "C" && game.run.momoBeaten && game.run.gear.shinai ? SCREEN_STRIKE : interactionLabel(facing, "home");
+        // Facing up at someone, a prompt over your head would sit on their face, so it goes under your feet.
+        if (label) drawInteractPrompt(ctx, promptFor(label, ahead ? names[ahead] : undefined), walker.box.x + walker.box.w / 2 - cam.x, walker.box.y - cam.y, keyLabel(game.input, "confirm", "e"), !!ahead && walker.facing === "up");
       }
       if (menToast !== null) drawMenToast(ctx, menToast, game.reducedMotion, { pause: keyLabel(game.input, "pause", "escape"), confirm: keyLabel(game.input, "confirm", "e") }, playerColors(game.run));
       dialogue.render(ctx, speakersIn(figures, SPEAKERS, you, talkingTo));

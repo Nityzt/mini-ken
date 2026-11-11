@@ -51,12 +51,13 @@ export function placeBubble(size: { w: number; h: number }, speaker: Figure, avo
 }
 
 /**
- * Who a room's lines belong to. A name nobody here goes by, or a line with no name at all, goes to whoever you're
- * talking to, and failing that to you.
+ * Who a room's lines belong to. A line with no name goes to whoever you're talking to, since that's who's speaking.
+ * With nobody to talk to, it's narration ("Rei. Hana bows"), and a label ("Tare: ...") or a name nobody here goes by
+ * isn't anyone in the room, so those go along the bottom rather than pointing at you or a bystander.
  */
-export function speakersIn(figures: Record<string, Figure | undefined>, names: Record<string, string>, you: Figure, talkingTo: string | null): { at(name: string | null): Figure; avoid: Figure[] } {
+export function speakersIn(figures: Record<string, Figure | undefined>, names: Record<string, string>, you: Figure, talkingTo: string | null): { at(name: string | null): Figure | null; avoid: Figure[] } {
   return {
-    at: (name) => (name ? figures[names[name]] : undefined) ?? (talkingTo ? figures[talkingTo] : undefined) ?? you,
+    at: (name) => (name ? figures[names[name]] : talkingTo ? figures[talkingTo] : undefined) ?? null,
     avoid: [you],
   };
 }

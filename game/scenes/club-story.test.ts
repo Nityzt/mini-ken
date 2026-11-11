@@ -1,10 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { answerOffer, cupOffer, doorResponse, finishSession, freeSenpai, freeSenpaiNames, interactionLabel, kirikaeshiOutcome, lineOutcome, lineOffer, pendingChallenge, senseiMenu, sparOutcome, talkToMomo, talkToSenpai, talkToSensei } from "./club-story.ts";
+import { answerOffer, cupOffer, doorResponse, finishSession, freeSenpai, freeSenpaiNames, kirikaeshiOffer, promptFor, interactionLabel, kirikaeshiOutcome, lineOutcome, lineOffer, pendingChallenge, senseiMenu, sparLeft, sparOutcome, talkToMomo, talkToSenpai, talkToSensei } from "./club-story.ts";
 import { recordLinePass, recordWin } from "../run-state.ts";
 import { isOpen, LINE_PASSES_TO_UNLOCK } from "../progress.ts";
-import { DIALOGUE_LINES, DIALOGUE_WIDTH, DRILL_PRAISE, GEAR_LINES, GEN_AGAIN, GEN_DONE, GEN_DONE_AFTER, GEN_FAIL, GEN_LINES, KOTE_DONE, SENPAI_LINES, SENSEI_ROUND_DONE } from "./content.ts";
+import { DIALOGUE_LINES, DIALOGUE_WIDTH, DRILL_PRAISE, GEAR_LINES, GEN_AGAIN, GEN_FROM_TOP, GEN_DONE, GEN_DONE_AFTER, GEN_FAIL, GEN_LINES, KOTE_DONE, LINE_FIRST, LINE_NO_KEYS, SENPAI_LINES, SENSEI_ROUND_DONE } from "./content.ts";
 import { wrapText } from "../art/font.ts";
+import { SENPAI_IDS } from "./curriculum.ts";
+import { LINE_NO_KEYS_CARD } from "./teaching.ts";
 import { createRunState, type RunState } from "../run-state.ts";
 
 const withGi = (): RunState => ({ ...createRunState(), metSenpai: true, gi: true });
@@ -202,6 +204,28 @@ test("a senpai win says the door's open the first time", () => {
   assert.equal(again.run.bonusKi, first.run.bonusKi);
 });
 
+test("a senpai you've beaten greets a rematch as one, and says something new when you win again (owner, 2026-11-11)", () => {
+  for (const id of SENPAI_IDS) {
+    assert.deepEqual(talkToSenpai(armored(), id).lines, [SENPAI_LINES[id].spar]);
+    const won = sparOutcome(armored(), id);
+    assert.equal(won.lines[0], SENPAI_LINES[id].sparWin);
+    assert.deepEqual(talkToSenpai(won.run, id).lines, [SENPAI_LINES[id].rematch]);
+    assert.equal(sparOutcome(won.run, id).lines[0], SENPAI_LINES[id].winAgain);
+  }
+});
+
+test("the first time a senpai beats you, they say so once, and walking off a match you didn't lose says nothing of it", () => {
+  for (const id of SENPAI_IDS) {
+    const walked = sparLeft(armored(), id, false);
+    assert.deepEqual(walked.lines, [SENPAI_LINES[id].sparAgain]);
+    const first = sparLeft(armored(), id, true);
+    assert.deepEqual(first.lines, [SENPAI_LINES[id].firstLoss]);
+    assert.deepEqual(sparLeft(first.run, id, true).lines, [SENPAI_LINES[id].sparAgain]);
+  }
+  // Each senpai keeps their own count.
+  assert.deepEqual(sparLeft(sparLeft(armored(), "aki", true).run, "bo", true).lines, [SENPAI_LINES.bo.firstLoss]);
+});
+
 test("a second senpai still pays out ki, without announcing the door again", () => {
   const first = sparOutcome(armored(), "aki");
   const second = sparOutcome(first.run, "bo");
@@ -233,9 +257,27 @@ test("runs beyond the third still get a word from Sensei", () => {
   assert.equal(recordLinePass(run).linePasses, LINE_PASSES_TO_UNLOCK + 1);
 });
 
-test("the last tier warns you the key prompts are gone", () => {
-  assert.notDeepEqual(lineOffer({ ...armored(), linePasses: 0 }), lineOffer({ ...armored(), linePasses: 2 }));
-  assert.ok(lineOffer({ ...armored(), linePasses: 2 }).join(" ").includes("no key"));
+test("the last tier warns you the key prompts are gone, once, from Sensei or from the card but not both", () => {
+  const seen = (...ids: string[]) => ids.map((id) => `taught:${id}`);
+  // The card says it the first time, word for word, so Sensei doesn't say it first.
+  assert.deepEqual(lineOffer({ ...armored(), linePasses: 2 }), []);
+  assert.equal(LINE_NO_KEYS_CARD.text, LINE_NO_KEYS);
+  // After that the card's gone, and the warning is Sensei's.
+  assert.ok(lineOffer({ ...armored(), linePasses: 2, seen: seen("line", "lineNoKeys") }).join(" ").includes("no key"));
+  assert.notDeepEqual(lineOffer({ ...armored(), linePasses: 1 }), lineOffer({ ...armored(), linePasses: 2, seen: seen("line", "lineNoKeys") }));
+});
+
+test("picking a drill from Sensei's menu is the decision: nobody asks again if you're ready", () => {
+  for (const linePasses of [0, 1, 2, 3]) {
+    for (const seen of [[], ["taught:line", "taught:lineNoKeys"]]) {
+      for (const line of lineOffer({ ...armored(), linePasses, seen })) assert.doesNotMatch(line, /Ready\?|X to leave/, line);
+    }
+  }
+  // The first run's card explains the line itself, so Sensei only explains it to someone who's had the card.
+  assert.deepEqual(lineOffer({ ...armored(), linePasses: 0 }), []);
+  assert.deepEqual(lineOffer({ ...armored(), linePasses: 0, seen: ["taught:line"] }), [LINE_FIRST]);
+  for (const kirikaeshiPasses of [0, 1]) for (const line of kirikaeshiOffer({ ...armored(), kirikaeshiPasses })) assert.doesNotMatch(line, /Ready\?|X to leave/, line);
+  for (const id of SENPAI_IDS) assert.doesNotMatch(SENPAI_LINES[id].spar, /E to start|X to leave/);
 });
 
 test("the line drill's words fit in the dialogue box", () => {
@@ -269,7 +311,7 @@ test("Old Gen hands over seme, and explains what it costs once you've seen the c
 });
 
 test("Old Gen's words about seme fit the dialogue box", () => {
-  for (const line of [...GEN_DONE, ...GEN_DONE_AFTER, ...GEN_LINES, ...GEN_AGAIN, GEN_FAIL]) assert.ok(wrapText(line, DIALOGUE_WIDTH).length <= DIALOGUE_LINES, line);
+  for (const line of [...GEN_DONE, ...GEN_DONE_AFTER, ...GEN_LINES, ...GEN_AGAIN, ...GEN_FROM_TOP, GEN_FAIL]) assert.ok(wrapText(line, DIALOGUE_WIDTH).length <= DIALOGUE_LINES, line);
 });
 
 test("learning from the hermit gives you seme", () => {
@@ -454,4 +496,25 @@ test("a record that reuses a senpai, or names all three, never strands the playe
   const stuck = { ...waitingFor(2, {}), armorFrom: { do: "aki", men: "bo", kote: "yui" } } as RunState;
   assert.deepEqual(freeSenpai(stuck), ["aki", "bo", "yui"]);
   assert.deepEqual(talkToSenpai(stuck, "aki").session, { kind: "senpai", senpai: "aki", level: 2 });
+});
+
+test("Momo says every senpai has to test you, and names who's still left", () => {
+  const tare = { ...shinai(), senseiRounds: 1, gear: { ...shinai().gear, tare: true } };
+  const first = talkToMomo(tare).lines.join(" ");
+  assert.doesNotMatch(first, /only need/i);
+  assert.match(first, /Aki, Bo or Yui/);
+  const afterBo = talkToMomo({ ...tare, senseiRounds: 2, gear: { ...tare.gear, do: true }, armorFrom: { do: "bo" } }).lines.join(" ");
+  assert.match(afterBo, /to go: Aki or Yui\./);
+});
+
+test("the prompt over your head says who you'd be talking to, since their own name tag is hidden behind it", () => {
+  assert.equal(promptFor("Talk", "Bo"), "Talk to Bo");
+  assert.equal(promptFor("Talk", "Sensei Kuma"), "Talk to Sensei Kuma");
+  // Anything that isn't a person keeps its own word.
+  assert.equal(promptFor("Leave"), "Leave");
+  assert.equal(promptFor("Notice board"), "Notice board");
+});
+
+test("Nao at the door gets a prompt too", () => {
+  assert.equal(interactionLabel("Z", "home"), "Talk");
 });

@@ -4,7 +4,7 @@ import { gradingFee } from "./money.ts";
 import { atLeastDan, danLabel, hasLetter, hasTicket, MAX_DAN, personDan } from "./ranks.ts";
 import { gainXp, type RunState } from "./run-state.ts";
 import {
-  awayLost, awayOffer, awayTooJunior, awayWon, GRADING_DONE, GRADING_FAILED, gradingNotYet, gradingPassed, GRADING_ROUTES, KIHON_FAILED, KIHON_PASSED, LETTER_HELD, letterNo, letterTest, letterYes, panelNoFee, PANEL_NO_TICKET, panelOffer, RECOMMEND_LOST, recommendOffer, recommendRedirect, RECOMMEND_WON, TACHIAI_READY, TICKET_HELD, VERIFY_LOST, VERIFY_WON,
+  awayLost, awayOffer, awayTooJunior, awayWon, GRADING_DONE, GRADING_FAILED, gradingNotYet, gradingPassed, GRADING_ROUTES, KIHON_FAILED, KIHON_PASSED, LETTER_HELD, letterNo, letterTest, letterYes, panelNoFee, PANEL_NO_TICKET, panelOffer, RECOMMEND_LOST, recommendOffer, recommendRedirect, RECOMMEND_WON, tachiaiReady, TICKET_HELD, VERIFY_LOST, VERIFY_WON,
 } from "./scenes/content.ts";
 import type { SenpaiId } from "./scenes/curriculum.ts";
 import { opponentById, type OpponentId } from "./world/dojos.ts";
@@ -64,11 +64,14 @@ export function askAway(run: RunState, who: OpponentId): { lines: string[]; figh
 }
 
 /** How the bout went. At home, winning earns the ticket. Anywhere else, it earns a letter to bring home. It doesn't go on your record as anything else. */
-export function recommendationOutcome(run: RunState, won: boolean, awayFrom?: string): { run: RunState; lines: string[] } {
+export function recommendationOutcome(run: RunState, won: boolean, awayFrom?: string, by?: string): { run: RunState; lines: string[] } {
   if (awayFrom) return won ? { run: gainXp({ ...run, letter: run.dan + 1, letterFrom: awayFrom }, XP_RECOMMENDED), lines: [awayWon(awayFrom)] } : { run, lines: [awayLost(awayFrom)] };
-  if (!won) return { run, lines: RECOMMEND_LOST };
-  return { run: gainXp({ ...run, ticket: run.dan + 1 }, XP_RECOMMENDED), lines: RECOMMEND_WON };
+  if (!won) return { run, lines: saidBy(by, RECOMMEND_LOST) };
+  return { run: gainXp({ ...run, ticket: run.dan + 1 }, XP_RECOMMENDED), lines: saidBy(by, RECOMMEND_WON) };
 }
+
+/** Whoever just tested you says how it went, so it isn't you saying it. */
+export const saidBy = (by: string | undefined, lines: string[]): string[] => (by ? lines.map((line) => `${by}: ${line}`) : lines);
 
 /** How likely each person at home is to take a letter at its word, or want to test it. Whatever's left over is a no. */
 const LETTER_ODDS: Record<Asker, { yes: number; test: number }> = {
@@ -90,15 +93,15 @@ export function showLetter(run: RunState, asker: Asker, roll: number): { run: Ru
 }
 
 /** How the one point went. Losing keeps your letter, so you can always ask again. */
-export function verificationOutcome(run: RunState, won: boolean): { run: RunState; lines: string[] } {
-  return won ? { run: gainXp({ ...run, ticket: run.letter, letter: 0, letterFrom: "" }, XP_RECOMMENDED), lines: VERIFY_WON } : { run, lines: VERIFY_LOST };
+export function verificationOutcome(run: RunState, won: boolean, by?: string): { run: RunState; lines: string[] } {
+  return won ? { run: gainXp({ ...run, ticket: run.letter, letter: 0, letterFrom: "" }, XP_RECOMMENDED), lines: saidBy(by, VERIFY_WON) } : { run, lines: saidBy(by, VERIFY_LOST) };
 }
 
 /** What the panel says, and what comes next. It wants to see your basics, and then a bout. */
 export function talkToPanel(run: RunState, stage: GradingStage | null): { lines: string[]; next: GradingStage | null; fight: OpponentId | null } {
   if (!hasTicket(run)) return { lines: PANEL_NO_TICKET, next: null, fight: null };
   const rank = run.dan + 1;
-  if (stage === "tachiai") return { lines: TACHIAI_READY, next: "tachiai", fight: gradingPartner(rank) };
+  if (stage === "tachiai") return { lines: tachiaiReady(rank), next: "tachiai", fight: gradingPartner(rank) };
   const fee = gradingFee(rank);
   if (run.money < fee) return { lines: [panelNoFee(fee, run.money)], next: null, fight: null };
   return { lines: panelOffer(danLabel(rank), fee), next: "kihon", fight: null };

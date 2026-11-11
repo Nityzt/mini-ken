@@ -13,7 +13,7 @@ import type { NodeId } from "../world/map.ts";
 import { DIALOGUE_LINES, DIALOGUE_WIDTH } from "./content.ts";
 import { clubRows, CLUB_SOLID, findTiles, RIVAL_SOLID } from "./levels.ts";
 import { REN_POINT_LESSON_AFTER } from "./content.ts";
-import { challengeLines, dojoArrival, dojoVisitor, homeArrival, homeVisitor, learnGaze, renPointOutcome, roomWithVisitor, talkToVisitor, VISITOR_SPOT } from "./visits.ts";
+import { challengeLines, dojoArrival, dojoVisitor, homeArrival, homeVisitor, learnGaze, lookAtRensThings, radishArrival, renPointOutcome, roomWithVisitor, talkToVisitor, VISITOR_SPOT } from "./visits.ts";
 import { DOJOS } from "../world/dojos.ts";
 
 const FULL = { tare: true, do: true, men: true, kote: true, shinai: true };
@@ -41,6 +41,13 @@ test("Ren notices what's on your tare", () => {
   const moon = homeArrival({ ...firstDrillsDone(), insignia: { symbol: "moon", cloth: "red", mark: "cream" } })!.lines.join(" ");
   assert.notEqual(plain, moon);
   assert.ok(moon.includes("moon"));
+});
+
+test("Ren says who they are before remarking on your tare", () => {
+  const lines = homeArrival(firstDrillsDone())!.lines;
+  const named = lines.findIndex((line) => line.includes("I'm Ren"));
+  const tare = lines.findIndex((line) => line.includes("tare"));
+  assert.ok(named >= 0 && tare > named, lines.join(" | "));
 });
 
 test("Ren is gone again once the next armor is earned, until the bogu is complete", () => {
@@ -157,6 +164,36 @@ test("Ren greets you differently in the final if you learned the gaze", () => {
   assert.deepEqual(challengeLines(createRunState(), "radish"), dojo.challenge);
   assert.notDeepEqual(challengeLines({ ...createRunState(), gaze: true }, "radish"), dojo.challenge);
   assert.deepEqual(challengeLines({ ...createRunState(), gaze: true }, "goose"), DOJOS.goose.challenge);
+});
+
+test("a head you've beaten doesn't greet a rematch as if you'd never met", () => {
+  for (const id of Object.keys(DOJOS) as (keyof typeof DOJOS)[]) {
+    for (const gaze of [false, true]) {
+      const first = challengeLines({ ...createRunState(), gaze }, id);
+      const again = challengeLines({ ...createRunState(), gaze, beaten: [id] }, id);
+      assert.notDeepEqual(again, first, id);
+      for (const line of again) {
+        assert.ok(line.startsWith(`${DOJOS[id].rival}: `), line);
+        assert.ok(wrapText(line, DIALOGUE_WIDTH).length <= DIALOGUE_LINES, line);
+      }
+    }
+  }
+});
+
+test("a head who beat you greets you as someone they've met, and still says the rules (owner, 2026-11-11)", () => {
+  for (const id of Object.keys(DOJOS) as (keyof typeof DOJOS)[]) {
+    if (id === "radish") continue;
+    const first = challengeLines(createRunState(), id);
+    const back = challengeLines({ ...createRunState(), losses: { [id]: 1 } }, id);
+    assert.notEqual(back[0], first[0], id);
+    assert.ok(back[0].startsWith(`${DOJOS[id].rival}: `), back[0]);
+    assert.deepEqual(back.slice(1), DOJOS[id].challenge.slice(1), id);
+    assert.match(back.join(" "), /Rei/, id);
+    // A win resets the count, and then it's a rematch line, not a comeback.
+    assert.deepEqual(challengeLines({ ...createRunState(), losses: { [id]: 0 }, beaten: [id] }, id), challengeLines({ ...createRunState(), beaten: [id] }, id));
+    // Losing to someone else doesn't count.
+    assert.deepEqual(challengeLines({ ...createRunState(), losses: { momo: 2 } }, id), first, id);
+  }
 });
 
 test("visitors stand on open floor, and block nothing", () => {
@@ -313,4 +350,48 @@ test("Ren hands over the gaze, and only then tells you where you'll need it", ()
   assert.match(lesson.lines.at(-1)!, /for free/);
   assert.deepEqual(lesson.after, REN_POINT_LESSON_AFTER);
   assert.ok(!lesson.lines.some((line) => REN_POINT_LESSON_AFTER.includes(line)));
+});
+
+test("Sora, woken at Pinecone, rolls over after the first time and remembers you at Sleepy Raccoon", () => {
+  const home = { ...createRunState(), trained: true, gear: { ...createRunState().gear, shinai: true, tare: true, do: true, men: true, kote: true }, beaten: ["aki"] as RunState["beaten"], linePasses: 3, gaze: true };
+  assert.equal(homeVisitor(home), "sora");
+  assert.match(challengeLines(home, "raccoon")[0], /A visitor/);
+  const woken = talkToVisitor(home);
+  assert.equal(woken.lines.length, 2);
+  const again = talkToVisitor(woken.run);
+  assert.equal(again.lines.length, 1);
+  assert.doesNotMatch(again.lines[0], /kettle/);
+  const at = challengeLines(again.run, "raccoon");
+  assert.match(at[0], /from Pinecone/);
+  assert.equal(at.length, challengeLines(home, "raccoon").length);
+});
+
+// Ren hidden below Thunder Radish (owner, 2026-11-11).
+const readyForRen = (): RunState => ({ ...taught(), node: "radish", beaten: ["aki", "raccoon", "goose", "heron", "otter"], seme: true, dan: 3, waza: true, linePasses: 3, bonusKi: 200 });
+
+test("walking into Thunder Radish once you're good enough, Ren's spot is empty, and that's said once", () => {
+  const first = radishArrival(readyForRen());
+  assert.ok(first && first.lines.join(" ").includes("empty"));
+  assert.equal(radishArrival(first.run), null);
+  assert.equal(radishArrival({ ...readyForRen(), beaten: [...readyForRen().beaten, "radish"] }), null);
+  assert.equal(radishArrival({ ...readyForRen(), seme: false }), null);
+});
+
+test("Ren's things point at Raiko, and looking at them counts as finding Ren gone", () => {
+  const looked = lookAtRensThings(readyForRen());
+  assert.ok(looked.lines.join(" ").includes("Raiko"));
+  assert.equal(radishArrival(looked.run), null);
+});
+
+test("Ren stops watching at Soggy Otter once you've found Ren gone from Thunder Radish", () => {
+  const atOtter = { ...readyForRen(), node: "otter" as NodeId };
+  assert.equal(dojoVisitor(atOtter, "otter"), "radish");
+  assert.equal(dojoVisitor(radishArrival(readyForRen())!.run, "otter"), null);
+  // The visit right after Kenji still says where to go, and hints nobody might be home.
+  assert.match(dojoArrival(atOtter, "otter")!.lines.join(" "), /Thunder Radish/);
+});
+
+test("every new Ren and Raiko line fits the dialogue box", () => {
+  const lines = [...radishArrival(readyForRen())!.lines, ...lookAtRensThings(readyForRen()).lines];
+  for (const line of lines) assert.ok(wrapText(line, DIALOGUE_WIDTH).length <= DIALOGUE_LINES, line);
 });

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { cellsOf, confirmDoes, packGroups, screenGroups, stepInventoryScreen, type ScreenKeys } from "./equipment-screen.ts";
+import { cellsOf, confirmDoes, equipKiChange, packGroups, screenGroups, stepInventoryScreen, type ScreenKeys } from "./equipment-screen.ts";
 import { equippedAt } from "./equipment.ts";
 import { createRunState, type RunState } from "./run-state.ts";
 
@@ -101,4 +101,14 @@ test("choices persist on the run, so the save keeps them", () => {
   const step = stepInventoryScreen(kitted, cellsOf(kitted).indexOf("kote"), keys({ confirm: true }));
   assert.equal(step.run.equipped?.kote, "kote");
   assert.equal(equippedAt(step.run, "kote"), "kote");
+});
+
+test("a spare's card says what equipping it would do to your ki, against what's in the slot", () => {
+  // Fine shinai is in hand: Sensei's old one would cost 5, and the goose shinai would add 1.
+  assert.equal(equipKiChange(kitted, "shinai"), -5);
+  assert.equal(equipKiChange(kitted, "shop:gooseShinai"), 1);
+  // Nothing to compare for what's already in a slot, a slot you haven't earned, or things that aren't gear.
+  assert.equal(equipKiChange(kitted, "shop:fineShinai"), null);
+  assert.equal(equipKiChange(kitted, "shop:heronDo"), null);
+  assert.equal(equipKiChange(kitted, "ticket"), null);
 });

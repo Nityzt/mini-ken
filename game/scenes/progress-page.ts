@@ -144,11 +144,11 @@ function drawMap(ctx: CanvasRenderingContext2D, menu: PauseMenu, run: RunState):
   ctx.fillRect(246, MAP_TOP - 1 + Math.round(((track - thumb) * first) / Math.max(1, LADDER.length - MAP_ROWS)), 2, thumb);
 }
 
-export function drawProgress(ctx: CanvasRenderingContext2D, menu: PauseMenu, run: RunState): void {
+export function drawProgress(ctx: CanvasRenderingContext2D, menu: PauseMenu, run: RunState, back = "X"): void {
   const tab = menu.tab ?? PROGRESS_TABS.length - 1;
   drawTabs(ctx, tab);
   if (tab === 0) drawRank(ctx, run);
   else if (tab === 1) drawTechniques(ctx, run);
   else drawMap(ctx, menu, run);
-  drawHints(ctx, tab === PROGRESS_TABS.length - 1 ? [["<>", HINT_PAGE], ["^v", HINT_PICK], ["E", HINT_BACK]] : [["<>", HINT_PAGE], ["E", HINT_BACK]], HINTS_Y, STAGE_W);
+  drawHints(ctx, tab === PROGRESS_TABS.length - 1 ? [["<>", HINT_PAGE], ["^v", HINT_PICK], [back, HINT_BACK]] : [["<>", HINT_PAGE], [back, HINT_BACK]], HINTS_Y, STAGE_W);
 }

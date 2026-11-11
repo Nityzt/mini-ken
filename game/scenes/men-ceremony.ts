@@ -1,3 +1,4 @@
+import type { DuelPose } from "../art/duel-sprites.ts";
 import { spriteFor } from "../art/sprite.ts";
 import { TILE, TILE_GRIDS } from "../art/tiles.ts";
 import { PALETTE, UI } from "../art/palette.ts";
@@ -21,6 +22,11 @@ export const CEREMONY_BEATS: { beat: CeremonyBeat; ticks: number }[] = [
   { beat: "worn", ticks: 40 },
 ];
 export const CEREMONY_TICKS = CEREMONY_BEATS.reduce((sum, { ticks }) => sum + ticks, 0);
+/**
+ * How you and the senpai stand for it: the drill's over, so both shinai come down to the hip rather than staying
+ * crossed in kamae. Yours leaves your right hand free; theirs is the arm the ceremony draws, holding the men.
+ */
+export const CEREMONY_POSES: [DuelPose, DuelPose] = ["taitoFree", "taitoHold"];
 /** E can cut it short, but not with the press that closed the line before it. */
 export const CEREMONY_SKIP_AFTER = 30;
 /** The white burst as the men first catches the light. */
@@ -122,15 +128,17 @@ export type CeremonyStage = { senpaiX: number; playerX: number; ground: number; 
 /** The hand and the men, drawn over the fighters. The men is drawn in your own colors, because it's yours. */
 export function drawCeremonyProps(ctx: CanvasRenderingContext2D, frame: CeremonyFrame, stage: CeremonyStage, colors: { player: Record<string, string>; senpai: Record<string, string> }, tick: number): void {
   const { senpaiX, playerX, headTop } = stage;
+  // Which way you are from the senpai on screen: usually to their left, but a slide-through can leave you on their right.
+  const toward = playerX > senpaiX ? 1 : -1;
   // The arm comes from the senpai's shoulder on your side. The pocket is the fold of their gi at the chest.
-  const shoulder = { x: senpaiX - 3, y: headTop + 13 };
-  const pocket = { x: senpaiX - 5, y: headTop + 19 };
+  const shoulder = { x: senpaiX + 3 * toward, y: headTop + 13 };
+  const pocket = { x: senpaiX + 5 * toward, y: headTop + 19 };
   // Held up at arm's length, beside their head, where everyone can see it.
-  const raised = { x: senpaiX - 14, y: headTop + 2 };
+  const raised = { x: senpaiX + 14 * toward, y: headTop + 2 };
   // The men sits with its bottom edge at your chin, so the hand holding it ends up there.
   const head = { x: playerX, y: headTop + 12 };
   const reaching = frame.beat === "reach" ? Math.round(2 * Math.abs(Math.sin(tick / 6))) : 0;
-  const handX = frame.held ? raised.x + (pocket.x - raised.x) * (1 - frame.lift) : pocket.x + reaching;
+  const handX = frame.held ? raised.x + (pocket.x - raised.x) * (1 - frame.lift) : pocket.x - reaching * toward;
   const handY = frame.held ? raised.y + (pocket.y - raised.y) * (1 - frame.lift) : pocket.y;
   // Set down: from up high, across, and down onto your head in a little arc.
   const menX = Math.round(handX + (head.x - handX) * frame.place);

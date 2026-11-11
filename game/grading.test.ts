@@ -12,6 +12,8 @@ import { askAway, showLetter, verificationOutcome } from "./grading.ts";
 import { atLeastDan, hasLetter, personDan } from "./ranks.ts";
 import { senpaiMenu, senseiMenu } from "./scenes/club-story.ts";
 import { MENU_LETTER } from "./scenes/content.ts";
+import { speakerOf } from "./scenes/bubble.ts";
+import { opponentById } from "./world/dojos.ts";
 
 const start = createRunState();
 const ready: RunState = { ...start, linePasses: 3, waza: true, beaten: ["raccoon"] };
@@ -52,6 +54,15 @@ test("winning that bout earns a ticket, not a rank, and nothing else", () => {
   assert.ok(lost.lines.length > 0);
 });
 
+test("whoever tested you says how it went, so it isn't you saying it", () => {
+  for (const won of [true, false]) {
+    for (const line of recommendationOutcome(ready, won, undefined, "Yui").lines) assert.equal(speakerOf(line), "Yui");
+    const holding = { ...ready, letter: 1, letterFrom: "Rio" };
+    for (const line of verificationOutcome(holding, won, "Sensei Kuma").lines) assert.equal(speakerOf(line), "Sensei Kuma");
+  }
+  assert.equal(speakerOf(recommendationOutcome(ready, true, "Rio", "Rio").lines[0]), "Rio");
+});
+
 test("beating Sensei to earn a ticket isn't also an exception", () => {
   const third: RunState = { ...ready, dan: 2, beaten: ["raccoon", "goose", "heron", "otter"] };
   const won = recommendationOutcome(third, true);
@@ -85,6 +96,16 @@ test("the exam is two parts in order: a demonstration, then a bout", () => {
   assert.equal(second.next, "tachiai");
   assert.equal(second.fight, gradingPartner(1));
   assert.notEqual(gradingPartner(1), gradingPartner(2));
+});
+
+test("before the bout, the examiner names the candidate you're actually paired with, at your rank", () => {
+  for (const dan of [1, 2, 3]) {
+    const holding: RunState = { ...ready, dan: dan - 1, ticket: dan, money: 500 };
+    const line = talkToPanel(holding, "tachiai").lines.join(" ");
+    assert.ok(line.includes(opponentById(gradingPartner(dan)).rival), line);
+    assert.ok(line.includes(`${rankLabel({ ...holding, dan })} too`), line);
+    assert.match(line, /Win it cleanly/);
+  }
 });
 
 test("failing the demonstration ends the attempt, and the ticket's still good", () => {
@@ -233,6 +254,8 @@ test("everything said about grading fits in one dialogue box, whatever the numbe
   }
   recommendationOutcome(ready, true).lines.forEach(fits);
   recommendationOutcome(ready, false).lines.forEach(fits);
+  recommendationOutcome(ready, true, undefined, "Sensei Kuma").lines.forEach(fits);
+  recommendationOutcome(ready, false, undefined, "Sensei Kuma").lines.forEach(fits);
   kihonOutcome(true).lines.forEach(fits);
   kihonOutcome(false).lines.forEach(fits);
   fits(exceptionLine("3rd dan"));

@@ -4,8 +4,8 @@ export type EquipmentSlot = 'shinai' | 'tare' | 'do' | 'men' | 'kote';
 export const EQUIPMENT_SLOTS: EquipmentSlot[] = ['shinai', 'tare', 'do', 'men', 'kote'];
 export type ModId = 'balancedGrip' | 'softLining' | 'reinforced';
 export const MODS: Record<ModId, { name: string; price: number; line: string; slots: EquipmentSlot[]; ki: number; wearReduction: number }> = {
- balancedGrip: { name: 'Balanced grip', price: 60, line: 'Shinai: Ki +3 while carried.', slots: ['shinai'], ki: 3, wearReduction: 0 },
- softLining: { name: 'Soft lining', price: 75, line: 'Armor: Ki +3 while equipped.', slots: ['tare', 'do', 'men', 'kote'], ki: 3, wearReduction: 0 },
+ balancedGrip: { name: 'Balanced grip', price: 120, line: 'Shinai: Ki +3 while carried.', slots: ['shinai'], ki: 3, wearReduction: 0 },
+ softLining: { name: 'Soft lining', price: 90, line: 'Armor: Ki +3 while equipped.', slots: ['tare', 'do', 'men', 'kote'], ki: 3, wearReduction: 0 },
  reinforced: { name: 'Reinforcement', price: 90, line: 'Any gear: wear per fight reduced by 2.', slots: [...EQUIPMENT_SLOTS], ki: 0, wearReduction: 2 },
 };
 type Equipment = { name: string; slot: EquipmentSlot; ki: number; wearReduction: number; price?: number; icon: string; line: string; premod?: ModId; colors?: Record<string, string> };
@@ -21,10 +21,10 @@ export const EQUIPMENT = {
  mistMen: piece('Mist men', 'men', 4, 140, 1, undefined, { M: '#A8CFD9', T: '#628A9B', t: '#385768' }),
  pineTare: piece('Pinecone tare', 'tare', 3, 90), raccoonKote: piece('Raccoon kote', 'kote', 4, 110),
  gooseShinai: piece('Goose shinai', 'shinai', 6, 150), heronDo: piece('Heron do', 'do', 8, 220, 1),
- otterMen: piece('Otter men', 'men', 5, 160), radishShinai: piece('Radish shinai', 'shinai', 7, 190),
+ otterMen: piece('Otter men', 'men', 5, 160), radishShinai: piece('Radish shinai', 'shinai', 8, 190),
  lanternKote: piece('Lantern kote', 'kote', 3, 100, 1), bambooTare: piece('Bamboo tare', 'tare', 3, 100, 1),
  festivalMen: piece('Festival men', 'men', 6, 190, 0, undefined, { M: '#E6C46A', T: '#8A6A1E', t: '#463410' }),
- guardedShinai: piece('Guarded shinai', 'shinai', 5, 180, 0, 'reinforced'),
+ guardedShinai: piece('Guarded shinai', 'shinai', 5, 160, 0, 'reinforced'),
  linedDo: piece('Lined do', 'do', 6, 230, 0, 'softLining'),
  tunedShinai: piece('Tuned shinai', 'shinai', 4, 160, 0, 'balancedGrip'),
 } satisfies Record<string, Equipment>;
@@ -56,14 +56,23 @@ export function modify(run: RunState, id: EquipmentId, mod: ModId): RunState {
  if (!canModify(run,id,mod)) return run;
  return { ...run, money: run.money - MODS[mod].price, mods: { ...run.mods, [id]: mod } };
 }
-export function equipmentKi(run: RunState): number {
+/** Gear and mods together never add more than this, however many slots are filled. The charm is on top. */
+export const GEAR_KI_CAP = 20;
+/** What the selected pieces and their mods would add, before the cap. */
+export function equipmentKiUncapped(run: RunState): number {
  return EQUIPMENT_SLOTS.reduce((sum,slot) => { const id = equippedAt(run,slot); if (!id) return sum; const mod = modOn(run,id); return sum + equipmentInfo(id).ki + (mod ? MODS[mod].ki : 0); },0);
 }
+export const equipmentKi = (run: RunState): number => Math.min(GEAR_KI_CAP, equipmentKiUncapped(run));
 export const equipmentWear = (run: RunState, id: EquipmentId, amount: number): number => {
  const mod = modOn(run,id);
  return Math.max(0, amount - equipmentInfo(id).wearReduction - (mod ? MODS[mod].wearReduction : 0));
 };
-export function equipmentDescription(run: RunState, id: EquipmentId): string {
- const item = equipmentInfo(id), mod = modOn(run,id);
- return `Ki +${item.ki + (mod ? MODS[mod].ki : 0)}. Wear -${item.wearReduction + (mod ? MODS[mod].wearReduction : 0)} per fight. ${mod ? `Mod: ${MODS[mod].name}.` : 'No mod fitted.'}`;
+/** What a piece does with this mod on it, leaving out anything it doesn't do: "Wear -0 per fight" told nobody anything. */
+export function equipmentEffects(id: EquipmentId, mod: ModId | null): string {
+ const item = equipmentInfo(id);
+ const ki = item.ki + (mod ? MODS[mod].ki : 0);
+ const wear = item.wearReduction + (mod ? MODS[mod].wearReduction : 0);
+ const parts = [ki ? `Ki +${ki}.` : 'No ki bonus.', ...(wear ? [`Wears ${wear} less a fight.`] : []), mod ? `Mod: ${MODS[mod].name}.` : 'No mod.'];
+ return parts.join(' ');
 }
+export const equipmentDescription = (run: RunState, id: EquipmentId): string => equipmentEffects(id, modOn(run, id));

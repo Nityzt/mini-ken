@@ -26,9 +26,9 @@ export const CLUB_HALL_ROWS = 9;
 const MOMO_GUARD_ROW = 10;
 const MOMO_GUARD_COL = 8;
 
-/** Where a visitor stands: in plain sight of the door, and in nobody's way. */
+/** Where a visitor stands: in plain sight of the door, in nobody's way, and not right under Nao. */
 const VISITOR_ROW = 3;
-const VISITOR_COL = 6;
+const VISITOR_COL = 4;
 
 /** The club as it stands: o is the unlocked storage door. */
 export function clubRows(state: { storageOpen: boolean; screenBroken: boolean; momoGuards: boolean; visitor?: boolean }): string[] {
@@ -55,11 +55,12 @@ export function findTiles(rows: string[], char: string): { col: number; row: num
 
 // Rival dojo legend: same room tiles as the club, plus R the rival, G and E two helpers, N the notice board, V a visitor, D the way back out,
 // X the dojo's sensei, under the crest, J someone who fights in a stance of their own, s someone doing suburi, k someone in keiko, and $ the merch table.
-export const RIVAL_SOLID = "#WwDrpXRGENVJsk$";
+// I is Thunder Radish's low iron door, which only Raiko's key opens (owner, 2026-11-11).
+export const RIVAL_SOLID = "#WwDrpXRGENVJsk$I";
 
 export const RIVAL_MAP = [
   "################",
-  "#WwWNWWrWWWWwWW#",
+  "#WwWNWWrWWWIwWW#",
   "#$......X......#",
   "#......R......s#",
   "#.............s#",

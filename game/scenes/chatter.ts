@@ -24,6 +24,21 @@ function nextInTurn(run: RunState, key: string, lines: string[]): { run: RunStat
   return { run: { ...run, talked: { ...run.talked, [key]: turn + 1 } }, line: lines[turn % lines.length] };
 }
 
+/** Things that can happen out in the city, which Nao mentions as you walk back in. */
+const HOMECOMING = ["champion", "carried", "dan", "cup", "streets"];
+
+/**
+ * The first thing on someone's mind that they haven't said yet, if anything, marked as said. It's what "What's new?"
+ * opens with, and what people at home bring up by themselves when you walk over.
+ */
+export function pendingNews(run: RunState, who: string, only?: string[]): { run: RunState; line: string } | null {
+  const reaction = PEOPLE[who]?.news.find((item) => (!only || only.includes(item.id)) && item.when(run) && !run.seen.includes(saidKey(who, item.id)));
+  return reaction ? { run: { ...run, seen: [...run.seen, saidKey(who, reaction.id)] }, line: reaction.line } : null;
+}
+
+/** Walking back in off the road: Nao, on the door, mentions whatever's happened out there since. */
+export const homecoming = (run: RunState): { run: RunState; line: string } | null => pendingNews(run, "nao", HOMECOMING);
+
 /**
  * What someone says when you bring something up. News is whatever's on their mind about what you've done,
  * and each thing only gets said once. When there's nothing new, they just talk, and they don't repeat themselves.
@@ -34,8 +49,8 @@ export function talkAbout(run: RunState, who: string, topic: Topic): { run: RunS
     // If they've got your money, that comes first, and it stays true until you've dealt with it.
     const held = run.held[who] ?? 0;
     if (held > 0) return { run, lines: [`${person.name}: I've still got your ${moneyText(held)}. Beat me, and it's yours.`] };
-    const reaction = person.news.find((item) => item.when(run) && !run.seen.includes(saidKey(who, item.id)));
-    if (reaction) return { run: { ...run, seen: [...run.seen, saidKey(who, reaction.id)] }, lines: [reaction.line] };
+    const news = pendingNews(run, who);
+    if (news) return { run: news.run, lines: [news.line] };
   }
   const list = topic === "advice" ? person.advice : person.small;
   const next = nextInTurn(run, `${who}:${topic === "advice" ? "advice" : "chat"}`, list);

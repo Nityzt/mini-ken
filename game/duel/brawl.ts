@@ -1,24 +1,27 @@
 import {
-  ABSORB_COST, BRAWL_KIAI_PRESS, BRAWL_SEME_TICKS, BROKEN_TICKS, COWER_TICKS, SEME_DECAY, SEME_DRAIN, SEME_RANGE, SEME_START_KI, KI_AFTER_BREAK, KIAI_COOLDOWN, KIAI_COST, KI_LOW, KI_MAX, KI_RECOVERY, LAUNCH_COST, LAUNCH_SPEED, LAUNCH_TICKS, LOCK_DISTANCE,
+  BRAWL_KIAI_PRESS, BRAWL_SEME_TICKS, COWER_TICKS, SEME_DECAY, SEME_DRAIN, SEME_RANGE, SEME_START_KI, KIAI_COOLDOWN, KIAI_COST, KI_LOW, KI_MAX, KI_RECOVERY, LAUNCH_COST, LAUNCH_SPEED, LAUNCH_TICKS, LOCK_DISTANCE,
   LOW_KI_SLOWDOWN, LOW_KI_WALK, RANGE_MAX, RANGE_MIN, BRAWL_RECOVERY_TICKS, DRILL_STOMP_WINDOW, SWING_COST, WALK, ZANSHIN_PASS, ZANSHIN_SLIDE, ZANSHIN_WINDOW,
 } from "./constants.ts";
-import { nextRandom } from "./rival.ts";
 import { ATTACKS, type AttackKind, type FighterInput, type Stance, type Target } from "./rules.ts";
 
 /** Street fights keep their own quick strikes: only a duel has the slower tempo. */
 const BRAWL_WINDUP: Record<AttackKind, number> = { men: 8, kote: 6, do: 10, bigMen: 46, quickMen: 12 };
 
-export type BullyKind = "fist" | "stick";
+/**
+ * What a bully does as they come at you, which decides the one target they leave open, the same way a senpai's
+ * opening does in the line drill: fists up high leave the do, a raised stick the kote, and a lunge low to grab the men.
+ */
+export type BullyKind = "fist" | "stick" | "grab";
 export type BrawlSpec = { kind: BullyKind; x: number };
 export type Bully = {
   id: number;
   kind: BullyKind;
   x: number;
-  state: "wait" | "walk" | "tell" | "recover" | "stagger" | "cower" | "down";
+  /** `guard` is squared up and shut, `tell` is offering its one opening, `recover` has just hit you. */
+  state: "wait" | "walk" | "guard" | "tell" | "recover" | "stagger" | "cower" | "down";
   ticks: number;
-  cooldown: number;
-  /** In a drill: the one target this partner is offering, or null while their guard is shut. */
-  opening?: Target | null;
+  /** The one target this partner is offering, or null while their guard is shut. A cowering bully is open everywhere. */
+  opening: Target | null;
 };
 export type BrawlPlayer = {
   x: number;
@@ -34,7 +37,7 @@ export type BrawlPlayer = {
   kiaiTicks: number;
 };
 export type BrawlEvent = {
-  type: "kiai" | "shout" | "stomp" | "launch" | "hit" | "flat" | "clean" | "nozanshin" | "blocked" | "whiff" | "lock" | "broken" | "hurt" | "swing" | "cower";
+  type: "kiai" | "shout" | "stomp" | "launch" | "hit" | "flat" | "clean" | "nozanshin" | "blocked" | "whiff" | "lock" | "hurt" | "swing" | "cower";
   target?: Target;
   bully?: number;
 };
@@ -42,7 +45,6 @@ export type BrawlState = {
   phase: "fight" | "won" | "lost" | "fled";
   /** Your health, which you bring with you and take away with you. */
   hp: number;
-  invulnerable: number;
   pressure: number;
   player: BrawlPlayer;
   bullies: Bully[];
@@ -50,40 +52,24 @@ export type BrawlState = {
   worldEnd: number;
   rng: number;
   events: BrawlEvent[];
-  /** Partners in a drill stand and wait. They don't walk or swing. */
-  drill?: boolean;
 };
 
 const FULL_HP = 100;
 /** A stick hurts more than a fist. */
-export const HIT_DAMAGE: Record<BullyKind, number> = { fist: 15, stick: 20 };
-const NOTICE_RANGE = 150;
+export const HIT_DAMAGE: Record<BullyKind, number> = { fist: 15, stick: 20, grab: 15 };
 const END_MARGIN = 80;
-const REACH: Record<BullyKind, number> = { fist: 28, stick: 44 };
-const GAP_BEHIND_REACH = 6;
-export const TELL_TICKS: Record<BullyKind, number> = { fist: 34, stick: 42 };
-const WALK_SPEED: Record<BullyKind, number> = { fist: 0.6, stick: 0.5 };
-/** Hands up leaves the belly open. A raised stick leaves the wrist open. */
-export const OPEN_DURING_TELL: Record<BullyKind, Target> = { fist: "do", stick: "kote" };
-const BULLY_RECOVER_TICKS = 40;
-const MAX_ATTACKING = 2;
-const COOLDOWN_MIN = 30;
-const COOLDOWN_SPREAD = 70;
-const INVULNERABLE_TICKS = 45;
-const KNOCKBACK = 8;
+/** Fists up high leave the belly open, a raised stick the wrist, and a lunge to grab the head. */
+export const OPEN_DURING_TELL: Record<BullyKind, Target> = { fist: "do", stick: "kote", grab: "men" };
 
-export function createBrawl(options: { bullies: BrawlSpec[]; seed: number; kiMax?: number; hp?: number; startX?: number; drill?: boolean }): BrawlState {
+/**
+ * The street (or the hall), who's standing on it, and you. This is only your side: your footwork, strikes, stomp,
+ * follow-through and seme. Nobody else moves on their own here; `stepLine` decides what each of them does.
+ */
+export function createBrawl(options: { bullies: BrawlSpec[]; seed: number; kiMax?: number; hp?: number; startX?: number }): BrawlState {
   const kiMax = options.kiMax ?? KI_MAX;
-  let rng = options.seed;
-  const bullies: Bully[] = options.bullies.map((spec, id) => {
-    const roll = nextRandom(rng);
-    rng = roll.seed;
-    return { id, kind: spec.kind, x: spec.x, state: "wait", ticks: 0, cooldown: Math.floor(roll.value * COOLDOWN_MIN) };
-  });
   return {
     phase: "fight",
     hp: options.hp ?? FULL_HP,
-    invulnerable: 0,
     pressure: 0,
     player: {
       x: options.startX ?? 40,
@@ -98,12 +84,11 @@ export function createBrawl(options: { bullies: BrawlSpec[]; seed: number; kiMax
       launchDir: 0,
       kiaiTicks: 0,
     },
-    bullies,
+    bullies: options.bullies.map((spec, id) => ({ id, kind: spec.kind, x: spec.x, state: "wait", ticks: 0, opening: null })),
     zanshin: null,
     worldEnd: Math.max(...options.bullies.map((b) => b.x)) + END_MARGIN,
-    rng,
+    rng: options.seed,
     events: [],
-    ...(options.drill ? { drill: true } : {}),
   };
 }
 
@@ -145,14 +130,13 @@ function landStrike(s: BrawlState): void {
     b.x = p.x + p.facing * LOCK_DISTANCE;
     return;
   }
-  const exposed = b.opening !== undefined ? b.opening === target : b.state !== "tell" || OPEN_DURING_TELL[b.kind] === target;
-  if (!exposed) {
-    s.events.push({ type: "blocked" });
+  if (b.state !== "cower" && b.opening !== target) {
+    s.events.push({ type: "blocked", bully: b.id });
     startRecovery(p);
     return;
   }
   if (p.stompAge > DRILL_STOMP_WINDOW) {
-    s.events.push({ type: "flat" });
+    s.events.push({ type: "flat", bully: b.id });
     startRecovery(p);
     return;
   }
@@ -185,9 +169,8 @@ function stepZanshin(s: BrawlState, input: FighterInput): void {
     s.events.push({ type: "clean", target: z.target, bully: b.id });
     s.zanshin = null;
   } else if (z.left <= 0) {
-    b.state = "recover";
-    b.ticks = BULLY_RECOVER_TICKS;
-    s.events.push({ type: "nozanshin" });
+    b.state = "walk";
+    s.events.push({ type: "nozanshin", bully: b.id });
     startRecovery(p);
     s.zanshin = null;
   }
@@ -204,9 +187,8 @@ function stepPlayer(s: BrawlState, input: FighterInput): void {
     stepZanshin(s, input);
     return;
   }
-  if (p.stance === "block" && !input.block) p.stance = "guard";
-  if (p.stance === "seme" && (!input.seme || p.ki <= 0 || input.attack || input.block || input.dash)) p.stance = "guard";
-  if (p.stance === "guard" && !input.block && input.dash && p.launchTicks === 0) {
+  if (p.stance === "seme" && (!input.seme || p.ki <= 0 || input.attack || input.dash)) p.stance = "guard";
+  if (p.stance === "guard" && input.dash && p.launchTicks === 0) {
     p.launchTicks = LAUNCH_TICKS;
     p.launchDir = input.dash;
     p.facing = input.dash;
@@ -220,9 +202,6 @@ function stepPlayer(s: BrawlState, input: FighterInput): void {
     p.attack = input.attack;
     p.ki = Math.max(0, p.ki - SWING_COST);
     s.events.push({ type: "swing" });
-  } else if ((p.stance === "guard" || p.stance === "block") && input.block) {
-    p.stance = "block";
-    p.launchTicks = 0;
   } else if (p.stance === "guard" && input.seme && p.launchTicks === 0 && p.ki >= SEME_START_KI) {
     p.stance = "seme";
   } else if (p.stance === "guard" && p.launchTicks === 0 && input.move !== 0) {
@@ -239,7 +218,7 @@ function stepPlayer(s: BrawlState, input: FighterInput): void {
     if (p.x <= 0 && input.move < 0) s.phase = "fled";
   } else if (p.stance === "windup") {
     if (--p.stanceTicks <= 0) landStrike(s);
-  } else if (p.stance === "recovery" || p.stance === "broken") {
+  } else if (p.stance === "recovery") {
     if (--p.stanceTicks <= 0) p.stance = "guard";
   }
   p.x = Math.max(0, Math.min(s.worldEnd, p.x));
@@ -269,79 +248,17 @@ function applySeme(s: BrawlState, shoutWanted: boolean): void {
   for (const b of near) {
     b.state = "cower";
     b.ticks = COWER_TICKS;
+    b.opening = null;
   }
   s.events.push({ type: "cower" });
 }
 
-function bullyStrikes(s: BrawlState, b: Bully): void {
-  const p = s.player;
-  s.events.push({ type: "swing", bully: b.id });
-  b.state = "recover";
-  b.ticks = BULLY_RECOVER_TICKS;
-  const roll = nextRandom(s.rng);
-  s.rng = roll.seed;
-  b.cooldown = COOLDOWN_MIN + Math.floor(roll.value * COOLDOWN_SPREAD);
-
-  const gap = Math.abs(b.x - p.x);
-  if (gap > REACH[b.kind] + GAP_BEHIND_REACH) return;
-  const fromFront = Math.sign(b.x - p.x) === p.facing;
-  if (p.stance === "block" && fromFront) {
-    s.events.push({ type: "blocked", bully: b.id });
-    p.ki -= ABSORB_COST;
-    if (p.ki <= 0) {
-      p.ki = KI_AFTER_BREAK;
-      p.stance = "broken";
-      p.stanceTicks = BROKEN_TICKS;
-      s.events.push({ type: "broken" });
-    }
-    return;
-  }
-  if (s.invulnerable > 0) return;
-  s.hp = Math.max(0, s.hp - HIT_DAMAGE[b.kind]);
-  s.pressure = Math.floor(s.pressure / 2);
-  s.invulnerable = INVULNERABLE_TICKS;
-  s.events.push({ type: "hurt", bully: b.id });
-  if (!s.zanshin) p.x = Math.max(0, Math.min(s.worldEnd, p.x - Math.sign(b.x - p.x) * KNOCKBACK));
-  if (s.hp <= 0) s.phase = "lost";
-}
-
-function stepBullies(s: BrawlState): void {
-  const p = s.player;
-  let attacking = s.bullies.filter((b) => b.state === "tell").length;
-  for (const b of s.bullies) {
-    if (s.phase !== "fight") return;
-    if (b.state === "down" || b.state === "stagger") continue;
-    const gap = Math.abs(b.x - p.x);
-    if (b.state === "wait") {
-      if (gap <= NOTICE_RANGE) b.state = "walk";
-      continue;
-    }
-    if (b.cooldown > 0) b.cooldown--;
-    if (b.state === "recover" || b.state === "cower") {
-      if (--b.ticks <= 0) b.state = "walk";
-    } else if (b.state === "tell") {
-      if (--b.ticks <= 0) {
-        attacking--;
-        bullyStrikes(s, b);
-      }
-    } else if (gap > REACH[b.kind] - GAP_BEHIND_REACH) {
-      b.x += Math.sign(p.x - b.x) * WALK_SPEED[b.kind];
-    } else if (b.cooldown === 0 && attacking < MAX_ATTACKING) {
-      b.state = "tell";
-      b.ticks = TELL_TICKS[b.kind];
-      attacking++;
-    }
-  }
-}
-
+/** One step of your side of it. Whoever you're up against is moved by the caller. */
 export function stepBrawl(state: BrawlState, input: FighterInput): BrawlState {
   const s = structuredClone(state);
   s.events = [];
   if (s.phase !== "fight") return s;
-  if (s.invulnerable > 0) s.invulnerable--;
   stepPlayer(s, input);
-  if (s.phase !== "fight") return s;
-  if (!s.drill) stepBullies(s);
   if (s.phase === "fight" && s.bullies.every((b) => b.state === "down")) s.phase = "won";
   return s;
 }

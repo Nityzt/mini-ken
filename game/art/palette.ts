@@ -96,10 +96,13 @@ export const BO_COLORS: Record<string, string> = { I: "#6F6B5C", i: "#9A9582", N
 export const YUI_COLORS: Record<string, string> = { I: "#4C4C8A", i: "#7474B8", N: "#26264A" };
 export const NAO_COLORS: Record<string, string> = { I: "#7A3F6B", i: "#A8609A", N: "#3D1F36" };
 export const RIKU_COLORS: Record<string, string> = { I: "#2F6E78", i: "#4E9CA8", N: "#173A40" };
-/** The candidates you're paired with at a grading. */
-export const ASA_COLORS: Record<string, string> = { I: "#5A6B4A", i: "#7F9468", N: "#2D3625" };
-export const UME_COLORS: Record<string, string> = { I: "#6B4A5A", i: "#94687F", N: "#36252D" };
-export const GORO_COLORS: Record<string, string> = { I: "#3A4A6B", i: "#5A6F94", N: "#1D2536" };
+/**
+ * The candidates you're paired with at a grading, each in a color nobody else wears (late-game playtest: Asa's olive
+ * read as your own Pinecone green, Ume's plum as Momo and Nao, and Goro's navy as Yui and the examiners).
+ */
+export const ASA_COLORS: Record<string, string> = { I: "#8C7A2A", i: "#B8A54A", N: "#463D15" };
+export const UME_COLORS: Record<string, string> = { I: "#B8AC8C", i: "#D8CFB0", N: "#5C5646" };
+export const GORO_COLORS: Record<string, string> = { I: "#B5655A", i: "#D88A7C", N: "#5A2E28" };
 /** Candidates warming up at the grading hall, from all over. */
 export const HALL_CROWD_COLORS: Record<string, string>[] = [ASA_COLORS, UME_COLORS, GORO_COLORS, { I: "#6E6A72", i: "#96929A", N: "#37343B" }, { I: "#7B5A3A", i: "#A67F55", N: "#3D2C1D" }];
 /** A grading examiner, in the navy blazer judges wear, with grey hair. */

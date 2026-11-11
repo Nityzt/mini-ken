@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { placeBubble, speakerOf, type Figure } from "./bubble.ts";
+import { placeBubble, speakerOf, speakersIn, type Figure } from "./bubble.ts";
 
 const view = { w: 512, h: 288 };
 const box = { w: 200, h: 40 };
@@ -58,4 +58,20 @@ test("a bubble wider than the window still fits as best it can", () => {
   const speaker = figure(100, 80);
   const b = placeBubble({ w: 238, h: 40 }, speaker, [speaker], { w: 256, h: 144 });
   assert.ok(b.x >= 0 && b.x + b.w <= 256);
+});
+
+test("a line goes to whoever says it, a nameless one to whoever you're talking to, and narration or a label along the bottom (late-game playtest)", () => {
+  const you = figure(100, 80);
+  const sensei = figure(40, 40);
+  const momo = figure(180, 40);
+  const room = (talkingTo: string | null) => speakersIn({ X: sensei, M: momo }, { "Sensei Kuma": "X", "Senpai Momo": "M" }, you, talkingTo);
+  assert.equal(room(null).at("Senpai Momo"), momo);
+  assert.equal(room("X").at("Senpai Momo"), momo);
+  // Someone you're talking to can say something without their name on it.
+  assert.equal(room("X").at(null), sensei);
+  // With nobody to talk to, it's narration, not you talking: "Rei. Hana bows, and the goose looks away."
+  assert.equal(room(null).at(null), null);
+  // A label like "Tare: ..." or a name nobody here goes by isn't whoever you're talking to either.
+  assert.equal(room("X").at("Tare"), null);
+  assert.equal(room(null).at("Examiner Ono"), null);
 });

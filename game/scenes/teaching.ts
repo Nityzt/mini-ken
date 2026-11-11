@@ -3,7 +3,7 @@ import { parryShine } from "../duel/poses.ts";
 import { exposedTargets, type DuelState, type Target } from "../duel/rules.ts";
 import type { Game } from "../core/scene.ts";
 import type { RunState } from "../run-state.ts";
-import { BRAWL_HELP, LESSON_PROMPTS, LINE_NO_KEYS } from "./content.ts";
+import { LESSON_PROMPTS, LINE_NO_KEYS } from "./content.ts";
 import type { TeachCard, TeachCards, TeachKey } from "./teach-card.ts";
 
 const SLIDE: TeachKey = ["D", "hold to slide through"];
@@ -44,19 +44,19 @@ const LESSON_CARDS: Record<keyof typeof LESSON_PROMPTS, { title: string; keys: T
 /** Everything a drill needs to say about itself, on the card and during it. */
 export const lessonText = (id: keyof typeof LESSON_PROMPTS) => {
   const card = LESSON_CARDS[id];
-  // Pulling back from a lock and a parry's counter come with their own start. Everything else needs an opening first.
+  // Pulling back from a lock, a parry's counter and a launch come with their own start. Everything else needs an opening first.
   const opensFirst = !NO_OPENING_NEEDED.has(id) && card.keys.some(([key]) => key.includes("J") || key.includes("K") || key.includes("L"));
   return { prompt: LESSON_PROMPTS[id], ...card, keys: opensFirst ? [OPEN_FIRST, ...card.keys] : card.keys };
 };
-const NO_OPENING_NEEDED = new Set<string>(["lockHiki", "quickHiki", "parryCounter"]);
+const NO_OPENING_NEEDED = new Set<string>(["lockHiki", "quickHiki", "parryCounter", "launch"]);
 const OPEN_FIRST: TeachKey = ["W Q E", "hold an opening first"];
 
 const TARGET_KEY: Record<Target, string> = { men: "J", kote: "K", do: "L" };
 const CHALLENGE_TITLE = (name: string) => `${name}'s challenge`;
-/** A senpai's challenge names a target, and past the first one they hit back. */
+/** A senpai's challenge names a target, and past the first one they hit back. The block comes last, as it does in their words, since it's for a different strike. */
 export const challengeText = (name: string, target: Target, canBeHit: boolean): { title: string; keys: TeachKey[] } => ({
   title: CHALLENGE_TITLE(name),
-  keys: [MOVE, OPEN_FIRST, strike(TARGET_KEY[target], target), ...(canBeHit ? [["S", "hold to block"] as TeachKey] : []), SLIDE],
+  keys: [MOVE, OPEN_FIRST, strike(TARGET_KEY[target], target), SLIDE, ...(canBeHit ? [["S", "block their do"] as TeachKey] : [])],
 });
 
 export const KIRIKAESHI_CARD: TeachCard = {
@@ -76,8 +76,8 @@ export const LINE_NO_KEYS_CARD: TeachCard = {
 };
 export const BRAWL_CARD: TeachCard = {
   title: "Street fight",
-  text: `Nobody's refereeing. They hit back, and that costs you health. ${BRAWL_HELP}.`,
-  keys: [MOVE, ["J K L", "men, kote, do"], ["Space", "stomp with the strike"], ["S", "hold to block"], ["A D", "hold forward after a hit"]],
+  text: "Sensei Kuma: It's the line drill, for real. One at a time, one opening each. Miss, and they hit you.",
+  keys: [["L", "fists up high: do"], ["K", "stick raised: kote"], ["J", "lunging low: men"], ["Space", "stomp with the strike"], SLIDE],
 };
 
 /** What someone going online hasn't been shown yet. Having been asked once is enough, whatever they said. */
