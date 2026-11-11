@@ -250,14 +250,15 @@ export const SENPAI: Record<SenpaiId, SenpaiStyle> = {
     misses: 3,
     gap: LESSON_DISTANCE,
   },
-  // A perfectionist: every strike starts from far away, and fewer misses are allowed.
+  // A perfectionist: as many clean strikes as anyone, each from far away, with one mistake allowed and the quickest tells.
+  // With two strikes, a partner standing still was the easiest do in the dojo (owner, 2026-11-11).
   yui: {
     ...SENPAI_LINES.yui,
     name: "Yui",
     colors: YUI_COLORS,
     between: (_tick, level) => ({ ...IDLE, block: level > 0 }),
     tell: 48,
-    reps: 2,
+    reps: 3,
     misses: 2,
     gap: LAUNCH_DISTANCE,
   },

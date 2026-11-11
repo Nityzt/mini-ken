@@ -310,7 +310,7 @@ export const SENPAI_LINES = {
     given: (piece: string, others: string) => `Bo: Mm. You passed me for the ${piece}. ${others} next.`,
   },
   yui: {
-    intro: "Yui: I count every stomp. Every strike starts from far away, and I only allow one mistake.",
+    intro: "Yui: Three clean strikes, each from far away. I count every stomp, and I allow one mistake.",
     chat: ["Yui: Your left foot was late. Oh, you haven't started yet? Well, it will be."],
     seeSensei: "Yui: Acceptable. Sensei will want you now.",
     prompts: [

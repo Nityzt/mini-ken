@@ -492,6 +492,35 @@ test("Yui's first challenge passes by doing exactly what she says, key for key (
   assert.equal(result.misses, 0);
 });
 
+test("Yui is the exacting one: as many clean strikes as anyone, from further away, with fewer misses allowed (owner, 2026-11-11)", () => {
+  const yui = challengeFor("yui", 0);
+  for (const other of ["aki", "bo"] as const) {
+    const them = challengeFor(other, 0);
+    assert.ok(yui.reps! >= them.reps!, `${other} asks for more clean strikes than Yui`);
+    assert.ok(yui.misses! < them.misses!, `${other} is stricter than Yui`);
+  }
+  assert.ok(distance(createLessonDuel(yui)) > distance(createLessonDuel(challengeFor("bo", 0))));
+});
+
+test("Yui allows one mistake on her do, and not two", () => {
+  const lesson = challengeFor("yui", 0);
+  /** Forgets the stomp this many times, then strikes properly. */
+  const slips = (count: number): Player => {
+    let left = count;
+    const good = striker("men", anytime);
+    return (duel, tick) => {
+      const input = good(duel, tick);
+      if (input.attack && left > 0) {
+        left--;
+        return { ...input, stomp: false };
+      }
+      return input;
+    };
+  };
+  assert.ok(play(lesson, slips(1), BEFORE[0]).passed, "one slip");
+  assert.ok(play(lesson, slips(2), BEFORE[0]).failed, "two slips");
+});
+
 test("Yui's first challenge words would fail without the opening, which is the bug in issue #11", () => {
   const lesson = challengeFor("yui", 0);
   const withoutOpening: Player = (duel) => {
