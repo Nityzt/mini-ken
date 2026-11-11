@@ -18,6 +18,8 @@ export const DOOR_WELCOME = [
   "Nao: Walk with WASD or the arrow keys. Face someone and press E to talk.",
   "Nao: Senpai Momo will get you started. She's on the left side of the hall, and her name shows when you get close.",
 ];
+/** Nao, until you've met Momo. After that Nao has news and small talk of their own, in `chatter-lines.ts`. */
+export const NAO_POINTS_TO_MOMO = "Nao: Momo is on the left side of the hall. Walk up and press E to talk to her.";
 /** Nao has already said welcome and how to move, so Momo goes straight to what kendo is and how you get on here. */
 export const MOMO_WELCOME = [
   "Senpai Momo: You must be <name>, the new one! I'm Momo. I've been here longer than the paint.",
@@ -656,6 +658,7 @@ export function allContentLines(): string[] {
     ...Object.values(GEAR_LINES),
     GI_LINE,
     ...MOMO_WELCOME,
+    NAO_POINTS_TO_MOMO,
     ...MOMO_AT_DOOR,
     ...MOMO_STORAGE_OPEN,
     ...GI_REMINDER,

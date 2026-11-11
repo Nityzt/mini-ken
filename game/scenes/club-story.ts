@@ -2,6 +2,7 @@ import { senseiOnShinai, senseiReminder } from "./shinai-story.ts";
 import { SAYU_COUNT, type KirikaeshiOutcome } from "../duel/kirikaeshi.ts";
 import { hasLetter, MAX_DAN } from "../ranks.ts";
 import { canChallengeSensei } from "./challengers.ts";
+import { pendingNews, talkAbout } from "./chatter.ts";
 import type { ChoiceOption } from "./choice.ts";
 import { isOpen, lockedLine, lockFor, LINE_PASSES_TO_UNLOCK, needsSentence, nextGoal } from "../progress.ts";
 import { CUPS, type CupId } from "../world/tournament.ts";
@@ -11,7 +12,7 @@ import {
   CUP_ENTER, CUP_WON_BEFORE, cupNotice, DOOR_LOCKED, DOOR_NEEDS_SPAR, DRILL_PRAISE, GEN_DONE, GEN_DONE_AFTER, GI_REMINDER, KOTE_DONE, LINE_AGAIN, LINE_FIRST, LINE_NO_KEYS, LINE_STREETS_OPEN,
   lineExtraRun, lineFailed, lineRunDone, MOMO_AFTER, MOMO_GOT_GI, MOMO_GUARD, MOMO_GUARD_SEME, momoPractice, MOMO_WELCOME, SENPAI_LINES, SENSEI_AGAIN, SENSEI_ALL_OPEN,
   helpPaid, HELP_FAILED, MENU_CHALLENGE, MENU_CHALLENGE_THEM, MENU_GRADE, MENU_HELP, MENU_LEAVE, MENU_LETTER, MENU_LINE, MENU_SPAR, MENU_TALK, MENU_WAZA, MENU_WAZA_AGAIN, QUICK_DONE, WAZA_AGAIN_DONE, WAZA_DONE, SENSEI_NEXT, SENSEI_NO_GI, SENSEI_ROUND_DONE, SENSEI_SHINAI, SENSEI_SHINAI_AFTER, SENSEI_WAITING, SHINAI_WAITING, SPAR_DOOR_OPEN, SPAR_KI,
-  eitherOf, KIRIKAESHI_AGAIN, KIRIKAESHI_FIRST, KIRIKAESHI_LOST, KIRIKAESHI_WINDED, kirikaeshiDone, kirikaeshiGrew, MENU_KIRIKAESHI, SENSEI_NOT_YET, SENSEI_OFFER, SENSEI_WHY, WHY_REPLY } from "./content.ts";
+  eitherOf, NAO_POINTS_TO_MOMO, KIRIKAESHI_AGAIN, KIRIKAESHI_FIRST, KIRIKAESHI_LOST, KIRIKAESHI_WINDED, kirikaeshiDone, kirikaeshiGrew, MENU_KIRIKAESHI, SENSEI_NOT_YET, SENSEI_OFFER, SENSEI_WHY, WHY_REPLY } from "./content.ts";
 import { CHALLENGE_REWARD, SENPAI, SENPAI_IDS, type SenpaiId, type Session } from "./curriculum.ts";
 import { MEN_CEREMONY_SEEN } from "./men-ceremony.ts";
 import { wasTaught } from "./teaching.ts";
@@ -37,6 +38,21 @@ export function freeSenpai(run: RunState): SenpaiId[] {
 
 /** The senpai still left to pass, by name, for Sensei and the objective line. */
 export const freeSenpaiNames = (run: RunState): string => eitherOf(freeSenpai(run).map((id) => SENPAI[id].name));
+
+/** Nao, on the door. Until you've met Momo, that's where Nao sends you. After that, Nao remembers what you've been up to. */
+export function talkToNao(run: RunState): { lines: string[]; run: RunState } {
+  if (!run.metSenpai) return { lines: [NAO_POINTS_TO_MOMO], run };
+  return talkAbout(run, "nao", "news");
+}
+
+/**
+ * At home, anyone who's got news says it as you walk over, before the usual menu, once. `then` carries on as usual.
+ * Elsewhere you have to ask.
+ */
+export function newsFirst(run: RunState, who: string): { run: RunState; lines: string[] } {
+  const news = pendingNews(run, who);
+  return news ? { run: news.run, lines: [news.line] } : { run, lines: [] };
+}
 
 /** `escort` means Momo walks you to the storage room afterwards, and it's the walk that unlocks it. */
 export function talkToMomo(run: RunState): { lines: string[]; run: RunState; fight: boolean; chats?: boolean; escort?: boolean } {
