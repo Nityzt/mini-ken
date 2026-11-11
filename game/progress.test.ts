@@ -31,7 +31,12 @@ test("street fights stay shut until the line drill has been passed enough times"
   let run: RunState = { ...armored(), bonusKi: 500, beaten: ["raccoon", "goose", "heron"] };
   for (const gang of Object.keys(GANGS) as NodeId[]) assert.ok(lockFor(run, gang), gang);
   for (let i = 0; i < LINE_PASSES_TO_UNLOCK - 1; i++) run = recordLinePass(run);
-  assert.ok(lockFor(run, "market"));
+  // A street fight is the line drill for real, so every one of them waits on all three passes, not just the first.
+  assert.equal(LINE_PASSES_TO_UNLOCK, 3);
+  for (const gang of Object.keys(GANGS) as NodeId[]) {
+    assert.ok(row(gang).line, `${gang} asks for the line itself`);
+    assert.deepEqual(unmet({ ...run, seme: true, dan: 3, waza: true }, row(gang)), [`line drill ${LINE_PASSES_TO_UNLOCK - 1}/${LINE_PASSES_TO_UNLOCK}`], gang);
+  }
   run = recordLinePass(run);
   for (const gang of Object.keys(GANGS) as NodeId[]) assert.equal(lockFor(run, gang), null, gang);
 });

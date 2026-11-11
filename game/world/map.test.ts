@@ -96,7 +96,8 @@ test("exits list only the ways you can actually go", () => {
 
 test("most bullies are unarmed, and every gang outnumbers you", () => {
   const all = Object.values(GANGS).flat();
-  assert.ok(all.filter((b) => b.kind === "fist").length > all.filter((b) => b.kind === "stick").length);
+  // Fists and grabbing hands are both unarmed.
+  assert.ok(all.filter((b) => b.kind !== "stick").length > all.filter((b) => b.kind === "stick").length);
   for (const gang of Object.values(GANGS)) assert.ok(gang.length >= 3);
 });
 
