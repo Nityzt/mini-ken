@@ -266,7 +266,7 @@ The shinai you start with is Sensei's, and you owe it back. Nothing on the ladde
 - **Making it.** Fumi asks three real questions about how a shinai goes together: four slats, the string along the back, the nakayui a quarter of the way from the tip. A wrong answer gets corrected and you try again. You leave with "Your own shinai", in your hand.
 - **Fixing Sensei's.** Now you know how, Fumi's bench is yours. Sensei's shinai can only be fixed by you, and only once you've learned. It has to be fully fixed before it can go back, even if you've been using your own all along.
 - **Giving it back is optional, and worth doing.** Sensei remembers why you said you came, and gives you ki +10, 100 kensen, and their shinai bag, which halves the wear on whatever shinai you carry.
-- **Fumi notices (owner, 2026-11-11).** Once you've made your shinai, walking into the Bogu Shop, Fumi mentions, once each: Sensei's shinai going back on the rack, a piece of hers you're wearing, and a piece from one of the regional shops. Only what you've got equipped counts, not what's in your pack.
+- **Fumi notices (owner, 2026-11-11).** Once you've made your shinai, walking into the Bogu Shop, Fumi mentions, once each: Sensei's shinai going back on the rack, a piece of theirs you're wearing, and a piece from one of the regional shops. Only what you've got equipped counts, not what's in your pack.
 
 The story is in `scenes/shinai-story.ts`, and is tested.
 
