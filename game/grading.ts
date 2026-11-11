@@ -4,7 +4,7 @@ import { gradingFee } from "./money.ts";
 import { atLeastDan, danLabel, hasLetter, hasTicket, MAX_DAN, personDan } from "./ranks.ts";
 import { gainXp, type RunState } from "./run-state.ts";
 import {
-  awayLost, awayOffer, awayTooJunior, awayWon, GRADING_DONE, GRADING_FAILED, gradingNotYet, gradingPassed, GRADING_ROUTES, KIHON_FAILED, KIHON_PASSED, LETTER_HELD, letterNo, letterTest, letterYes, panelNoFee, PANEL_NO_TICKET, panelOffer, RECOMMEND_LOST, recommendOffer, recommendRedirect, RECOMMEND_WON, TACHIAI_READY, TICKET_HELD, VERIFY_LOST, VERIFY_WON,
+  awayLost, awayOffer, awayTooJunior, awayWon, GRADING_DONE, GRADING_FAILED, gradingNotYet, gradingPassed, GRADING_ROUTES, KIHON_FAILED, KIHON_PASSED, LETTER_HELD, letterNo, letterTest, letterYes, panelNoFee, PANEL_NO_TICKET, panelOffer, RECOMMEND_LOST, recommendOffer, recommendRedirect, RECOMMEND_WON, tachiaiReady, TICKET_HELD, VERIFY_LOST, VERIFY_WON,
 } from "./scenes/content.ts";
 import type { SenpaiId } from "./scenes/curriculum.ts";
 import { opponentById, type OpponentId } from "./world/dojos.ts";
@@ -101,7 +101,7 @@ export function verificationOutcome(run: RunState, won: boolean, by?: string): {
 export function talkToPanel(run: RunState, stage: GradingStage | null): { lines: string[]; next: GradingStage | null; fight: OpponentId | null } {
   if (!hasTicket(run)) return { lines: PANEL_NO_TICKET, next: null, fight: null };
   const rank = run.dan + 1;
-  if (stage === "tachiai") return { lines: TACHIAI_READY, next: "tachiai", fight: gradingPartner(rank) };
+  if (stage === "tachiai") return { lines: tachiaiReady(rank), next: "tachiai", fight: gradingPartner(rank) };
   const fee = gradingFee(rank);
   if (run.money < fee) return { lines: [panelNoFee(fee, run.money)], next: null, fight: null };
   return { lines: panelOffer(danLabel(rank), fee), next: "kihon", fight: null };

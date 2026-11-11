@@ -1,6 +1,7 @@
 import { durabilityOf, FULL_DURABILITY, shinaiReturned } from "../durability.ts";
+import { equipmentInfo, type EquipmentId } from "../equipment.ts";
 import type { RunState } from "../run-state.ts";
-import { FUMI_BUILD_START, FUMI_OFFER, FUMI_WAITING, GEN_BAMBOO, OBJECTIVES, returnLines, SENSEI_MINE_STILL_CRACKED, SENSEI_STILL_WAITING, SENSEI_WANTS_IT_BACK, SHINAI_STEPS } from "./content.ts";
+import { FUMI_BUILD_START, FUMI_OFFER, FUMI_RETURNED, FUMI_WAITING, fumiElsewhere, fumiOwnWork, GEN_BAMBOO, OBJECTIVES, returnLines, SENSEI_MINE_STILL_CRACKED, SENSEI_STILL_WAITING, SENSEI_WANTS_IT_BACK, SHINAI_STEPS } from "./content.ts";
 
 /** Your own shinai, a step at a time. Empty means nobody's raised it yet. */
 export type ShinaiQuest = "" | "asked" | "toldHow" | "gotBamboo" | "returned";
@@ -34,6 +35,26 @@ export function shopArrival(run: RunState): { lines: string[]; run: RunState; bu
   if (quest === "asked") return { lines: FUMI_OFFER, run: { ...run, shinaiQuest: "toldHow" }, build: false };
   if (quest === "toldHow") return { lines: [FUMI_WAITING], run, build: false };
   if (quest === "gotBamboo") return { lines: FUMI_BUILD_START, run, build: true };
+  return null;
+}
+
+/** What the Bogu Shop sells, and the regional shops' own pieces, which Fumi can tell apart at a glance. */
+const FUMI_MADE: EquipmentId[] = ["fineShinai", "deerKote", "lacquerDo", "guardedShinai", "linedDo", "tunedShinai"];
+const MADE_ELSEWHERE: EquipmentId[] = ["tideShinai", "blossomTare", "forgeDo", "mistMen"];
+
+/**
+ * Fumi noticing something as you walk in, once the shinai's been made: Sensei's shinai going home, and then what
+ * you're wearing. Each is said once, and only about gear you've actually got equipped.
+ */
+export function fumiNotices(run: RunState): { lines: string[]; run: RunState } | null {
+  if (!run.madeShinai) return null;
+  const said = (key: string, line: string) => ({ lines: [line], run: { ...run, seen: [...run.seen, key] } });
+  if (shinaiReturned(run) && !run.seen.includes("fumi:returned")) return said("fumi:returned", FUMI_RETURNED);
+  const worn = Object.values(run.equipped).filter((id): id is EquipmentId => !!id);
+  const mine = worn.find((id) => FUMI_MADE.includes(id));
+  if (mine && !run.seen.includes("fumi:own")) return said("fumi:own", fumiOwnWork(equipmentInfo(mine).name));
+  const theirs = worn.find((id) => MADE_ELSEWHERE.includes(id));
+  if (theirs && !run.seen.includes("fumi:elsewhere")) return said("fumi:elsewhere", fumiElsewhere(equipmentInfo(theirs).name));
   return null;
 }
 

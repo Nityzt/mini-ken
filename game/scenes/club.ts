@@ -15,10 +15,10 @@ import { currentObjective } from "../objective.ts";
 import { DOJOS, opponentById } from "../world/dojos.ts";
 import { askToGrade, showLetter, type Asker } from "../grading.ts";
 import { hasLetter, personDan, presenceOf, type PersonId } from "../ranks.ts";
-import { answerOffer, answerWhy, cupOffer, doorResponse, interactionLabel, kirikaeshiOffer, lineOffer, promptFor, senpaiMenu, senseiMenu, talkToMomo, talkToSenpai, talkToSensei } from "./club-story.ts";
+import { answerOffer, answerWhy, cupOffer, doorResponse, interactionLabel, kirikaeshiOffer, lineOffer, newsFirst, promptFor, senpaiMenu, senseiMenu, talkToMomo, talkToNao, talkToSenpai, talkToSensei } from "./club-story.ts";
 import { rest } from "../health.ts";
 import { talkToChallenger } from "./challengers.ts";
-import { openTopics } from "./chatter.ts";
+import { homecoming, openTopics } from "./chatter.ts";
 import { leaveDojo } from "./exit.ts";
 import { offerBet } from "./bet-menu.ts";
 import { createMenu } from "./choice.ts";
@@ -125,7 +125,10 @@ export function createClubScene(nameOf: () => string): Scene {
   const talkMomo = (game: Game) => {
     const reply = talkToMomo(game.run);
     if (reply.chats) {
-      openTopics(game, menu, dialogue, "momo");
+      const news = newsFirst(game.run, "momo");
+      game.run = news.run;
+      if (news.lines.length) dialogue.open(news.lines, () => openTopics(game, menu, dialogue, "momo"));
+      else openTopics(game, menu, dialogue, "momo");
       return;
     }
     game.run = reply.run;
@@ -233,7 +236,10 @@ export function createClubScene(nameOf: () => string): Scene {
       dialogue.open(reply.lines, startTraining(game, reply.session));
       return;
     }
-    dialogue.open(reply.lines, () => {
+    // Whatever's on Sensei's mind comes before what you should do next.
+    const news = newsFirst(game.run, "sensei");
+    game.run = news.run;
+    dialogue.open([...news.lines, ...reply.lines], () => {
       menu.open(senseiMenu(game.run), (id) => {
         if (id === "line") {
           // With nothing for Sensei to add, the drill's own card does the talking.
@@ -266,7 +272,7 @@ export function createClubScene(nameOf: () => string): Scene {
       dialogue.open(reply.lines, startTraining(game, reply.session));
       return;
     }
-    menu.open(senpaiMenu(game.run), (id) => {
+    const choose = () => menu.open(senpaiMenu(game.run), (id) => {
       if (id === "spar") dialogue.open(reply.lines, () => offerBet(menu, game, fight, () => {
         game.versus = fight;
         game.go("duel");
@@ -274,6 +280,10 @@ export function createClubScene(nameOf: () => string): Scene {
       else if (id === "talk") openTopics(game, menu, dialogue, senpai);
       else if (id === "grade") askAboutGrading(game, senpai);
     });
+    const news = newsFirst(game.run, senpai);
+    game.run = news.run;
+    if (news.lines.length) dialogue.open(news.lines, choose);
+    else choose();
   };
   /** Whatever a visitor has to say, and Ren's one point if that's what it leads to. Backing out just means Ren waits. */
   const playTalk = (game: Game, talk: Talk) => {
@@ -305,7 +315,11 @@ export function createClubScene(nameOf: () => string): Scene {
     } : undefined);
   };
   const talkTo = (game: Game, char: string) => {
-    if (char === "Z") dialogue.open(["Nao: Momo is on the left side of the hall. Walk up and press E to talk to her."]);
+    if (char === "Z") {
+      const reply = talkToNao(game.run);
+      game.run = reply.run;
+      dialogue.open(reply.lines);
+    }
     else if (char === "M") talkMomo(game);
     else if (char === "X") talkSensei(game);
     else if (char === "A") talkSenpai(game, "aki");
@@ -386,6 +400,13 @@ export function createClubScene(nameOf: () => string): Scene {
             walker.flip = place("Z").col * TILE + TILE / 2 < walker.box.x + walker.box.w / 2;
             game.run = welcome.run;
             dialogue.open(welcome.lines, greet, greet);
+            return;
+          }
+          // Back in off the road, Nao on the door has heard what happened out there.
+          const back = homecoming(game.run);
+          if (back) {
+            game.run = back.run;
+            dialogue.open([back.line], greet, greet);
           } else greet();
         };
       } else greet();

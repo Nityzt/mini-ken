@@ -35,57 +35,90 @@ const owesMoney = (run: RunState) => Object.values(run.held).some((amount) => am
 const flawless = (run: RunState) => run.seen.includes("feat:flawless");
 const cleanLine = (run: RunState) => run.seen.includes("feat:perfectLine");
 const heads = beat("raccoon", "goose", "heron", "otter", "radish");
+/** Beaten this one, and not yet the next: what's on a head's mind between the two. */
+const beatButNot = (done: string, next: string) => (run: RunState) => beat(done)(run) && !beat(next)(run);
+/** A count that's somewhere in this range, so a line about one cup never plays once you've got three. */
+const cupsBetween = (low: number, high: number) => (run: RunState) => run.cups.length >= low && run.cups.length <= high;
+/** Somebody's carried you in through the door at least once. */
+const knockedOut = (run: RunState) => (run.talked.wake ?? 0) > 0;
+const kirikaeshiDone = (run: RunState) => run.kirikaeshiPasses > 0;
+const rescued = (gang: string) => (run: RunState) => run.cleared.includes(gang);
+const hasRank = (run: RunState) => run.gear.tare;
+const beatASenpai = (run: RunState) => run.beaten.some((id) => id === "aki" || id === "bo" || id === "yui");
+type Piece = "do" | "men" | "kote";
+const PIECES: Piece[] = ["do", "men", "kote"];
+/** A senpai remembering the piece of armor they gave you. Only one of these can ever be true for each of them. */
+const gavePiece = (senpai: string, line: (piece: Piece) => string): Reaction[] =>
+  PIECES.map((piece) => ({ id: `gave-${piece}`, when: (run: RunState) => run.armorFrom[piece] === senpai, line: line(piece) }));
 
 export const PEOPLE: Record<string, Person> = {
   lantern: {
     name: "Kiri",
-    news: [{ id: "won", when: beat("lantern"), line: "Kiri: Word of your match has reached us." }],
+    news: [{ id: "won", when: beat("lantern"), line: "Kiri: You caught me on the turn of the tide. I'm still annoyed. In a good way." }],
     small: ["Kiri: The light moves all day. We practice anyway.", "Kiri: The breeze has stolen three of our towels."],
     advice: ["Kiri: Watch my feet, not the lanterns."],
   },
   mina: {
     name: "Mina",
-    news: [{ id: "won", when: beat("lantern"), line: "Mina: Word of your match has reached us." }],
+    news: [{ id: "won", when: beat("lantern"), line: "Mina: Kiri's been polishing the same lantern since your match. That's how Kiri sulks." }],
     small: ["Mina: Kiri never seems to tire.", "Mina: I keep the lanterns polished."],
     advice: ["Mina: Kiri likes to move before you settle."],
   },
   yori: {
     name: "Yori",
-    news: [{ id: "won", when: beat("lantern"), line: "Yori: Word of your match has reached us." }],
+    news: [{ id: "won", when: beat("lantern"), line: "Yori: You beat Kiri on the outgoing tide. We'll hear about it until the next one." }],
     small: ["Yori: The tide tells us when to take a break.", "Yori: Our floor is always a little sandy."],
     advice: ["Yori: Wait for Kiri to commit before you move."],
   },
   tama: {
     name: "Sensei Tama",
-    news: [{ id: "won", when: beat("lantern"), line: "Sensei Tama: Word of your match has reached us." }],
+    news: [{ id: "won", when: beat("lantern"), line: "Sensei Tama: You let Kiri come to you, and Kiri came. I'll pretend I taught you that." }],
     small: ["Sensei Tama: There is time enough for tea and practice.", "Sensei Tama: We tie the lanterns down on windy days."],
     advice: ["Sensei Tama: The tide comes back. So can you."],
   },
   bamboo: {
     name: "Nori",
-    news: [{ id: "won", when: beat("bamboo"), line: "Nori: Word of your match has reached us." }],
+    news: [{ id: "won", when: beat("bamboo"), line: "Nori: You noticed. Most people don't. Now I need something new to wait for." }],
     small: ["Nori: The grove is quiet in the morning.", "Nori: Fuwa keeps the path swept. Mostly."],
     advice: ["Nori: You can learn a lot by waiting."],
   },
   taro: {
     name: "Taro",
-    news: [{ id: "won", when: beat("bamboo"), line: "Taro: Word of your match has reached us." }],
+    news: [{ id: "won", when: beat("bamboo"), line: "Taro: Nori's been sitting in the grove since your match. Smiling. It's unsettling." }],
     small: ["Taro: The grove makes its own music.", "Taro: Nori has the patience of a stone."],
     advice: ["Taro: Nori waits for you to rush."],
   },
   fuwa: {
     name: "Fuwa",
-    news: [{ id: "won", when: beat("bamboo"), line: "Fuwa: Word of your match has reached us." }],
+    news: [{ id: "won", when: beat("bamboo"), line: "Fuwa: Nori lost? I swept the path twice to take it in." }],
     small: ["Fuwa: I sweep the path after every wind.", "Fuwa: The bamboo always wins that game."],
     advice: ["Fuwa: Watch for a pause before you attack."],
   },
   hoshi: {
     name: "Sensei Hoshi",
-    news: [{ id: "won", when: beat("bamboo"), line: "Sensei Hoshi: Word of your match has reached us." }],
+    news: [{ id: "won", when: beat("bamboo"), line: "Sensei Hoshi: You bent and didn't break. Nori says the same, in fewer words." }],
     small: ["Sensei Hoshi: The grove grows a little each day.", "Sensei Hoshi: We practice slowly before we practice fast."],
     advice: ["Sensei Hoshi: A firm stance lets you change direction."],
   },
   // At home.
+  nao: {
+    name: "Nao",
+    news: [
+      { id: "champion", when: champion, line: "Nao: Champion! Sensei says it's a normal day. Sensei has swept that same spot four times." },
+      { id: "carried", when: knockedOut, line: "Nao: You walked in on your own feet this time! Last time you came in over somebody's shoulder." },
+      { id: "dan", when: danAt(1), line: "Nao: A dan! Momo told the whole hall. Then she told them again, louder." },
+      { id: "cup", when: cupsWon(1), line: "Nao: You won a cup! Aki's been describing it to everyone. It gets bigger every time." },
+      { id: "streets", when: streets(1), line: "Nao: Word got back that you ran off some Alley Cats. Sensei said hm. It was a good hm." },
+      { id: "door", when: (run) => beatASenpai(run) && !run.cleared.length && !beat("raccoon")(run), line: "Nao: The front door's open for you now! Mind the step on the way out. Everyone trips on the step." },
+      { id: "rank", when: (run) => hasRank(run) && !run.trained, line: "Nao: A tare, and a rank to go with it! I tied mine on backwards my first week." },
+    ],
+    small: [
+      "Nao: I'm on door duty. Shoes in the rack, bow at the line. I say it a lot.",
+      "Nao: Momo started out on the door too. She says it builds character. It builds sore feet.",
+      "Nao: Sensei knows who's come in from the creak of the floor. I'm practising. Hi, Aki. Oh. Hi.",
+    ],
+    advice: ["Nao: Bow at the door, coming and going. Nobody checks. Everybody notices."],
+  },
   momo: {
     name: "Senpai Momo",
     news: [
@@ -97,6 +130,8 @@ export const PEOPLE: Record<string, Person> = {
       { id: "tsuba", when: foundTsuba, line: "Senpai Momo: So you found Sensei's old tsuba. Look after it. It's seen more than either of us." },
       { id: "gaze", when: hasGaze, line: "Senpai Momo: Ren showed you the far-mountain gaze? They used to sweep this floor, you know. Badly." },
       { id: "dan", when: danAt(1), line: "Senpai Momo: A real dan. Look at you! You're still washing the floor on Tuesdays, though." },
+      { id: "cup", when: cupsBetween(1, 2), line: "Senpai Momo: A cup! Put it where Sensei can see it. Sensei will pretend not to look. Sensei will look." },
+      { id: "streets", when: streets(1), line: "Senpai Momo: Alley Cats, on your own? Next time take Aki. Aki won't help, but they'll run from the noise." },
     ],
     small: [
       "Senpai Momo: I've been here so long my feet know every splinter in this floor. I've named a few.",
@@ -121,6 +156,11 @@ export const PEOPLE: Record<string, Person> = {
       { id: "cups", when: cupsWon(3), line: "Sensei Kuma: Three cups. They'll remember the cups. I'd rather they remembered your footwork." },
       { id: "line", when: cleanLine, line: "Sensei Kuma: A long line with no misses. I saw. I'm not saying anything else about it." },
       { id: "seme", when: hasSeme, line: "Sensei Kuma: So Gen taught you. Fifty years, and that old fool still lives in a hut. Did you eat something?" },
+      { id: "dan", when: danAt(1), line: "Sensei Kuma: A dan. Now you've got something to lose. Practise as if you hadn't." },
+      { id: "cup", when: cupsBetween(1, 2), line: "Sensei Kuma: A cup. Good. It goes on the shelf, and you don't look at it during practice." },
+      { id: "plums", when: rescued("market"), line: "Sensei Kuma: A woman came by with plums for whoever ran off the Alley Cats. They're in the back. Eat one." },
+      { id: "carried", when: knockedOut, line: "Sensei Kuma: Momo carried you in, that time. She'll say she didn't. Thank her anyway." },
+      { id: "kirikaeshi", when: kirikaeshiDone, line: "Sensei Kuma: Bo says your kirikaeshi is coming along. Bo said it in one word, but I knew which one." },
     ],
     small: [
       "Sensei Kuma: A shinai is bamboo. Treat it like a sword anyway. That's most of the lesson.",
@@ -145,6 +185,10 @@ export const PEOPLE: Record<string, Person> = {
       { id: "streets", when: streets(1), line: "Aki: I heard you chased off the Alley Cats! Auntie Bea told my mom! She said you were taller!" },
       { id: "tower", when: sawTheCity, line: "Aki: You went up the Tower? Could you see my house? I waved! I wave every day, just in case!" },
       { id: "shop", when: shopped, line: "Aki: New gear? Let me see! Let me hold it! Oh, I'd better not. I broke the last one." },
+      { id: "dan", when: danAt(1), line: "Aki: A dan! You! I knew it! I didn't know it. But I hoped it really loudly!" },
+      { id: "cup", when: cupsWon(1), line: "Aki: You won a cup! Can I hold it? I won't drop it. I might drop it. Can I hold it?" },
+      { id: "carried", when: knockedOut, line: "Aki: Somebody carried you in, and I missed it! I always miss the good stuff!" },
+      ...gavePiece("aki", (piece) => `Aki: That ${piece} I gave you still looks great on you! I keep checking. From over here. Constantly.`),
     ],
     small: [
       "Aki: I'm trying a new thing where I don't talk during kakari-geiko. It's going badly!",
@@ -168,6 +212,11 @@ export const PEOPLE: Record<string, Person> = {
       { id: "beat", when: beat("bo"), line: "Bo: Mm. You took down the wall. It's back up now." },
       { id: "heads", when: heads, line: "Bo: Mm. All five. Not bad." },
       { id: "broke", when: broke, line: "Bo: Mm. Empty purse. Sensei pays for helping out." },
+      { id: "dan", when: danAt(1), line: "Bo: Mm. A dan. Now people hit harder." },
+      { id: "kirikaeshi", when: kirikaeshiDone, line: "Bo: Mm. Your kirikaeshi. The left side's late. Less late." },
+      { id: "cup", when: cupsWon(1), line: "Bo: Mm. A cup. Polish it once. Then practise." },
+      { id: "carried", when: knockedOut, line: "Bo: Mm. You came in carried. Walk in next time." },
+      ...gavePiece("bo", (piece) => `Bo: Mm. The ${piece} I gave you. It looks after you. Look after it.`),
     ],
     small: [
       "Bo: Mm. Indigo runs. Wash your gi alone.",
@@ -190,6 +239,12 @@ export const PEOPLE: Record<string, Person> = {
       { id: "flawless", when: flawless, line: "Yui: You beat a dojo head without giving up a point. Your left foot was still late." },
       { id: "beat", when: beat("yui"), line: "Yui: You beat me fairly. I've gone over it nine times. Your second strike was the good one." },
       { id: "rich", when: rich, line: "Yui: You're carrying a lot of kensen. Keep your wits about you. If you get knocked out, half of it stays behind." },
+      { id: "champion", when: champion, line: "Yui: Grand Taikai champion. I've checked the results three times. They're correct." },
+      { id: "dan", when: danAt(1), line: "Yui: A dan. I read the panel's notes. They were generous about your left foot." },
+      { id: "cup", when: cupsWon(1), line: "Yui: You won a cup. I went through the bracket afterwards. You earned it, mostly." },
+      { id: "streets", when: streets(1), line: "Yui: I heard about the Alley Cats. The stories don't agree on how many. Well done, either way." },
+      { id: "carried", when: knockedOut, line: "Yui: You were carried in. I've started a list. Keep it short." },
+      ...gavePiece("yui", (piece) => `Yui: The ${piece} I gave you is tied correctly today. I check whenever you walk past.`),
     ],
     small: [
       "Yui: I've done 1,000 suburi today. Nine of them were correct.",
@@ -270,6 +325,9 @@ export const PEOPLE: Record<string, Person> = {
       { id: "often", when: lostOften("goose"), line: "Hana: You again? I'd feel bad, but I've been told not to. The goose has started saving you a seat." },
       { id: "lost", when: lostTo("goose"), line: "Hana: Sor- no. Good match. That's what I'm meant to say. Good match." },
       { id: "beat", when: beat("goose"), line: "Hana: You beat me, and the goose saw it. I have to walk past that goose every day now." },
+      { id: "sora", when: beatButNot("raccoon", "goose"), line: "Hana: Sora says you're good. Then Sora fell asleep saying it. So how good?" },
+      { id: "mika", when: beatButNot("goose", "heron"), line: "Hana: Mika came all this way to watch us, and never blinked. Not once. Good luck with that." },
+      { id: "mikaDown", when: beat("heron"), line: "Hana: You outwaited Mika? I can't even outwait a kettle." },
     ],
     small: [
       "Hana: I can't wait. I've tried. I lasted nine seconds once, and it was the worst nine seconds of my life.",
@@ -340,6 +398,7 @@ export const PEOPLE: Record<string, Person> = {
       { id: "owes", when: owesMoney, line: "Sora: Mm? Oh, your money. I put it somewhere. Beat me and I'll try to remember." },
       { id: "lost", when: lostTo("raccoon"), line: "Sora: Did we already fight? ...Did I win? Nice. Wake me up next time." },
       { id: "beat", when: beat("raccoon"), line: "Sora: You beat me? Huh. I thought I'd dreamed that. It was a pretty good dream." },
+      { id: "hana", when: beat("goose"), line: "Sora: You beat Hana too? I heard the honking from here. Or I dreamed it. Either way, nice." },
     ],
     small: [
       "Sora: The trick to napping standing up is your knees. Nobody teaches that part.",
@@ -395,6 +454,8 @@ export const PEOPLE: Record<string, Person> = {
       { id: "owes", when: owesMoney, line: "Mika: You've left some kensen here. I'm in no hurry. It'll wait for you." },
       { id: "lost", when: lostTo("heron"), line: "Mika: You moved first. It's all right. Everybody does." },
       { id: "beat", when: beat("heron"), line: "Mika: You waited longer than I did. I've been standing here thinking about that since you left." },
+      { id: "hana", when: beatButNot("goose", "heron"), line: "Mika: I watched you and Hana. You let Hana come to you. I won't come." },
+      { id: "kenji", when: beatButNot("heron", "otter"), line: "Mika: Kenji won't wait for you at the falls. Kenji has never waited for anything." },
     ],
     small: [
       "Mika: There was a moth on my men for all of last practice. We got along well.",
@@ -463,6 +524,8 @@ export const PEOPLE: Record<string, Person> = {
       { id: "often", when: lostOften("otter"), line: "Kenji: You keep coming back! I love that! Everyone else stays away! Again, again!" },
       { id: "lost", when: lostTo("otter"), line: "Kenji: That was so much fun! Are you all right? You look all right! Let's go again!" },
       { id: "beat", when: beat("otter"), line: "Kenji: You beat me! Nobody ever outlasts me! I'm going to go and stand in the rain and think about it!" },
+      { id: "mika", when: beatButNot("heron", "otter"), line: "Kenji: You outlasted Mika! I tried once! I lasted four seconds! Longest four seconds ever!" },
+      { id: "watcher", when: beatButNot("otter", "radish"), line: "Kenji: Someone from Thunder Radish came all the way here to watch you, and didn't even get wet! Who does that?" },
     ],
     small: [
       "Kenji: I did a thousand suburi this morning! In the rain! Then it stopped, so I went looking for more rain!",
@@ -515,7 +578,7 @@ export const PEOPLE: Record<string, Person> = {
     name: "Old Gen",
     news: [
       { id: "hurt", when: hurtNow, line: "Old Gen: You look worse than my hut. Did you eat something? Go and eat something." },
-      { id: "momo", when: (run) => run.momoBeaten, line: "Old Gen: So you got past that Momo. Good. They were the only one here who brought me soup." },
+      { id: "momo", when: (run) => run.momoBeaten, line: "Old Gen: So you got past Momo. Good. She's the only one of Kuma's lot who ever brings me soup." },
       { id: "ren", when: beat("radish"), line: "Old Gen: You beat Kuma's old floor-sweeper? Fifty years, and I'd like to have seen that." },
       { id: "champion", when: champion, line: "Old Gen: Champion, is it? Good. I've got a leak. Hold this." },
     ],

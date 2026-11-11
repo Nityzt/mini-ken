@@ -37,7 +37,7 @@ import { createTeachCards } from "./teach-card.ts";
 import { duelMoments, momentCard, teachOnce, tipCard, wasTaught } from "./teaching.ts";
 import { recordMatch } from "../world/tournament.ts";
 import { challengerHome, challengerWin, isChallenger } from "./challengers.ts";
-import { sparOutcome } from "./club-story.ts";
+import { sparLeft, sparOutcome } from "./club-story.ts";
 import { renPointOutcome } from "./visits.ts";
 import type { SenpaiId } from "./curriculum.ts";
 import { betHud, betLost, betWon, CALL_ENCHO, CALL_HAJIME, CALL_NIHONME, CALL_SHOBU, CALL_TIME, CALL_WAKARE, NEEDS_OPENING, STATUS_SHOWS_DO, STATUS_SHOWS_KOTE, STATUS_SHOWS_MEN, CHALLENGER_WALKED, CLOSING_LINE, CROSSED, LOCK_CALL, PARRIED, SHOVED, TSUBA_LABEL, FLINCH, FORFEIT_MATCH, GOT_YOU, GRADING_BOW, GRADING_WALKED, moodLine, RECOMMEND_BOW, RECOMMEND_WALKED, VERIFY_BOW, VERIFY_WALKED, KIAI_SHOUT, TAIKAI_LOST, MOMO_BEATEN, MOMO_CRUSHED, MOMO_KEEP_TRYING, MOMO_LOSE_NO_SEME, MOMO_LOSE_SEME, NO_STOMP, NO_ZANSHIN, REN_BOW_GAZE, REN_LATER, REN_POINT_NEXT, REN_POINT_TIP, SENPAI_LINES, STATUS_COUNTER, STATUS_HOLD, STATUS_OPEN, STATUS_PARRYING, STATUS_PULL, STATUS_PUSH, STATUS_STUMBLING, STATUS_STUNNED, STATUS_WIDE_OPEN, STOPPED_SHORT, ZANSHIN_PROMPT, CANT_GO_ON, HP_LABEL, hpLost, reclaimed, wornOutLine } from "./content.ts";
@@ -912,7 +912,9 @@ export function createDuelScene(): Scene {
       game.go(challengerHome(game.versus));
       game.versus = null;
     } else if (game.versus) {
-      game.message = [SENPAI_LINES[game.versus as SenpaiId].sparAgain];
+      const left = sparLeft(game.run, game.versus as SenpaiId, view.duel.winner === 1);
+      game.run = left.run;
+      game.message = left.lines;
       game.versus = null;
       game.go("club");
     } else if (facingMomo(game)) {

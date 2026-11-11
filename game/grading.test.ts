@@ -13,6 +13,7 @@ import { atLeastDan, hasLetter, personDan } from "./ranks.ts";
 import { senpaiMenu, senseiMenu } from "./scenes/club-story.ts";
 import { MENU_LETTER } from "./scenes/content.ts";
 import { speakerOf } from "./scenes/bubble.ts";
+import { opponentById } from "./world/dojos.ts";
 
 const start = createRunState();
 const ready: RunState = { ...start, linePasses: 3, waza: true, beaten: ["raccoon"] };
@@ -95,6 +96,16 @@ test("the exam is two parts in order: a demonstration, then a bout", () => {
   assert.equal(second.next, "tachiai");
   assert.equal(second.fight, gradingPartner(1));
   assert.notEqual(gradingPartner(1), gradingPartner(2));
+});
+
+test("before the bout, the examiner names the candidate you're actually paired with, at your rank", () => {
+  for (const dan of [1, 2, 3]) {
+    const holding: RunState = { ...ready, dan: dan - 1, ticket: dan, money: 500 };
+    const line = talkToPanel(holding, "tachiai").lines.join(" ");
+    assert.ok(line.includes(opponentById(gradingPartner(dan)).rival), line);
+    assert.ok(line.includes(`${rankLabel({ ...holding, dan })} too`), line);
+    assert.match(line, /Win it cleanly/);
+  }
 });
 
 test("failing the demonstration ends the attempt, and the ticket's still good", () => {

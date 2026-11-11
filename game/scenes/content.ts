@@ -18,6 +18,8 @@ export const DOOR_WELCOME = [
   "Nao: Walk with WASD or the arrow keys. Face someone and press E to talk.",
   "Nao: Senpai Momo will get you started. She's on the left side of the hall, and her name shows when you get close.",
 ];
+/** Nao, until you've met Momo. After that Nao has news and small talk of their own, in `chatter-lines.ts`. */
+export const NAO_POINTS_TO_MOMO = "Nao: Momo is on the left side of the hall. Walk up and press E to talk to her.";
 /** Nao has already said welcome and how to move, so Momo goes straight to what kendo is and how you get on here. */
 export const MOMO_WELCOME = [
   "Senpai Momo: You must be <name>, the new one! I'm Momo. I've been here longer than the paint.",
@@ -118,6 +120,10 @@ export const FUMI_OFFER = [
   "Fumi: Your first shinai of your own? There's a fine one on my shelf. It's good to swing, and it won't teach you a thing.",
   "Fumi: To fix your Sensei's, you have to know how they're made. Bring me bamboo from Ravine Trail, and I'll show you.",
 ];
+/** Fumi noticing what you've got on, or what's become of Sensei's old shinai. Each is said once. */
+export const FUMI_RETURNED = "Fumi: Your Sensei's old shinai is back on the rack, I hear. That's how bamboo gets to be old.";
+export const fumiOwnWork = (name: string) => `Fumi: The ${name.toLowerCase()}. One of mine. Bring it back when it creaks, and don't wait till it splits.`;
+export const fumiElsewhere = (name: string) => `Fumi: A ${name.toLowerCase()}? Not one of mine. Good work, though. I'd have tied it tighter.`;
 export const FUMI_WAITING = "Fumi: The fine one's on the shelf. Bring me bamboo from Ravine Trail, and I'll teach you to make and mend your own.";
 export const GEN_BAMBOO = [
   "Old Gen: Fumi sent you for bamboo? Hm. Not that one. Not that one. Four winters old, no younger.",
@@ -275,7 +281,7 @@ const BLOCK_THE_DO = "Tip dips? That's my do: hold S!";
 /** Each senpai's way of being, and their own take on each level's drill. */
 export const SENPAI_LINES = {
   aki: {
-    intro: "Aki: Practice? Yes! I talk a lot and I never stand still, so keep up!",
+    intro: "Aki: A challenge? Yes! I never stand still, so you can't either. Keep up!",
     chat: [
       "Aki: I forgot my tenugui once. My men smelled of regret for a week.",
       "Aki: There's an old bamboo screen in storage. I've always wondered what's behind it.",
@@ -287,10 +293,13 @@ export const SENPAI_LINES = {
       `Aki: Hands rising? Hold Q, then K and Space. ${NEEDS_FOLLOW} ${BLOCK_THE_DO}`,
     ],
     spar: "Aki: A real match? Yes! First to two, and I won't slow down.",
+    rematch: "Aki: Rematch! I've been practising! Mostly talking about practising. First to two!",
     sparWin: "Aki: You got me! I'm telling everyone. Everyone!",
+    winAgain: "Aki: Again?! Okay. This time I'm only telling half of everyone.",
+    firstLoss: "Aki: I won! I actually won! Sorry! I'm not sorry. Again whenever you like!",
     sparAgain: "Aki: Any time! I'll be here. Or there. Somewhere.",
     pass: "Aki: Whew, you kept up! Here, this one's yours.",
-    fail: "Aki: Too many misses! Come back and try again, any time. I'll be here. Or there. Somewhere.",
+    fail: "Aki: Too many misses! Catch your breath and come back. I'll still be moving.",
     given: (piece: string, others: string) => `Aki: I already gave you your ${piece}! Go and find ${others} for this one. Go, go!`,
   },
   bo: {
@@ -303,15 +312,18 @@ export const SENPAI_LINES = {
       `Bo: Hands rising? Hold Q, then K and Space. ${NEEDS_FOLLOW} ${BLOCK_THE_DO}`,
     ],
     spar: "Bo: Mm. A real match. First to two. I rarely swing.",
+    rematch: "Bo: Mm. Again. The wall's back up.",
     sparWin: "Bo: Mm. The wall came down.",
+    winAgain: "Bo: Mm. Down again. I'll build it higher.",
+    firstLoss: "Bo: Mm. The wall held. It won't always.",
     sparAgain: "Bo: Mm. Rest first.",
     pass: "Bo: Mm. You noticed. This is yours.",
     fail: "Bo: Mm. You hit the wall a lot. Rest, then come back.",
     given: (piece: string, others: string) => `Bo: Mm. You passed me for the ${piece}. ${others} next.`,
   },
   yui: {
-    intro: "Yui: I count every stomp. Every strike starts from far away, and I only allow one mistake.",
-    chat: ["Yui: Your left foot was late. Oh, you haven't started yet? Well, it will be."],
+    intro: "Yui: Three clean strikes, each from far away. I count every stomp, and I allow one mistake.",
+    chat: ["Yui: Your left foot was late. Oh, you haven't started yet? Well, it will be.", "Yui: Bow at the line, not near it. People think I don't notice."],
     seeSensei: "Yui: Acceptable. Sensei will want you now.",
     prompts: [
       `Yui: Slide into range, hold E, then J and Space, exactly. ${NEEDS_FOLLOW}`,
@@ -319,8 +331,11 @@ export const SENPAI_LINES = {
       `Yui: Hands rising? Hold Q, then K and Space. ${NEEDS_FOLLOW} ${BLOCK_THE_DO}`,
     ],
     spar: "Yui: A real match, first to two. I'm after your wrists.",
+    rematch: "Yui: Again. I've made notes on last time. First to two.",
     sparWin: "Yui: That was correct. I'll allow it.",
-    sparAgain: "Yui: We'll begin again when you're ready.",
+    winAgain: "Yui: Correct again. I've had to start a second page.",
+    firstLoss: "Yui: My match. I counted your openings before you did. Count faster.",
+    sparAgain: "Yui: Rest, then we'll go again. Mind your hands.",
     pass: "Yui: Clean. I have nothing to correct. This is yours.",
     fail: "Yui: That's two mistakes. We'll begin again when you're ready.",
     given: (piece: string, others: string) => `Yui: I've tested you once already, for the ${piece}. ${others} must test you this time.`,
@@ -554,6 +569,18 @@ export const REMATCH_LINES: Record<string, string> = {
   lantern: "Kiri: Back for the tide again? First to two. Rei!",
   bamboo: "Nori: Again, then. Let's see what you notice this time. Rei!",
 };
+/**
+ * What a head says when you come back after they've beaten you, in place of the first-meeting hello. The rules line
+ * after it stays the same. Ren isn't here: Ren's greetings have their own rules.
+ */
+export const BACK_AFTER_LOSS: Record<string, string> = {
+  raccoon: "Sora: Mm? You came back. I was hoping you'd forget. I'd forgotten.",
+  goose: "Hana: Back again! The goose has been watching the door. So have I.",
+  heron: "Mika: You came back. Good. Did you learn to wait?",
+  otter: "Kenji: You came back! Nobody comes back! This is the best day!",
+  lantern: "Kiri: The tide's turned since last time. Has your footwork? First to two. Rei!",
+  bamboo: "Nori: Back again. Let's see what you noticed this time. Rei!",
+};
 export const GAZE_ITEM_LINE = "You can see Ren's strikes coming, and their stare takes longer to shake you.";
 export const REN_POINT_TIP = "You flinched, and Ren barely moved.";
 export const REN_POINT_NEXT = "Ren lowers their shinai.";
@@ -635,6 +662,7 @@ export function allContentLines(): string[] {
     ...Object.values(GEAR_LINES),
     GI_LINE,
     ...MOMO_WELCOME,
+    NAO_POINTS_TO_MOMO,
     ...MOMO_AT_DOOR,
     ...MOMO_STORAGE_OPEN,
     ...GI_REMINDER,
@@ -671,6 +699,10 @@ export function allContentLines(): string[] {
     SENSEI_STILL_WAITING,
     ...FUMI_OFFER,
     FUMI_WAITING,
+    FUMI_RETURNED,
+    ...[1, 2, 3, 4].flatMap(tachiaiReady),
+    fumiOwnWork("Deerskin kote"),
+    fumiElsewhere("Blossom tare"),
     ...GEN_BAMBOO,
     ...FUMI_BUILD_START,
     ...SHINAI_STEPS.flatMap((step) => [step.question, step.wrong, ...step.options.map((option) => option.label)]),
@@ -718,7 +750,7 @@ export function allContentLines(): string[] {
     STORAGE_LOCKED,
     ...Object.values(DRILL_PRAISE),
     ...Object.values(LESSON_PROMPTS),
-    ...Object.values(SENPAI_LINES).flatMap((s) => [s.intro, ...s.chat, s.seeSensei, ...s.prompts, s.spar, s.sparWin, s.sparAgain, s.pass, s.fail, s.given("kote", eitherOf(["Aki", "Bo"]))]),
+    ...Object.values(SENPAI_LINES).flatMap((s) => [s.intro, ...s.chat, s.seeSensei, ...s.prompts, s.spar, s.rematch, s.sparWin, s.winAgain, s.firstLoss, s.sparAgain, s.pass, s.fail, s.given("kote", eitherOf(["Aki", "Bo"]))]),
     ...momoPractice(eitherOf(["Aki", "Bo", "Yui"])),
     ...MOMO_GUARD,
     ...MOMO_GUARD_SEME,
@@ -779,7 +811,7 @@ export function allContentLines(): string[] {
     ...RACCOON_ARRIVAL, ...NIKO_LINES, ...RIO_LINES, ...SORA_LINES, SORA_NAP_AGAIN, SORA_REMEMBERS, ...SORA_WIN_LINES,
     ...HERON_ARRIVAL, ...TEO_LINES, ...UMA_LINES, ...MIKA_LINES, ...MIKA_WIN_LINES,
     ...OTTER_ARRIVAL, ...VAL_LINES, ...WES_LINES, ...KENJI_LINES, ...KENJI_WIN_LINES,
-    TAIKAI_STEP_UP, TAIKAI_OUT, TAIKAI_CHAMPION, TAIKAI_CHAMPION_LINE, TAIKAI_CHAMPION_AGAIN, TAIKAI_LOST, TAIKAI_WITHDRAW, SEME_ITEM_LINE, CUP_ENTER, CUP_WON_BEFORE, cupNotice("Thunder Open", true), cupLeft("Grand Taikai"), cupWonLine("Thunder Open"), CHARACTER_TITLE, INSIGNIA_TITLE, INSIGNIA_NOTE, CHOOSE_TITLE, CHOOSE_HELP,
+    ...Object.values(BACK_AFTER_LOSS), TAIKAI_STEP_UP, TAIKAI_OUT, TAIKAI_CHAMPION, TAIKAI_CHAMPION_LINE, TAIKAI_CHAMPION_AGAIN, TAIKAI_LOST, TAIKAI_WITHDRAW, SEME_ITEM_LINE, CUP_ENTER, CUP_WON_BEFORE, cupNotice("Thunder Open", true), cupLeft("Grand Taikai"), cupWonLine("Thunder Open"), CHARACTER_TITLE, INSIGNIA_TITLE, INSIGNIA_NOTE, CHOOSE_TITLE, CHOOSE_HELP,
     TRAVELLING,
     NEXT_STOP,
     TOWER_FIRST,
@@ -1016,7 +1048,13 @@ export const KIHON_PASSED = ["Examiner Ono: Your feet and your hands arrived tog
 export const KIHON_FAILED = ["Examiner Ono: Not clean enough. Your ticket's still good, so come back up when you're ready."];
 export const KIHON_LEFT = "Examiner Ono: You stepped out. Your ticket's still good.";
 export const KIHON_TITLE = "Demonstration";
-export const TACHIAI_READY = ["Examiner Ono: Now one bout, against another candidate. Win it cleanly."];
+/** Who you're paired with at each rank, as Ono reads them off the list. */
+const CANDIDATE_NOTES: Record<number, string> = {
+  1: "Asa, here for 1st dan too. Steady, and a little nervous.",
+  2: "Ume, here for 2nd dan too. Ume can wait a long time.",
+  3: "Goro, here for 3rd dan too. Goro doesn't stop.",
+};
+export const tachiaiReady = (dan: number): string[] => [`Examiner Ono: Now one bout, against ${CANDIDATE_NOTES[dan] ?? "another candidate."} Win it cleanly.`];
 export const GRADING_FAILED = ["Examiner Ono: Not today. There's no shame in that, and most people fail a few. Your ticket's still good."];
 export const gradingPassed = (rank: string) => [`Examiner Ono: You've shown us enough, <name>. You're ${rank}. Your ride home is at the door.`];
 export const GRADING_DONE = ["Three dan is as far as anyone here can send you. Above that, you'd need a bigger table."];

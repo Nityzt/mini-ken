@@ -19,7 +19,7 @@ import { stepsTo } from "../world/routes.ts";
 import { benchJobs, durabilityOf, fixGear, type GearKey } from "../durability.ts";
 import { gearName } from "../items.ts";
 import { AUTO_LOST, AUTO_WALK, benchLabel, BENCH_BROWSE, BENCH_FIXED_FUMI, BENCH_FIXED_SELF, BENCH_TOO_DEAR, CHOOSE_HELP, CHOOSE_TITLE, FUMI_BUILD_DONE, GANG_STORIES, MAP_HELP, SHINAI_STEPS, TOWER_AGAIN, TOWER_FIRST } from "./content.ts";
-import { finishBuilding, genOnBamboo, shopArrival, stepIsRight } from "./shinai-story.ts";
+import { finishBuilding, fumiNotices, genOnBamboo, shopArrival, stepIsRight } from "./shinai-story.ts";
 import { openTopics } from "./chatter.ts";
 import { createMenu } from "./choice.ts";
 import { figureAt, type Figure } from "./bubble.ts";
@@ -281,7 +281,11 @@ export function createMapScene(nameOf: () => string): Scene {
         return;
       }
       const arrival = shopArrival(game.run);
-      if (!arrival) openBench(game);
+      const noticed = arrival ? null : fumiNotices(game.run);
+      if (noticed) {
+        game.run = noticed.run;
+        dialogue.open(noticed.lines, () => openBench(game), () => openBench(game));
+      } else if (!arrival) openBench(game);
       else dialogue.open(arrival.lines, () => {
         game.run = arrival.run;
         if (arrival.build) buildStep(game, 0);

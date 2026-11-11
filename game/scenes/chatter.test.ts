@@ -5,7 +5,8 @@ import { createRunState, type RunState } from "../run-state.ts";
 import { DOJOS } from "../world/dojos.ts";
 import { GANG_STORIES, DIALOGUE_LINES, DIALOGUE_WIDTH } from "./content.ts";
 import { AFTER_WINS, PEOPLE } from "./chatter-lines.ts";
-import { afterWinLines, allChatterLines, talkAbout, wakeUpLines } from "./chatter.ts";
+import { afterWinLines, allChatterLines, homecoming, pendingNews, talkAbout, wakeUpLines } from "./chatter.ts";
+import { newsFirst, talkToNao } from "./club-story.ts";
 
 const run = (over: Partial<RunState> = {}): RunState => ({ ...createRunState(), ...over });
 
@@ -105,4 +106,90 @@ test("waking up tells you what happened to your money, and gets less impressed",
   const second = wakeUpLines(first.run, 0, "Hana");
   assert.notEqual(first.lines[0], second.lines[0]);
   assert.match(second.lines.at(-1)!, /empty/);
+});
+
+// Lines that remember what's happened (owner, 2026-11-11).
+const newsFor = (state: RunState, who: string) => pendingNews(state, who)?.line ?? null;
+/** Everything someone has to say right now, in the order they'd say it. */
+const allNews = (state: RunState, who: string) => {
+  const said: string[] = [];
+  for (let next = pendingNews(state, who); next; next = pendingNews(next.run, who)) said.push(next.line);
+  return said;
+};
+
+test("on a fresh save nobody remembers anything that hasn't happened", () => {
+  for (const [who, person] of Object.entries(PEOPLE)) {
+    for (const item of person.news) {
+      // Sensei Kan always has something to say about your feet, and Bo about an empty purse, which a new save has.
+      if ((who === "kan" && item.id === "feet") || (who === "bo" && item.id === "broke")) continue;
+      assert.equal(item.when(run()), false, `${who}: ${item.line}`);
+    }
+  }
+});
+
+test("each senpai remembers the piece they gave you, and only that one", () => {
+  const gave = run({ money: 50, armorFrom: { do: "aki", men: "yui", kote: "bo" } });
+  assert.match(newsFor(gave, "aki")!, /^Aki: That do I gave you/);
+  assert.match(newsFor(gave, "yui")!, /^Yui: The men I gave you/);
+  assert.match(newsFor(gave, "bo")!, /^Bo: Mm\. The kote I gave you/);
+  // Nobody claims a piece someone else gave.
+  for (const who of ["aki", "bo", "yui"] as const) {
+    const other = who === "aki" ? "bo" : "aki";
+    assert.ok(!allNews(run({ armorFrom: { do: other, men: other, kote: other } }), who).some((line) => /gave you/.test(line)), who);
+  }
+});
+
+test("a line about one cup never plays once you've won three", () => {
+  for (const who of ["sensei", "momo"]) {
+    assert.match(newsFor(run({ cups: ["pinecone"] }), who)!, /A cup/);
+    assert.ok(!allNews(run({ cups: ["pinecone", "raccoon", "goose"] }), who).some((line) => /A cup[.!]/.test(line)), who);
+  }
+});
+
+test("being carried home is remembered only once it's happened", () => {
+  for (const who of ["sensei", "aki", "bo", "yui", "nao"]) {
+    assert.ok(!allNews(run(), who).some((line) => /carried|shoulder/.test(line)), who);
+    assert.ok(allNews(run({ talked: { wake: 1 } }), who).some((line) => /carried|shoulder/.test(line)), who);
+  }
+});
+
+test("each rival talks about the one before them until you've beaten them, and about the next one after", () => {
+  const afterSora = run({ beaten: ["raccoon"] });
+  assert.ok(allNews(afterSora, "goose").some((line) => /Sora says you're good/.test(line)));
+  assert.ok(!allNews(run({ beaten: ["raccoon", "goose"] }), "goose").some((line) => /Sora says/.test(line)));
+  assert.ok(allNews(run({ beaten: ["raccoon", "goose"] }), "raccoon").some((line) => /beat Hana too/.test(line)));
+  assert.ok(!allNews(afterSora, "raccoon").some((line) => /Hana/.test(line)));
+  assert.ok(allNews(run({ beaten: ["goose"] }), "heron").some((line) => /you and Hana/.test(line)));
+  assert.ok(!allNews(run({ beaten: ["goose", "heron"] }), "heron").some((line) => /you and Hana/.test(line)));
+  assert.ok(allNews(run({ beaten: ["heron"] }), "otter").some((line) => /outlasted Mika/.test(line)));
+  assert.ok(allNews(run({ beaten: ["otter"] }), "otter").some((line) => /Thunder Radish came all the way/.test(line)));
+  assert.ok(!allNews(run({ beaten: ["otter", "radish"] }), "otter").some((line) => /Thunder Radish came/.test(line)));
+});
+
+test("Nao sends you to Momo at first, then remembers, and says each thing once", () => {
+  assert.match(talkToNao(run()).lines[0], /Momo is on the left/);
+  const ranked = run({ metSenpai: true, gi: true, gear: { ...run().gear, tare: true, shinai: true } });
+  const first = talkToNao(ranked);
+  assert.match(first.lines[0], /A tare, and a rank/);
+  assert.ok(PEOPLE.nao.small.includes(talkToNao(first.run).lines[0]));
+  // Once you're armored, the tare is old news.
+  assert.doesNotMatch(talkToNao({ ...ranked, trained: true }).lines[0], /A tare/);
+});
+
+test("walking in off the road, Nao mentions what happened out there, once, and never anything from home", () => {
+  assert.equal(homecoming(run({ metSenpai: true, gear: { ...run().gear, tare: true }, beaten: ["aki"], kirikaeshiPasses: 3 })), null);
+  const cup = homecoming(run({ cups: ["raccoon"] }));
+  assert.match(cup!.line, /won a cup/);
+  assert.equal(homecoming(cup!.run), null);
+  // What Nao already said at the door isn't news when you walk over.
+  assert.ok(!allNews({ ...cup!.run, metSenpai: true }, "nao").some((line) => /won a cup/.test(line)));
+  assert.match(homecoming(run({ champion: true, cups: ["grand"] }))!.line, /Champion/);
+  assert.match(homecoming(run({ cleared: ["market"] }))!.line, /Alley Cats/);
+});
+
+test("news brought up at home isn't news again when you ask", () => {
+  const said = newsFirst(run({ dan: 1, money: 50 }), "bo");
+  assert.match(said.lines[0], /A dan/);
+  assert.doesNotMatch(talkAbout(said.run, "bo", "news").lines[0], /A dan/);
+  assert.deepEqual(newsFirst(run({ money: 50 }), "bo").lines, []);
 });
